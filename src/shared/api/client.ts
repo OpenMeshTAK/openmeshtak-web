@@ -7,8 +7,11 @@ import { ApiProblem } from "@/shared/errors/api-problem";
  * HttpOnly Better Auth session cookie is sent automatically; no token ever lives in JavaScript.
  */
 export const api = createClient<paths>({
-  baseUrl: "/api/v1",
+  // Absolute same-origin URL; equivalent to "/api/v1" in browsers and valid for Request in tests.
+  baseUrl: new URL("/api/v1", window.location.origin).href,
   credentials: "same-origin",
+  // Resolve fetch per call instead of capturing it at import time, so tests can replace it.
+  fetch: (request) => globalThis.fetch(request),
 });
 
 interface ApiResult<T> {

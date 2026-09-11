@@ -20,6 +20,8 @@ export default tseslint.config(
     rules: {
       // LOGGING.md: all diagnostics go through the sanitizing facade in src/shared/logging.
       "no-console": "error",
+      // TypeScript already resolves identifiers, including browser globals.
+      "no-undef": "off",
       "@typescript-eslint/consistent-type-imports": "error",
       // One-time secrets and user content must never be rendered as raw HTML.
       "vue/no-v-html": "error",
