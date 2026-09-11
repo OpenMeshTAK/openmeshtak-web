@@ -24,7 +24,7 @@ const routes: RouteRecordRaw[] = [
     path: "/",
     component: () => import("@/app/layouts/AppShell.vue"),
     children: [
-      { path: "", name: "home", component: () => import("@/app/layouts/PlaceholderView.vue") },
+      { path: "", name: "home", component: () => import("@/modules/dashboard/DashboardView.vue") },
     ],
   },
   { path: "/:pathMatch(.*)*", redirect: "/" },
@@ -55,4 +55,15 @@ router.beforeEach(async (to) => {
     return { name: "sign-in", query: { redirect: to.fullPath } };
   }
   return true;
+});
+
+/**
+ * After a deployment (or a Vite dependency re-optimization in development) old lazily loaded
+ * chunks disappear. Loading the target URL once more fetches the new build instead of leaving a
+ * blank page.
+ */
+router.onError((error: unknown, to) => {
+  if (error instanceof TypeError && error.message.includes("dynamically imported module")) {
+    window.location.assign(to.fullPath);
+  }
 });
