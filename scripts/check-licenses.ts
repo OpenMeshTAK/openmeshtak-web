@@ -1,0 +1,88 @@
+import { spawnSync } from "node:child_process";
+
+interface LicensePackage {
+  name: string;
+  versions: string[];
+}
+
+type LicenseReport = Record<string, LicensePackage[]>;
+
+const allowedLicenses = new Set([
+  "Apache-2.0",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "ISC",
+  "MIT",
+  "BlueOak-1.0.0",
+  "Unlicense",
+]);
+
+/**
+ * Exact versions reviewed on 2026-10-04. None of them is part of the browser bundle: they are
+ * build/test tooling or server-side code paths of better-auth and vue-router that Vite never
+ * imports. Any version change fails this check until it is reviewed again.
+ *
+ * - MIT-0 / CC0-1.0: public-domain-like CSS data used by jsdom and css parsing.
+ * - Python-2.0: argparse, used only by the openapi-typescript code generator.
+ * - MPL-2.0: lightningcss, an unmodified native CSS tool executed at build time only.
+ * - (MIT OR CC0-1.0): type-fest; OpenMeshTak relies on MIT.
+ */
+const reviewedExceptions = new Map<string, Set<string>>([
+  ["MIT-0", new Set(["@csstools/color-helpers@6.1.2", "@csstools/css-syntax-patches-for-csstree@1.1.15"])],
+  ["CC0-1.0", new Set(["mdn-data@2.27.1"])],
+  ["Python-2.0", new Set(["argparse@2.0.1"])],
+  ["MPL-2.0", new Set(["lightningcss@1.33.0", "lightningcss-win32-x64-msvc@1.33.0", "lightningcss-linux-x64-gnu@1.33.0"])],
+  ["(MIT OR CC0-1.0)", new Set(["type-fest@4.41.0"])],
+]);
+
+const pnpmCli = process.env.npm_execpath;
+
+if (pnpmCli === undefined) {
+  throw new Error("npm_execpath is unavailable; run this check through pnpm.");
+}
+
+const isJavaScriptCli = /\.(?:c|m)?js$/i.test(pnpmCli);
+const command = isJavaScriptCli ? process.execPath : pnpmCli;
+const arguments_ = isJavaScriptCli
+  ? [pnpmCli, "licenses", "list", "--json"]
+  : ["licenses", "list", "--json"];
+
+const result = spawnSync(command, arguments_, {
+  cwd: process.cwd(),
+  encoding: "utf8",
+});
+
+if (result.status !== 0) {
+  process.stderr.write(
+    `Unable to read the installed dependency licenses (status ${String(result.status)}): ${result.stderr}\n`,
+  );
+  process.exitCode = 1;
+} else {
+  const report = JSON.parse(result.stdout) as LicenseReport;
+  const blocked: string[] = [];
+
+  for (const [license, packages] of Object.entries(report)) {
+    if (allowedLicenses.has(license)) {
+      continue;
+    }
+
+    const exceptions = reviewedExceptions.get(license) ?? new Set<string>();
+
+    for (const dependency of packages) {
+      for (const version of dependency.versions) {
+        const packageVersion = `${dependency.name}@${version}`;
+
+        if (!exceptions.has(packageVersion)) {
+          blocked.push(`${packageVersion} (${license})`);
+        }
+      }
+    }
+  }
+
+  if (blocked.length > 0) {
+    process.stderr.write(`Blocked dependency licenses:\n${blocked.sort().join("\n")}\n`);
+    process.exitCode = 1;
+  } else {
+    process.stdout.write("Dependency licenses match the allowlist and reviewed exceptions.\n");
+  }
+}

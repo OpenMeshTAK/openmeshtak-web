@@ -1,0 +1,49 @@
+{
+  "name": "openmeshtak-web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "OpenMeshTak participant and administration web application",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0",
+    "pnpm": ">=10.12.0"
+  },
+  "packageManager": "pnpm@10.12.4",
+  "scripts": {
+    "api:generate": "openapi-typescript openapi/openapi.json --output src/generated/api/schema.d.ts",
+    "api:sync": "node scripts/sync-openapi.ts",
+    "build": "pnpm api:generate && vue-tsc --noEmit && vite build",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm license:check",
+    "dev": "vite",
+    "license:check": "node scripts/check-licenses.ts",
+    "lint": "eslint . --max-warnings 0",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "pnpm api:generate && vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@mdi/js": "7.4.47",
+    "better-auth": "1.7.7",
+    "openapi-fetch": "0.17.0",
+    "vue": "3.5.43",
+    "vue-router": "5.3.1",
+    "vuetify": "4.2.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "24.10.1",
+    "@vitejs/plugin-vue": "6.0.9",
+    "@vue/test-utils": "2.5.1",
+    "eslint": "10.12.0",
+    "eslint-plugin-vue": "10.11.1",
+    "jsdom": "30.1.2",
+    "openapi-typescript": "7.13.0",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.71.0",
+    "vite": "8.3.2",
+    "vite-plugin-vuetify": "2.1.3",
+    "vitest": "5.0.3",
+    "vue-tsc": "3.3.12"
+  }
+}
