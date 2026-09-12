@@ -1,59 +1,109 @@
 <script setup lang="ts">
-import { mdiDelete, mdiPlus } from "@mdi/js";
-import { permissionCatalog } from "@/shared/api/permissions";
-import type { Schemas } from "@/shared/api/types";
+import { mdiClose, mdiPlus } from "@mdi/js";
+import { computed, ref } from "vue";
+import type { Permission, Schemas } from "@/shared/api/types";
+import PermissionTree from "./PermissionTree.vue";
 
 type Grant = Schemas["PermissionGrantDto"];
 
-defineProps<{ events: { id: string; name: string }[]; disabled?: boolean }>();
+/**
+ * Edits Core's flat grant list as one permission tree per scope: an "All events" block plus one
+ * block per event the grants are limited to. Mixed scopes such as `users.read` everywhere and
+ * `members.sync` for one event therefore stay visible and editable.
+ */
+const props = defineProps<{ events: { id: string; name: string }[]; disabled?: boolean }>();
 const grants = defineModel<Grant[]>({ required: true });
 
-const INSTANCE = "__instance__";
+/** Event blocks the user added that have no grants yet. */
+const addedEventIds = ref<string[]>([]);
+const eventToAdd = ref<string | null>(null);
 
-function scopeOf(grant: Grant): string {
-  return grant.eventId ?? INSTANCE;
+const eventBlocks = computed(() => {
+  const ids = new Set([
+    ...grants.value.flatMap(({ eventId }) => (eventId === null ? [] : [eventId])),
+    ...addedEventIds.value,
+  ]);
+  return [...ids].map((id) => ({ id, name: props.events.find((event) => event.id === id)?.name ?? "Unknown event" }));
+});
+
+const addableEvents = computed(() =>
+  props.events.filter(({ id }) => !eventBlocks.value.some((block) => block.id === id)),
+);
+
+function permissionsFor(eventId: string | null): Permission[] {
+  return grants.value.filter((grant) => grant.eventId === eventId).map(({ permission }) => permission);
 }
 
-function setScope(index: number, scope: string): void {
-  const grant = grants.value[index];
-  if (grant !== undefined) {
-    grant.eventId = scope === INSTANCE ? null : scope;
+function setPermissions(eventId: string | null, permissions: Permission[]): void {
+  grants.value = [
+    ...grants.value.filter((grant) => grant.eventId !== eventId),
+    ...permissions.map((permission) => ({ permission, eventId })),
+  ];
+}
+
+function addEventBlock(): void {
+  if (eventToAdd.value !== null) {
+    addedEventIds.value.push(eventToAdd.value);
+    eventToAdd.value = null;
   }
 }
 
-function add(): void {
-  grants.value.push({ permission: "events.read", eventId: null });
-}
-
-function remove(index: number): void {
-  grants.value.splice(index, 1);
+function removeEventBlock(eventId: string): void {
+  addedEventIds.value = addedEventIds.value.filter((id) => id !== eventId);
+  setPermissions(eventId, []);
 }
 </script>
 
 <template>
   <div>
-    <div v-for="(grant, index) in grants" :key="index" class="d-flex flex-wrap align-center ga-3 mb-1">
-      <v-select
-        v-model="grant.permission"
-        :items="permissionCatalog"
-        label="Permission"
+    <v-card variant="outlined" class="px-3 py-2 mb-3">
+      <div class="text-subtitle-2">All events</div>
+      <div class="text-caption text-medium-emphasis mb-1">Applies to the whole installation and every event.</div>
+      <PermissionTree
+        :model-value="permissionsFor(null)"
+        :event-scoped="false"
         :disabled="disabled"
-        hide-details
-        style="min-width: 220px; flex: 1"
+        @update:model-value="setPermissions(null, $event)"
       />
+    </v-card>
+
+    <v-card v-for="block in eventBlocks" :key="block.id" variant="outlined" class="px-3 py-2 mb-3">
+      <div class="d-flex align-center">
+        <div class="flex-grow-1">
+          <div class="text-subtitle-2">{{ block.name }}</div>
+          <div class="text-caption text-medium-emphasis mb-1">Applies only to this event.</div>
+        </div>
+        <v-btn
+          v-if="!disabled"
+          :icon="mdiClose"
+          variant="text"
+          size="small"
+          :aria-label="`Remove permissions for ${block.name}`"
+          @click="removeEventBlock(block.id)"
+        />
+      </div>
+      <PermissionTree
+        :model-value="permissionsFor(block.id)"
+        event-scoped
+        :disabled="disabled"
+        @update:model-value="setPermissions(block.id, $event)"
+      />
+    </v-card>
+
+    <div v-if="!disabled && addableEvents.length > 0" class="d-flex ga-2 align-center">
       <v-select
-        :model-value="scopeOf(grant)"
-        :items="[{ id: INSTANCE, name: 'All events (instance-wide)' }, ...events]"
+        v-model="eventToAdd"
+        :items="addableEvents"
         item-title="name"
         item-value="id"
-        label="Scope"
-        :disabled="disabled"
+        label="Limit permissions to an event"
+        density="compact"
         hide-details
-        style="min-width: 220px; flex: 1"
-        @update:model-value="setScope(index, $event)"
+        style="max-width: 320px"
       />
-      <v-btn :icon="mdiDelete" variant="text" :disabled="disabled" aria-label="Remove permission" @click="remove(index)" />
+      <v-btn variant="tonal" :prepend-icon="mdiPlus" :disabled="eventToAdd === null" @click="addEventBlock">
+        Add event permissions
+      </v-btn>
     </div>
-    <v-btn v-if="!disabled" variant="text" :prepend-icon="mdiPlus" class="mt-2" @click="add">Add permission</v-btn>
   </div>
 </template>
