@@ -69,7 +69,7 @@ onMounted(load);
 </script>
 
 <template>
-  <v-container class="py-6">
+  <v-container fluid class="py-6 px-6">
     <PageHeader title="Service accounts" subtitle="Machine identities for bots and portals. They never act as a user.">
       <template #actions>
         <v-btn color="primary" :prepend-icon="mdiPlus" @click="openCreate">New service account</v-btn>

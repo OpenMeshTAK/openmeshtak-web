@@ -62,7 +62,7 @@ onMounted(load);
 </script>
 
 <template>
-  <v-container class="py-6">
+  <v-container fluid class="py-6 px-6">
     <PageHeader title="Events" subtitle="Create events as drafts, configure them, then activate.">
       <template #actions>
         <v-btn v-if="session.can('events.manage')" color="primary" :prepend-icon="mdiCalendarPlus" @click="openCreate">

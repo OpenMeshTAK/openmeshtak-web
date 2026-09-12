@@ -57,7 +57,7 @@ onMounted(load);
 </script>
 
 <template>
-  <v-container class="py-6" style="max-width: 960px">
+  <v-container fluid class="py-6 px-6">
     <v-select
       v-if="memberships.length > 1"
       :model-value="selectedEventId"
