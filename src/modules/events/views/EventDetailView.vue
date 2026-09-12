@@ -6,6 +6,8 @@ import PageHeader from "@/shared/components/PageHeader.vue";
 import { describeError, isApiProblem } from "@/shared/errors/api-problem";
 import { fieldErrors } from "@/shared/errors/field-errors";
 import { useSession } from "@/modules/auth/session";
+import EventGroupsPanel from "@/modules/event-groups/EventGroupsPanel.vue";
+import EventRolesPanel from "@/modules/event-roles/EventRolesPanel.vue";
 import EventLifecycleCard from "../components/EventLifecycleCard.vue";
 import EventSettingsForm from "../components/EventSettingsForm.vue";
 import EventStatusBadge from "../components/EventStatusBadge.vue";
@@ -98,6 +100,8 @@ onMounted(load);
 
       <v-tabs v-model="tab" class="mb-6" show-arrows>
         <v-tab value="overview">Overview</v-tab>
+        <v-tab value="roles">Roles</v-tab>
+        <v-tab value="groups">Groups</v-tab>
       </v-tabs>
 
       <v-window v-model="tab">
@@ -121,6 +125,12 @@ onMounted(load);
               <EventLifecycleCard :event="event" @changed="show" />
             </v-col>
           </v-row>
+        </v-window-item>
+        <v-window-item value="roles">
+          <EventRolesPanel :event-id="event.id" :editable="editable" />
+        </v-window-item>
+        <v-window-item value="groups">
+          <EventGroupsPanel :event-id="event.id" :editable="editable" />
         </v-window-item>
       </v-window>
     </template>
