@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { mdiPlus } from "@mdi/js";
-import { onMounted, ref } from "vue";
+import { onMounted, ref, toRaw } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import EmptyState from "@/shared/components/EmptyState.vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
@@ -58,7 +58,8 @@ async function load(): Promise<void> {
 function open(group: EventGroupDto | null): void {
   editing.value = group;
   form.value = { name: group?.name ?? "", slug: group?.slug ?? "", description: group?.description ?? "" };
-  provisioning.value = structuredClone(group?.provisioning ?? defaultProvisioning(""));
+  // `group` comes from reactive state and structuredClone cannot copy Vue proxies.
+  provisioning.value = structuredClone(group === null ? defaultProvisioning("") : toRaw(group).provisioning);
   formError.value = null;
   formFields.value = {};
   dialogOpen.value = true;
