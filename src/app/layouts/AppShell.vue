@@ -176,7 +176,7 @@ const themeAppearance = computed(
 }
 .app-main--rail {
   padding-left: 88px !important;
-  padding-top: 8px !important;
+  padding-top: 0 !important;
 }
 .app-main--bottom {
   padding-top: 0 !important;

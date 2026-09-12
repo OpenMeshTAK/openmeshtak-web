@@ -57,7 +57,7 @@ onMounted(load);
 </script>
 
 <template>
-  <v-container fluid class="py-6 px-6">
+  <v-container fluid class="pt-3 pb-6 px-6">
     <PageHeader title="User groups" subtitle="Authorization groups. They are unrelated to tactical event groups such as Bravo.">
       <template #actions>
         <v-btn

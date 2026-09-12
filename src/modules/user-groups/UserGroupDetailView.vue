@@ -140,7 +140,7 @@ onMounted(load);
 </script>
 
 <template>
-  <v-container fluid class="py-6 px-6">
+  <v-container fluid class="pt-3 pb-6 px-6">
     <v-skeleton-loader v-if="state === 'loading'" type="heading, article" />
     <ErrorState v-else-if="state === 'error' || group === null" :message="loadError" @retry="load" />
 

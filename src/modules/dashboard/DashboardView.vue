@@ -58,7 +58,7 @@ onMounted(load);
 </script>
 
 <template>
-  <v-container fluid class="py-6 px-6">
+  <v-container fluid class="pt-3 pb-6 px-6">
     <PageHeader
       :title="`Hello, ${session.state.principal?.name ?? ''}`"
       :subtitle="selected ? selected.eventName : 'Your OpenMeshTak overview'"
