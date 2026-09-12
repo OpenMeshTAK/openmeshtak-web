@@ -6,7 +6,7 @@ import EmptyState from "@/shared/components/EmptyState.vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
 import { describeError } from "@/shared/errors/api-problem";
 import { useSession } from "@/modules/auth/session";
-import ProfileSummary from "./components/ProfileSummary.vue";
+import ProfileSummary from "@/shared/components/ProfileSummary.vue";
 import ProvisioningActions from "./components/ProvisioningActions.vue";
 import { fetchMyMemberships, fetchProfile } from "./dashboard.api";
 

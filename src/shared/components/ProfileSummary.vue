@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Schemas } from "@/shared/api/types";
-import { takTeamSwatches } from "../tak-team-colors";
+import { takTeamSwatches } from "./tak-team-colors";
 
 defineProps<{ eventName: string; profile: Schemas["ResolvedProfileDto"] }>();
 </script>

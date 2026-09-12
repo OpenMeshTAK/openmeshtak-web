@@ -31,3 +31,7 @@ export function transitionEvent(eventId: string, transition: EventTransition, ve
   const path = `/events/{eventId}/${transition}` as const;
   return unwrap(api.POST(path, { params: { path: { eventId } }, body: { version } }));
 }
+
+export function publishConfiguration(eventId: string): Promise<Schemas["PublishConfigurationResponse"]> {
+  return unwrap(api.POST("/events/{eventId}/configuration-revisions", { params: { path: { eventId } } }));
+}

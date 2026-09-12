@@ -3,7 +3,12 @@ import { computed, ref } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import { describeError, isApiProblem, type ProblemFieldError } from "@/shared/errors/api-problem";
 import { useSession } from "@/modules/auth/session";
-import { transitionEvent, type EventDto, type EventTransition } from "../events.api";
+import {
+  publishConfiguration,
+  transitionEvent,
+  type EventDto,
+  type EventTransition,
+} from "../events.api";
 
 const props = defineProps<{ event: EventDto }>();
 const emit = defineEmits<{ changed: [event: EventDto] }>();
@@ -36,6 +41,26 @@ const dialog = computed(() => {
       return { title: "Reactivate this event?", confirm: "Reactivate", color: "primary" };
   }
 });
+
+const publishing = ref(false);
+const published = ref<string | null>(null);
+
+/** Group and role changes reach participants only after they are published as a new revision. */
+async function publish(): Promise<void> {
+  publishing.value = true;
+  error.value = null;
+  published.value = null;
+  try {
+    const result = await publishConfiguration(props.event.id);
+    published.value = result.created
+      ? `Published configuration revision ${String(result.revision.number)}.`
+      : `No changes since revision ${String(result.revision.number)}.`;
+  } catch (caught: unknown) {
+    error.value = describeError(caught);
+  } finally {
+    publishing.value = false;
+  }
+}
 
 async function run(): Promise<void> {
   if (pending.value === null) {
@@ -78,7 +103,14 @@ async function run(): Promise<void> {
         Participants can see this event and their profiles. Archiving makes it read-only and revokes
         open access links.
       </p>
-      <v-btn v-if="canManage" color="error" variant="outlined" @click="pending = 'archive'">Archive event…</v-btn>
+      <div class="d-flex flex-wrap ga-3">
+        <v-btn v-if="canManage" color="primary" :loading="publishing" @click="publish">Publish configuration</v-btn>
+        <v-btn v-if="canManage" color="error" variant="outlined" @click="pending = 'archive'">Archive event…</v-btn>
+      </div>
+      <p class="text-caption text-medium-emphasis mt-2 mb-0">
+        Changes to roles and groups reach participants once you publish them.
+      </p>
+      <v-alert v-if="published" type="success" class="mt-4">{{ published }}</v-alert>
     </template>
 
     <template v-else>
