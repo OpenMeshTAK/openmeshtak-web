@@ -34,14 +34,14 @@ describe("useSubmission", () => {
         }),
       ),
     );
-    expect(ok).toBe(false);
+    expect(ok).toBeNull();
     expect(fields.value).toEqual({ slug: "Bad slug." });
     expect(error.value).toBe("One or more fields are invalid.");
   });
 
   it("reports success", async () => {
     const { run, submitting } = useSubmission();
-    expect(await run(() => Promise.resolve())).toBe(true);
+    expect(await run(() => Promise.resolve(7))).toEqual({ value: 7 });
     expect(submitting.value).toBe(false);
   });
 });

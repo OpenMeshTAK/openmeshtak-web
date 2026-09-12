@@ -48,7 +48,7 @@ async function save(): Promise<void> {
       }),
     );
   });
-  notice.value = saved
+  notice.value = saved !== null
     ? { type: "success", text: "Saved. Changes apply to all keys immediately." }
     : { type: "error", text: saving.error.value ?? "" };
 }

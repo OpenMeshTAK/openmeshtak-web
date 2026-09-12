@@ -5,7 +5,7 @@ import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import OneTimeCredentialReveal from "@/shared/components/OneTimeCredentialReveal.vue";
 import { useAsyncData } from "@/shared/composables/useAsyncData";
 import { useSubmission } from "@/shared/composables/useSubmission";
-import { describeError, isApiProblem } from "@/shared/errors/api-problem";
+import { describeError } from "@/shared/errors/api-problem";
 import ReauthenticateDialog from "@/modules/auth/ReauthenticateDialog.vue";
 import { createApiKey, listApiKeys, revokeApiKey, type ApiKeyDto } from "../service-accounts.api";
 
@@ -37,22 +37,14 @@ function closeDialog(): void {
 }
 
 async function create(): Promise<void> {
-  let needsReauthentication = false;
-  await creation.run(async () => {
-    try {
-      revealedKey.value = (await createApiKey(props.serviceAccountId, { name: keyName.value })).key;
-    } catch (caught: unknown) {
-      // Core asks for a recent sign-in before minting credentials; confirm and retry.
-      if (isApiProblem(caught, "RECENT_AUTHENTICATION_REQUIRED")) {
-        needsReauthentication = true;
-        return;
-      }
-      throw caught;
-    }
-  });
-  reauthOpen.value = needsReauthentication;
-  if (revealedKey.value !== null) {
+  const created = await creation.run(() => createApiKey(props.serviceAccountId, { name: keyName.value }));
+  if (created !== null) {
+    revealedKey.value = created.value.key;
     await keys.load();
+  } else if (creation.code.value === "RECENT_AUTHENTICATION_REQUIRED") {
+    // Core asks for a recent sign-in before minting credentials; confirm, then retry.
+    creation.reset();
+    reauthOpen.value = true;
   }
 }
 
