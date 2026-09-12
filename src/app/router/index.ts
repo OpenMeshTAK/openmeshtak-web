@@ -37,6 +37,16 @@ const routes: RouteRecordRaw[] = [
         component: () => import("@/modules/events/views/EventListView.vue"),
       },
       {
+        path: "admin/service-accounts",
+        name: "service-accounts",
+        component: () => import("@/modules/service-accounts/ServiceAccountListView.vue"),
+      },
+      {
+        path: "admin/service-accounts/:serviceAccountId",
+        name: "service-account-detail",
+        component: () => import("@/modules/service-accounts/ServiceAccountDetailView.vue"),
+      },
+      {
         path: "admin/events/:eventId",
         name: "event-detail",
         component: () => import("@/modules/events/views/EventDetailView.vue"),
