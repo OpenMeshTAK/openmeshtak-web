@@ -1,0 +1,128 @@
+<script setup lang="ts">
+import { computed, onMounted, ref, watch } from "vue";
+import { useRoute } from "vue-router";
+import ErrorState from "@/shared/components/ErrorState.vue";
+import PageHeader from "@/shared/components/PageHeader.vue";
+import { describeError, isApiProblem } from "@/shared/errors/api-problem";
+import { fieldErrors } from "@/shared/errors/field-errors";
+import { useSession } from "@/modules/auth/session";
+import EventLifecycleCard from "../components/EventLifecycleCard.vue";
+import EventSettingsForm from "../components/EventSettingsForm.vue";
+import EventStatusBadge from "../components/EventStatusBadge.vue";
+import { emptySettings, settingsFromEvent, settingsToRequest } from "../event-settings";
+import { getEvent, updateEvent, type EventDto } from "../events.api";
+
+const route = useRoute();
+const session = useSession();
+const eventId = computed(() => String(route.params.eventId));
+
+const event = ref<EventDto | null>(null);
+const settings = ref(emptySettings());
+const state = ref<"loading" | "ready" | "error">("loading");
+const loadError = ref("");
+const tab = ref("overview");
+
+const saving = ref(false);
+const saveError = ref<string | null>(null);
+const conflict = ref(false);
+const saveFields = ref<Record<string, string>>({});
+const saved = ref(false);
+
+const editable = computed(
+  () =>
+    event.value !== null &&
+    event.value.status !== "archived" &&
+    session.can("events.manage", event.value.id),
+);
+
+function show(loaded: EventDto): void {
+  event.value = loaded;
+  settings.value = settingsFromEvent(loaded);
+}
+
+async function load(): Promise<void> {
+  state.value = "loading";
+  saveError.value = null;
+  conflict.value = false;
+  try {
+    show(await getEvent(eventId.value));
+    state.value = "ready";
+  } catch (caught: unknown) {
+    loadError.value =
+      isApiProblem(caught) && caught.status === 404 ? "This event does not exist." : describeError(caught);
+    state.value = "error";
+  }
+}
+
+async function save(): Promise<void> {
+  if (event.value === null) {
+    return;
+  }
+  saving.value = true;
+  saveError.value = null;
+  conflict.value = false;
+  saveFields.value = {};
+  saved.value = false;
+  try {
+    show(
+      await updateEvent(event.value.id, {
+        version: event.value.version,
+        ...settingsToRequest(settings.value),
+      }),
+    );
+    saved.value = true;
+  } catch (caught: unknown) {
+    saveFields.value = fieldErrors(caught);
+    conflict.value = isApiProblem(caught, "VERSION_CONFLICT");
+    saveError.value = conflict.value
+      ? "Someone else changed this event. Reload to see their changes before saving again."
+      : describeError(caught);
+  } finally {
+    saving.value = false;
+  }
+}
+
+watch(eventId, load);
+onMounted(load);
+</script>
+
+<template>
+  <v-container class="py-6">
+    <v-skeleton-loader v-if="state === 'loading'" type="heading, article" />
+    <ErrorState v-else-if="state === 'error' || event === null" :message="loadError" @retry="load" />
+
+    <template v-else>
+      <PageHeader :title="event.name" :subtitle="`${event.slug} · ${event.timeZone}`">
+        <template #actions><EventStatusBadge :status="event.status" /></template>
+      </PageHeader>
+
+      <v-tabs v-model="tab" class="mb-6" show-arrows>
+        <v-tab value="overview">Overview</v-tab>
+      </v-tabs>
+
+      <v-window v-model="tab">
+        <v-window-item value="overview">
+          <v-row>
+            <v-col cols="12" md="7">
+              <v-card class="pa-5">
+                <div class="text-subtitle-1 font-weight-medium mb-4">Settings</div>
+                <v-alert v-if="saveError" type="error" class="mb-4">
+                  {{ saveError }}
+                  <v-btn v-if="conflict" size="small" variant="outlined" class="ml-2" @click="load">Reload</v-btn>
+                </v-alert>
+                <v-alert v-if="saved" type="success" class="mb-4">Saved.</v-alert>
+                <EventSettingsForm v-model="settings" :errors="saveFields" :disabled="!editable" />
+                <v-btn v-if="editable" color="primary" class="mt-2" :loading="saving" @click="save">
+                  Save changes
+                </v-btn>
+              </v-card>
+            </v-col>
+            <v-col cols="12" md="5">
+              <EventLifecycleCard :event="event" @changed="show" />
+            </v-col>
+          </v-row>
+        </v-window-item>
+      </v-window>
+    </template>
+  </v-container>
+</template>

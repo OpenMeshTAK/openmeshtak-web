@@ -25,6 +25,16 @@ const routes: RouteRecordRaw[] = [
     component: () => import("@/app/layouts/AppShell.vue"),
     children: [
       { path: "", name: "home", component: () => import("@/modules/dashboard/DashboardView.vue") },
+      {
+        path: "admin/events",
+        name: "events",
+        component: () => import("@/modules/events/views/EventListView.vue"),
+      },
+      {
+        path: "admin/events/:eventId",
+        name: "event-detail",
+        component: () => import("@/modules/events/views/EventDetailView.vue"),
+      },
     ],
   },
   { path: "/:pathMatch(.*)*", redirect: "/" },
