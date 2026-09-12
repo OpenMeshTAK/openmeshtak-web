@@ -7,7 +7,7 @@ defineProps<{ title: string; subtitle?: string }>();
  * The app shell provides its account menu so every page shows it in the same row as the page
  * actions. Injecting keeps `shared` independent of product modules.
  */
-const accountMenu = inject<Component | null>("page-header-account", null);
+const profileMenu = inject<Component | null>("view-header-profile", null);
 </script>
 
 <template>
@@ -19,7 +19,7 @@ const accountMenu = inject<Component | null>("page-header-account", null);
     <div class="d-flex align-center flex-wrap justify-end ga-2">
       <slot name="actions" />
     </div>
-    <component :is="accountMenu" v-if="accountMenu" />
+    <component :is="profileMenu" v-if="profileMenu" />
   </div>
 </template>
 

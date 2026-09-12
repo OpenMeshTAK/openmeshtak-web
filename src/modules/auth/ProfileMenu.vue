@@ -3,13 +3,12 @@ import { mdiLogout } from "@mdi/js";
 import { computed } from "vue";
 import { useRouter } from "vue-router";
 import { useDisplay } from "vuetify";
-import { useThemePreference } from "@/shared/composables/useThemePreference";
+import ThemeToggle from "@/shared/components/ThemeToggle.vue";
 import { useSession } from "./session";
 
 const session = useSession();
 const router = useRouter();
 const { smAndUp } = useDisplay();
-const theme = useThemePreference();
 
 const initials = computed(() =>
   (session.state.principal?.name ?? "?")
@@ -42,7 +41,7 @@ async function signOut(): Promise<void> {
       </div>
       <v-divider />
       <v-list density="compact" nav class="pa-0 pt-2">
-        <v-list-item v-if="!smAndUp" title="Switch theme" @click="theme.cycle" />
+        <ThemeToggle v-if="!smAndUp" list />
         <v-list-item :prepend-icon="mdiLogout" title="Sign out" @click="signOut" />
       </v-list>
     </v-card>

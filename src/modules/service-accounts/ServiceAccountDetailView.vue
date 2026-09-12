@@ -6,7 +6,7 @@ import type { Schemas } from "@/shared/api/types";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
 import OneTimeCredentialReveal from "@/shared/components/OneTimeCredentialReveal.vue";
-import PageHeader from "@/shared/components/PageHeader.vue";
+import ViewHeader from "@/shared/components/layout/ViewHeader.vue";
 import PermissionGrantEditor from "@/shared/components/PermissionGrantEditor.vue";
 import { describeError, isApiProblem } from "@/shared/errors/api-problem";
 import ReauthenticateDialog from "@/modules/auth/ReauthenticateDialog.vue";
@@ -148,13 +148,13 @@ onMounted(load);
     <ErrorState v-else-if="state === 'error' || account === null" :message="loadError" @retry="load" />
 
     <template v-else>
-      <PageHeader :title="account.name" subtitle="Service account">
+      <ViewHeader :title="account.name" subtitle="Service account">
         <template #actions>
           <v-chip :color="account.status === 'active' ? 'success' : 'secondary'" size="small" variant="tonal" label>
             {{ account.status === "active" ? "Active" : "Disabled" }}
           </v-chip>
         </template>
-      </PageHeader>
+      </ViewHeader>
 
       <v-alert v-if="notice" :type="notice.type" closable class="mb-4" @click:close="notice = null">
         {{ notice.text }}

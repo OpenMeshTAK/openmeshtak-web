@@ -4,7 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 import type { Schemas } from "@/shared/api/types";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
-import PageHeader from "@/shared/components/PageHeader.vue";
+import ViewHeader from "@/shared/components/layout/ViewHeader.vue";
 import PermissionGrantEditor from "@/shared/components/PermissionGrantEditor.vue";
 import { describeError, isApiProblem } from "@/shared/errors/api-problem";
 import { useSession } from "@/modules/auth/session";
@@ -145,13 +145,13 @@ onMounted(load);
     <ErrorState v-else-if="state === 'error' || group === null" :message="loadError" @retry="load" />
 
     <template v-else>
-      <PageHeader :title="group.name" :subtitle="group.system ? 'Protected system group' : 'User group'">
+      <ViewHeader :title="group.name" :subtitle="group.system ? 'Protected system group' : 'User group'">
         <template #actions>
           <v-btn v-if="canManage && !group.system" color="error" variant="outlined" @click="confirmDelete = true">
             Delete group…
           </v-btn>
         </template>
-      </PageHeader>
+      </ViewHeader>
 
       <v-alert v-if="notice" :type="notice.type" closable class="mb-4" @click:close="notice = null">
         {{ notice.text }}

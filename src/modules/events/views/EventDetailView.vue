@@ -2,7 +2,7 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import ErrorState from "@/shared/components/ErrorState.vue";
-import PageHeader from "@/shared/components/PageHeader.vue";
+import ViewHeader from "@/shared/components/layout/ViewHeader.vue";
 import { describeError, isApiProblem } from "@/shared/errors/api-problem";
 import { fieldErrors } from "@/shared/errors/field-errors";
 import { useSession } from "@/modules/auth/session";
@@ -96,9 +96,9 @@ onMounted(load);
     <ErrorState v-else-if="state === 'error' || event === null" :message="loadError" @retry="load" />
 
     <template v-else>
-      <PageHeader :title="event.name" :subtitle="`${event.slug} · ${event.timeZone}`">
+      <ViewHeader :title="event.name" :subtitle="`${event.slug} · ${event.timeZone}`">
         <template #actions><EventStatusBadge :status="event.status" /></template>
-      </PageHeader>
+      </ViewHeader>
 
       <v-tabs v-model="tab" class="mb-6" show-arrows>
         <v-tab value="overview">Overview</v-tab>

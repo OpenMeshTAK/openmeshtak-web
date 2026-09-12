@@ -5,7 +5,7 @@ import { useRouter } from "vue-router";
 import type { Schemas } from "@/shared/api/types";
 import EmptyState from "@/shared/components/EmptyState.vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
-import PageHeader from "@/shared/components/PageHeader.vue";
+import ViewHeader from "@/shared/components/layout/ViewHeader.vue";
 import PermissionGrantEditor from "@/shared/components/PermissionGrantEditor.vue";
 import { describeError } from "@/shared/errors/api-problem";
 import { fieldErrors, messagesFor } from "@/shared/errors/field-errors";
@@ -70,11 +70,11 @@ onMounted(load);
 
 <template>
   <v-container fluid class="pt-3 pb-6 px-6">
-    <PageHeader title="Service accounts" subtitle="Machine identities for bots and portals. They never act as a user.">
+    <ViewHeader title="Service accounts" subtitle="Machine identities for bots and portals. They never act as a user.">
       <template #actions>
         <v-btn color="primary" :prepend-icon="mdiPlus" @click="openCreate">New service account</v-btn>
       </template>
-    </PageHeader>
+    </ViewHeader>
 
     <v-skeleton-loader v-if="state === 'loading'" type="table" />
     <ErrorState v-else-if="state === 'error'" :message="loadError" @retry="load" />

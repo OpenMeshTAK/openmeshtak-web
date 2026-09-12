@@ -4,7 +4,7 @@ import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import EmptyState from "@/shared/components/EmptyState.vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
-import PageHeader from "@/shared/components/PageHeader.vue";
+import ViewHeader from "@/shared/components/layout/ViewHeader.vue";
 import { describeError } from "@/shared/errors/api-problem";
 import { fieldErrors, messagesFor } from "@/shared/errors/field-errors";
 import { useSession } from "@/modules/auth/session";
@@ -58,7 +58,7 @@ onMounted(load);
 
 <template>
   <v-container fluid class="pt-3 pb-6 px-6">
-    <PageHeader title="User groups" subtitle="Authorization groups. They are unrelated to tactical event groups such as Bravo.">
+    <ViewHeader title="User groups" subtitle="Authorization groups. They are unrelated to tactical event groups such as Bravo.">
       <template #actions>
         <v-btn
           v-if="session.can('user-groups.manage')"
@@ -74,7 +74,7 @@ onMounted(load);
           New user group
         </v-btn>
       </template>
-    </PageHeader>
+    </ViewHeader>
 
     <v-skeleton-loader v-if="state === 'loading'" type="table" />
     <ErrorState v-else-if="state === 'error'" :message="loadError" @retry="load" />

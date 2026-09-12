@@ -4,7 +4,7 @@ import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import EmptyState from "@/shared/components/EmptyState.vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
-import PageHeader from "@/shared/components/PageHeader.vue";
+import ViewHeader from "@/shared/components/layout/ViewHeader.vue";
 import { describeError } from "@/shared/errors/api-problem";
 import { fieldErrors } from "@/shared/errors/field-errors";
 import { useSession } from "@/modules/auth/session";
@@ -63,13 +63,13 @@ onMounted(load);
 
 <template>
   <v-container fluid class="pt-3 pb-6 px-6">
-    <PageHeader title="Events" subtitle="Create events as drafts, configure them, then activate.">
+    <ViewHeader title="Events" subtitle="Create events as drafts, configure them, then activate.">
       <template #actions>
         <v-btn v-if="session.can('events.manage')" color="primary" :prepend-icon="mdiCalendarPlus" @click="openCreate">
           New event
         </v-btn>
       </template>
-    </PageHeader>
+    </ViewHeader>
 
     <v-skeleton-loader v-if="state === 'loading'" type="table" />
     <ErrorState v-else-if="state === 'error'" :message="error" @retry="load" />

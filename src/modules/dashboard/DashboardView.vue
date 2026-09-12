@@ -4,7 +4,7 @@ import { computed, onMounted, ref } from "vue";
 import type { Schemas } from "@/shared/api/types";
 import EmptyState from "@/shared/components/EmptyState.vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
-import PageHeader from "@/shared/components/PageHeader.vue";
+import ViewHeader from "@/shared/components/layout/ViewHeader.vue";
 import { describeError } from "@/shared/errors/api-problem";
 import { useSession } from "@/modules/auth/session";
 import ProfileSummary from "@/shared/components/ProfileSummary.vue";
@@ -59,7 +59,7 @@ onMounted(load);
 
 <template>
   <v-container fluid class="pt-3 pb-6 px-6">
-    <PageHeader
+    <ViewHeader
       :title="`Hello, ${session.state.principal?.name ?? ''}`"
       :subtitle="selected ? selected.eventName : 'Your OpenMeshTak overview'"
     >
@@ -77,7 +77,7 @@ onMounted(load);
           @update:model-value="selectEvent"
         />
       </template>
-    </PageHeader>
+    </ViewHeader>
 
     <v-row v-if="state === 'loading'">
       <v-col cols="12" md="7"><v-skeleton-loader type="article" /></v-col>
