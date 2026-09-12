@@ -1,6 +1,7 @@
 import { createVuetify } from "vuetify";
 import { aliases, mdi } from "vuetify/iconsets/mdi-svg";
 import "vuetify/styles";
+import { readThemePreference } from "@/shared/composables/useThemePreference";
 
 /**
  * One OpenMeshTak theme with semantic colors (DESIGN.md). TAK team colors are event data and must
@@ -9,7 +10,7 @@ import "vuetify/styles";
 export const vuetify = createVuetify({
   icons: { defaultSet: "mdi", aliases, sets: { mdi } },
   theme: {
-    defaultTheme: "system",
+    defaultTheme: readThemePreference(),
     themes: {
       light: {
         dark: false,
@@ -41,7 +42,7 @@ export const vuetify = createVuetify({
   },
   defaults: {
     VBtn: { rounded: "lg", variant: "flat" },
-    VCard: { rounded: "lg", variant: "flat", border: true },
+    VCard: { rounded: "xl", variant: "flat", border: true },
     VTextField: { variant: "outlined", density: "comfortable", color: "primary" },
     VSelect: { variant: "outlined", density: "comfortable", color: "primary" },
     VTextarea: { variant: "outlined", density: "comfortable", color: "primary" },
