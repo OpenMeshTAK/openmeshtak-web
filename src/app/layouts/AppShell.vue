@@ -3,22 +3,20 @@ import {
   mdiAccountGroup,
   mdiCalendarMultiple,
   mdiKeyChain,
-  mdiLogout,
   mdiThemeLightDark,
   mdiViewDashboard,
   mdiWeatherNight,
   mdiWhiteBalanceSunny,
 } from "@mdi/js";
-import { computed } from "vue";
-import { useRouter } from "vue-router";
+import { computed, provide } from "vue";
 import { useDisplay } from "vuetify";
 import type { Permission } from "@/shared/api/types";
 import AppLogo from "@/shared/components/AppLogo.vue";
 import { useThemePreference } from "@/shared/composables/useThemePreference";
+import AccountMenu from "@/modules/auth/AccountMenu.vue";
 import { useSession } from "@/modules/auth/session";
 
 const session = useSession();
-const router = useRouter();
 const { smAndUp } = useDisplay();
 const theme = useThemePreference();
 
@@ -42,6 +40,9 @@ const items: NavigationItem[] = [
   },
 ];
 
+// Page headers render the account menu in their action row.
+provide("page-header-account", AccountMenu);
+
 const visibleItems = computed(() =>
   items.filter((item) => item.permission === undefined || session.can(item.permission)),
 );
@@ -55,19 +56,6 @@ const themeAppearance = computed(
     })[theme.preference.value],
 );
 
-const initials = computed(() =>
-  (session.state.principal?.name ?? "?")
-    .split(/\s+/)
-    .map((part) => part.charAt(0))
-    .join("")
-    .slice(0, 2)
-    .toUpperCase(),
-);
-
-async function signOut(): Promise<void> {
-  await session.signOut();
-  await router.replace({ name: "sign-in" });
-}
 </script>
 
 <template>
@@ -129,30 +117,6 @@ async function signOut(): Promise<void> {
     />
   </nav>
 
-  <!-- User menu, floating top right. -->
-  <div class="app-user">
-    <v-menu location="bottom end" offset="8">
-      <template #activator="{ props: menu }">
-        <v-btn v-bind="menu" icon variant="flat" class="app-user__button" aria-label="Account menu">
-          <v-avatar color="primary" size="36">
-            <span class="text-body-2 font-weight-bold">{{ initials }}</span>
-          </v-avatar>
-        </v-btn>
-      </template>
-      <v-card min-width="240" class="pa-2">
-        <div class="px-3 pt-2 pb-3">
-          <div class="text-subtitle-2 text-truncate">{{ session.state.principal?.name }}</div>
-          <div class="text-caption text-medium-emphasis">Signed in</div>
-        </div>
-        <v-divider />
-        <v-list density="compact" nav class="pa-0 pt-2">
-          <v-list-item v-if="!smAndUp" :prepend-icon="themeAppearance.icon" :title="themeAppearance.label" @click="theme.cycle" />
-          <v-list-item :prepend-icon="mdiLogout" title="Sign out" @click="signOut" />
-        </v-list>
-      </v-card>
-    </v-menu>
-  </div>
-
   <v-main class="app-main" :class="smAndUp ? 'app-main--rail' : 'app-main--bottom'">
     <router-view />
   </v-main>
@@ -210,21 +174,12 @@ async function signOut(): Promise<void> {
   border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
 }
-.app-user {
-  position: fixed;
-  z-index: 1005;
-  top: calc(12px + env(safe-area-inset-top));
-  right: 16px;
-}
-.app-user__button {
-  background: transparent;
-}
 .app-main--rail {
   padding-left: 88px !important;
   padding-top: 8px !important;
 }
 .app-main--bottom {
-  padding-top: 56px !important;
+  padding-top: 0 !important;
   padding-bottom: 96px !important;
 }
 </style>

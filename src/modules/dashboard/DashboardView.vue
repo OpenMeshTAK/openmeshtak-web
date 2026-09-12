@@ -4,6 +4,7 @@ import { computed, onMounted, ref } from "vue";
 import type { Schemas } from "@/shared/api/types";
 import EmptyState from "@/shared/components/EmptyState.vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
+import PageHeader from "@/shared/components/PageHeader.vue";
 import { describeError } from "@/shared/errors/api-problem";
 import { useSession } from "@/modules/auth/session";
 import ProfileSummary from "@/shared/components/ProfileSummary.vue";
@@ -58,17 +59,25 @@ onMounted(load);
 
 <template>
   <v-container fluid class="py-6 px-6">
-    <v-select
-      v-if="memberships.length > 1"
-      :model-value="selectedEventId"
-      :items="memberships"
-      item-title="eventName"
-      item-value="eventId"
-      label="Event"
-      class="mb-2"
-      style="max-width: 360px"
-      @update:model-value="selectEvent"
-    />
+    <PageHeader
+      :title="`Hello, ${session.state.principal?.name ?? ''}`"
+      :subtitle="selected ? selected.eventName : 'Your OpenMeshTak overview'"
+    >
+      <template #actions>
+        <v-select
+          v-if="memberships.length > 1"
+          :model-value="selectedEventId"
+          :items="memberships"
+          item-title="eventName"
+          item-value="eventId"
+          label="Event"
+          density="compact"
+          hide-details
+          style="min-width: 220px"
+          @update:model-value="selectEvent"
+        />
+      </template>
+    </PageHeader>
 
     <v-row v-if="state === 'loading'">
       <v-col cols="12" md="7"><v-skeleton-loader type="article" /></v-col>
