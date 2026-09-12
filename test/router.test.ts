@@ -8,6 +8,8 @@ describe("route table", () => {
     ["/sign-in", "sign-in"],
     ["/claim", "claim"],
     ["/admin/events", "events"],
+    ["/admin/user-groups", "user-groups"],
+    ["/admin/service-accounts", "service-accounts"],
   ])("resolves %s to %s", (path, name) => {
     expect(router.resolve(path).name).toBe(name);
   });

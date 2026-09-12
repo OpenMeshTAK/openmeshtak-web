@@ -37,6 +37,16 @@ const routes: RouteRecordRaw[] = [
         component: () => import("@/modules/events/views/EventListView.vue"),
       },
       {
+        path: "admin/user-groups",
+        name: "user-groups",
+        component: () => import("@/modules/user-groups/UserGroupListView.vue"),
+      },
+      {
+        path: "admin/user-groups/:userGroupId",
+        name: "user-group-detail",
+        component: () => import("@/modules/user-groups/UserGroupDetailView.vue"),
+      },
+      {
         path: "admin/service-accounts",
         name: "service-accounts",
         component: () => import("@/modules/service-accounts/ServiceAccountListView.vue"),
