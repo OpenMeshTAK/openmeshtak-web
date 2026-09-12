@@ -9,17 +9,23 @@ declare module "vue-router" {
   }
 }
 
-const routes: RouteRecordRaw[] = [
-  {
-    path: "/",
+/**
+ * Each public page gets its own top-level record. Sharing the "/" parent with the app shell made a
+ * fresh visit to "/" resolve to the empty public layout instead of the dashboard.
+ */
+function publicPage(path: string, name: string, view: RouteRecordRaw["component"]): RouteRecordRaw {
+  return {
+    path,
     component: () => import("@/app/layouts/PublicLayout.vue"),
     meta: { public: true },
-    children: [
-      { path: "setup", name: "setup", component: () => import("@/modules/setup/SetupView.vue") },
-      { path: "sign-in", name: "sign-in", component: () => import("@/modules/auth/SignInView.vue") },
-      { path: "claim", name: "claim", component: () => import("@/modules/member-claims/ClaimView.vue") },
-    ],
-  },
+    children: [{ path: "", name, component: view }],
+  } as RouteRecordRaw;
+}
+
+const routes: RouteRecordRaw[] = [
+  publicPage("/setup", "setup", () => import("@/modules/setup/SetupView.vue")),
+  publicPage("/sign-in", "sign-in", () => import("@/modules/auth/SignInView.vue")),
+  publicPage("/claim", "claim", () => import("@/modules/member-claims/ClaimView.vue")),
   {
     path: "/",
     component: () => import("@/app/layouts/AppShell.vue"),
