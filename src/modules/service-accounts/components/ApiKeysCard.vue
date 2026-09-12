@@ -1,0 +1,149 @@
+<script setup lang="ts">
+import { mdiKeyPlus } from "@mdi/js";
+import { computed, onMounted, ref } from "vue";
+import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
+import OneTimeCredentialReveal from "@/shared/components/OneTimeCredentialReveal.vue";
+import { useAsyncData } from "@/shared/composables/useAsyncData";
+import { useSubmission } from "@/shared/composables/useSubmission";
+import { describeError, isApiProblem } from "@/shared/errors/api-problem";
+import ReauthenticateDialog from "@/modules/auth/ReauthenticateDialog.vue";
+import { createApiKey, listApiKeys, revokeApiKey, type ApiKeyDto } from "../service-accounts.api";
+
+/** API-key lifecycle of one service account: create (rotate), reveal once, revoke. */
+const props = defineProps<{ serviceAccountId: string }>();
+const emit = defineEmits<{ notice: [type: "success" | "error", text: string] }>();
+
+const keys = useAsyncData(() => listApiKeys(props.serviceAccountId), [] as ApiKeyDto[]);
+const activeKeys = computed(() => keys.data.value.filter(({ status }) => status === "active").length);
+
+const dialogOpen = ref(false);
+const keyName = ref("");
+const creation = useSubmission();
+const reauthOpen = ref(false);
+/** The plaintext key lives only here and only until the operator dismisses the reveal. */
+const revealedKey = ref<string | null>(null);
+const revoking = ref<ApiKeyDto | null>(null);
+
+function openDialog(): void {
+  keyName.value = activeKeys.value > 0 ? "rotated key" : "primary key";
+  creation.reset();
+  revealedKey.value = null;
+  dialogOpen.value = true;
+}
+
+function closeDialog(): void {
+  revealedKey.value = null;
+  dialogOpen.value = false;
+}
+
+async function create(): Promise<void> {
+  let needsReauthentication = false;
+  await creation.run(async () => {
+    try {
+      revealedKey.value = (await createApiKey(props.serviceAccountId, { name: keyName.value })).key;
+    } catch (caught: unknown) {
+      // Core asks for a recent sign-in before minting credentials; confirm and retry.
+      if (isApiProblem(caught, "RECENT_AUTHENTICATION_REQUIRED")) {
+        needsReauthentication = true;
+        return;
+      }
+      throw caught;
+    }
+  });
+  reauthOpen.value = needsReauthentication;
+  if (revealedKey.value !== null) {
+    await keys.load();
+  }
+}
+
+async function confirmRevoke(): Promise<void> {
+  const key = revoking.value;
+  revoking.value = null;
+  if (key === null) {
+    return;
+  }
+  try {
+    await revokeApiKey(props.serviceAccountId, key.id);
+    emit("notice", "success", `${key.name} was revoked and stops working immediately.`);
+    await keys.load();
+  } catch (caught: unknown) {
+    emit("notice", "error", describeError(caught));
+  }
+}
+
+onMounted(keys.load);
+</script>
+
+<template>
+  <v-card class="pa-5">
+    <div class="d-flex align-center mb-2">
+      <div class="text-subtitle-1 font-weight-medium flex-grow-1">API keys</div>
+      <v-btn color="primary" :prepend-icon="mdiKeyPlus" @click="openDialog">
+        {{ activeKeys > 0 ? "Rotate: create new key" : "Create key" }}
+      </v-btn>
+    </div>
+    <p class="text-body-2 text-medium-emphasis">
+      To rotate, create a new key, switch the integration to it, then revoke the old key.
+    </p>
+
+    <v-skeleton-loader v-if="keys.state.value === 'loading'" type="table-row@2" />
+    <v-alert v-else-if="keys.state.value === 'error'" type="error">{{ keys.error.value }}</v-alert>
+    <v-table v-else-if="keys.data.value.length > 0" density="compact">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Key</th>
+          <th>Status</th>
+          <th>Last used</th>
+          <th />
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="key in keys.data.value" :key="key.id">
+          <td>{{ key.name }}</td>
+          <td><code class="text-caption">{{ key.displayPrefix }}…</code></td>
+          <td>{{ key.status }}</td>
+          <td>{{ key.lastUsedAt ? new Date(key.lastUsedAt).toLocaleString() : "Never" }}</td>
+          <td class="text-right">
+            <v-btn v-if="key.status === 'active'" variant="text" size="small" color="error" @click="revoking = key">
+              Revoke
+            </v-btn>
+          </td>
+        </tr>
+      </tbody>
+    </v-table>
+    <p v-else class="text-body-2">No keys yet.</p>
+
+    <v-dialog :model-value="dialogOpen" max-width="620" persistent>
+      <v-card class="pa-2">
+        <v-card-title>{{ revealedKey ? "New API key" : "Create API key" }}</v-card-title>
+        <v-card-text>
+          <OneTimeCredentialReveal v-if="revealedKey" :secret="revealedKey" label="API key" @dismiss="closeDialog" />
+          <template v-else>
+            <v-alert v-if="creation.error.value" type="error" class="mb-4">{{ creation.error.value }}</v-alert>
+            <v-text-field v-model="keyName" label="Key name" hint="Helps you tell keys apart, e.g. production" persistent-hint />
+          </template>
+        </v-card-text>
+        <v-card-actions v-if="!revealedKey">
+          <v-spacer />
+          <v-btn variant="text" @click="closeDialog">Cancel</v-btn>
+          <v-btn color="primary" variant="flat" :loading="creation.submitting.value" @click="create">Create key</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <ReauthenticateDialog v-model="reauthOpen" @confirmed="create" />
+
+    <ConfirmDialog
+      :model-value="revoking !== null"
+      title="Revoke this key?"
+      confirm-label="Revoke"
+      confirm-color="error"
+      @update:model-value="revoking = null"
+      @confirm="confirmRevoke"
+    >
+      {{ revoking?.name }} stops working immediately. Integrations still using it will fail until they
+      switch to another key.
+    </ConfirmDialog>
+  </v-card>
+</template>
