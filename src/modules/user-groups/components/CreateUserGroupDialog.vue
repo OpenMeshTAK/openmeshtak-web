@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import { useSubmission } from "@/shared/composables/useSubmission";
+import { useToast } from "@/shared/feedback/toast";
 import { messagesFor } from "@/shared/errors/field-errors";
 import { suggestSlug } from "@/modules/events/slug";
 import { createUserGroup, type UserGroupDto } from "../user-groups.api";
 
 const open = defineModel<boolean>({ required: true });
 const emit = defineEmits<{ created: [group: UserGroupDto] }>();
+const toast = useToast();
 
 const form = ref({ name: "", slug: "" });
 const submission = useSubmission();
@@ -25,6 +27,7 @@ async function create(): Promise<void> {
   );
   if (created !== null) {
     open.value = false;
+    toast.success(`User group ${created.value.name} was created.`);
     emit("created", created.value);
   }
 }

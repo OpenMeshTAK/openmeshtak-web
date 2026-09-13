@@ -5,19 +5,20 @@ import type { Schemas } from "@/shared/api/types";
 import EmptyState from "@/shared/components/EmptyState.vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
 import { describeError } from "@/shared/errors/api-problem";
+import { useToast } from "@/shared/feedback/toast";
 import { useSession } from "@/modules/auth/session";
 import { listOpenSyncIssues, retrySyncIssue, type SyncIssueDto } from "./members.api";
 
 const props = defineProps<{ event: Schemas["EventDto"] }>();
 const emit = defineEmits<{ resolved: [] }>();
 const session = useSession();
+const toast = useToast();
 
 const issues = ref<SyncIssueDto[]>([]);
 const state = ref<"loading" | "ready" | "error">("loading");
 const loadError = ref("");
 const overrides = ref<Record<string, string>>({});
 const retrying = ref<string | null>(null);
-const notice = ref<{ type: "success" | "warning" | "error"; text: string } | null>(null);
 
 const canRetry = computed(() => props.event.status !== "archived" && session.can("members.manage", props.event.id));
 
@@ -38,17 +39,17 @@ function hasCallsignConflict(issue: SyncIssueDto): boolean {
 
 async function retry(issue: SyncIssueDto): Promise<void> {
   retrying.value = issue.id;
-  notice.value = null;
   try {
     const result = await retrySyncIssue(props.event.id, issue.id, overrides.value[issue.id]?.trim() || undefined);
-    notice.value =
-      result.outcome === "member"
-        ? { type: "success", text: `${issue.username} is now a member.` }
-        : { type: "warning", text: `${issue.username} still cannot be resolved; see the reasons below.` };
+    if (result.outcome === "member") {
+      toast.success(`${issue.username} is now a member.`);
+    } else {
+      toast.warning(`${issue.username} still cannot be resolved; see the reasons below.`);
+    }
     emit("resolved");
     await load();
   } catch (caught: unknown) {
-    notice.value = { type: "error", text: describeError(caught) };
+    toast.error(caught);
   } finally {
     retrying.value = null;
   }
@@ -65,9 +66,6 @@ defineExpose({ load });
       callsign, then retry. A retry uses the event's current configuration.
     </p>
 
-    <v-alert v-if="notice" :type="notice.type" closable class="mb-4" @click:close="notice = null">
-      {{ notice.text }}
-    </v-alert>
 
     <v-skeleton-loader v-if="state === 'loading'" type="list-item-three-line" />
     <ErrorState v-else-if="state === 'error'" :message="loadError" @retry="load" />

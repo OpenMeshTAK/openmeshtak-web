@@ -3,12 +3,14 @@ import { ref, watch } from "vue";
 import type { Schemas } from "@/shared/api/types";
 import PermissionGrantEditor from "@/shared/components/PermissionGrantEditor.vue";
 import { useSubmission } from "@/shared/composables/useSubmission";
+import { useToast } from "@/shared/feedback/toast";
 import { messagesFor } from "@/shared/errors/field-errors";
 import { createServiceAccount, type ServiceAccountDto } from "../service-accounts.api";
 
 const props = defineProps<{ events: { id: string; name: string }[] }>();
 const open = defineModel<boolean>({ required: true });
 const emit = defineEmits<{ created: [account: ServiceAccountDto] }>();
+const toast = useToast();
 
 const form = ref({ name: "", description: "" });
 const grants = ref<Schemas["PermissionGrantDto"][]>([]);
@@ -33,6 +35,7 @@ async function create(): Promise<void> {
   );
   if (created !== null) {
     open.value = false;
+    toast.success(`Service account ${created.value.name} was created.`);
     emit("created", created.value);
   }
 }

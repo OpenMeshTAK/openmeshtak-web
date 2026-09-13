@@ -5,6 +5,7 @@ import ErrorState from "@/shared/components/ErrorState.vue";
 import ViewHeader from "@/shared/components/layout/ViewHeader.vue";
 import { describeError, isApiProblem } from "@/shared/errors/api-problem";
 import { fieldErrors } from "@/shared/errors/field-errors";
+import { useToast } from "@/shared/feedback/toast";
 import { useSession } from "@/modules/auth/session";
 import EventGroupsPanel from "@/modules/event-groups/EventGroupsPanel.vue";
 import EventRolesPanel from "@/modules/event-roles/EventRolesPanel.vue";
@@ -18,6 +19,7 @@ import { getEvent, updateEvent, type EventDto } from "../events.api";
 
 const route = useRoute();
 const session = useSession();
+const toast = useToast();
 const eventId = computed(() => String(route.params.eventId));
 
 const event = ref<EventDto | null>(null);
@@ -27,10 +29,8 @@ const loadError = ref("");
 const tab = ref("overview");
 
 const saving = ref(false);
-const saveError = ref<string | null>(null);
 const conflict = ref(false);
 const saveFields = ref<Record<string, string>>({});
-const saved = ref(false);
 
 const editable = computed(
   () =>
@@ -46,7 +46,6 @@ function show(loaded: EventDto): void {
 
 async function load(): Promise<void> {
   state.value = "loading";
-  saveError.value = null;
   conflict.value = false;
   try {
     show(await getEvent(eventId.value));
@@ -63,10 +62,8 @@ async function save(): Promise<void> {
     return;
   }
   saving.value = true;
-  saveError.value = null;
   conflict.value = false;
   saveFields.value = {};
-  saved.value = false;
   try {
     show(
       await updateEvent(event.value.id, {
@@ -74,13 +71,14 @@ async function save(): Promise<void> {
         ...settingsToRequest(settings.value),
       }),
     );
-    saved.value = true;
+    toast.success("Event settings saved.");
   } catch (caught: unknown) {
     saveFields.value = fieldErrors(caught);
     conflict.value = isApiProblem(caught, "VERSION_CONFLICT");
-    saveError.value = conflict.value
-      ? "Someone else changed this event. Reload to see their changes before saving again."
-      : describeError(caught);
+    // A conflict stays visible next to the form with a reload action; other failures are toasts.
+    if (!conflict.value) {
+      toast.error(caught);
+    }
   } finally {
     saving.value = false;
   }
@@ -114,11 +112,10 @@ onMounted(load);
             <v-col cols="12" md="7">
               <v-card class="pa-5">
                 <div class="text-subtitle-1 font-weight-medium mb-4">Settings</div>
-                <v-alert v-if="saveError" type="error" class="mb-4">
-                  {{ saveError }}
-                  <v-btn v-if="conflict" size="small" variant="outlined" class="ml-2" @click="load">Reload</v-btn>
+                <v-alert v-if="conflict" type="warning" class="mb-4">
+                  Someone else changed this event. Reload to see their changes before saving again.
+                  <v-btn size="small" variant="outlined" class="ml-2" @click="load">Reload</v-btn>
                 </v-alert>
-                <v-alert v-if="saved" type="success" class="mb-4">Saved.</v-alert>
                 <EventSettingsForm v-model="settings" :errors="saveFields" :disabled="!editable" />
                 <v-btn v-if="editable" color="primary" class="mt-2" :loading="saving" @click="save">
                   Save changes

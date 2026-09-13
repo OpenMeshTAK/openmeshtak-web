@@ -6,9 +6,11 @@ import EmptyState from "@/shared/components/EmptyState.vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
 import { describeError, isApiProblem } from "@/shared/errors/api-problem";
 import { fieldErrors, messagesFor } from "@/shared/errors/field-errors";
+import { useToast } from "@/shared/feedback/toast";
 import { createRole, deleteRole, listRoles, updateRole, type EventRoleDto } from "./event-roles.api";
 
 const props = defineProps<{ eventId: string; editable: boolean }>();
+const toast = useToast();
 
 const roles = ref<EventRoleDto[]>([]);
 const state = ref<"loading" | "ready" | "error">("loading");
@@ -22,7 +24,6 @@ const formError = ref<string | null>(null);
 const formFields = ref<Record<string, string>>({});
 
 const deleting = ref<EventRoleDto | null>(null);
-const deleteError = ref<string | null>(null);
 
 async function load(): Promise<void> {
   state.value = "loading";
@@ -54,6 +55,7 @@ async function save(): Promise<void> {
       await updateRole(props.eventId, editing.value.id, { ...body, version: editing.value.version });
     }
     dialogOpen.value = false;
+    toast.success(editing.value === null ? `Role ${form.value.name} was added.` : `Role ${form.value.name} was updated.`);
     await load();
   } catch (caught: unknown) {
     formFields.value = fieldErrors(caught);
@@ -64,19 +66,17 @@ async function save(): Promise<void> {
 }
 
 async function confirmDelete(): Promise<void> {
-  if (deleting.value === null) {
+  const target = deleting.value;
+  deleting.value = null;
+  if (target === null) {
     return;
   }
-  deleteError.value = null;
   try {
-    await deleteRole(props.eventId, deleting.value.id);
-    deleting.value = null;
+    await deleteRole(props.eventId, target.id);
+    toast.success(`Role ${target.name} was deleted.`);
     await load();
   } catch (caught: unknown) {
-    deleteError.value = isApiProblem(caught, "ROLE_IN_USE")
-      ? "Members still have this role. Move them to another role first."
-      : describeError(caught);
-    deleting.value = null;
+    toast.error(isApiProblem(caught, "ROLE_IN_USE") ? "Members still have this role. Move them to another role first." : caught);
   }
 }
 
@@ -92,7 +92,6 @@ onMounted(load);
       <v-btn v-if="editable" color="primary" :prepend-icon="mdiPlus" @click="open(null)">Add role</v-btn>
     </div>
 
-    <v-alert v-if="deleteError" type="error" class="mb-4">{{ deleteError }}</v-alert>
     <v-skeleton-loader v-if="state === 'loading'" type="table" />
     <ErrorState v-else-if="state === 'error'" :message="loadError" @retry="load" />
     <EmptyState v-else-if="roles.length === 0" title="No roles yet" text="Add at least one role, for example Participant." />

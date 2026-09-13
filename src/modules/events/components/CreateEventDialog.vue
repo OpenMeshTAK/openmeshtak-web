@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import { useSubmission } from "@/shared/composables/useSubmission";
+import { useToast } from "@/shared/feedback/toast";
 import { emptySettings, settingsToRequest } from "../event-settings";
 import { createEvent, type EventDto } from "../events.api";
 import EventSettingsForm from "./EventSettingsForm.vue";
 
 const open = defineModel<boolean>({ required: true });
 const emit = defineEmits<{ created: [event: EventDto] }>();
+const toast = useToast();
 
 const draft = ref(emptySettings());
 const submission = useSubmission();
@@ -22,6 +24,7 @@ async function create(): Promise<void> {
   const created = await submission.run(() => createEvent(settingsToRequest(draft.value)));
   if (created !== null) {
     open.value = false;
+    toast.success(`Event ${created.value.name} was created as a draft.`);
     emit("created", created.value);
   }
 }

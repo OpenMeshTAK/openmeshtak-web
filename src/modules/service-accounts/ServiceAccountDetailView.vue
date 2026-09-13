@@ -10,6 +10,7 @@ import { useSubmission } from "@/shared/composables/useSubmission";
 import { listAllEvents } from "@/modules/events/events.api";
 import ApiKeysCard from "./components/ApiKeysCard.vue";
 import ServiceAccountStatusChip from "./components/ServiceAccountStatusChip.vue";
+import { useToast } from "@/shared/feedback/toast";
 import { getServiceAccount, updateServiceAccount, type ServiceAccountDto } from "./service-accounts.api";
 
 const route = useRoute();
@@ -17,7 +18,7 @@ const serviceAccountId = computed(() => String(route.params.serviceAccountId));
 
 const form = ref({ name: "", description: "", status: "active" as Schemas["ServiceAccountStatus"] });
 const grants = ref<Schemas["PermissionGrantDto"][]>([]);
-const notice = ref<{ type: "success" | "error"; text: string } | null>(null);
+const toast = useToast();
 const saving = useSubmission();
 
 function show(account: ServiceAccountDto): ServiceAccountDto {
@@ -36,7 +37,6 @@ async function save(): Promise<void> {
   if (current === null) {
     return;
   }
-  notice.value = null;
   const saved = await saving.run(async () => {
     current.account = show(
       await updateServiceAccount(current.account.id, {
@@ -48,9 +48,11 @@ async function save(): Promise<void> {
       }),
     );
   });
-  notice.value = saved !== null
-    ? { type: "success", text: "Saved. Changes apply to all keys immediately." }
-    : { type: "error", text: saving.error.value ?? "" };
+  if (saved !== null) {
+    toast.success("Saved. Changes apply to all keys immediately.");
+  } else {
+    toast.error(saving.error.value);
+  }
 }
 
 onMounted(page.load);
@@ -63,9 +65,6 @@ onMounted(page.load);
         <template #actions><ServiceAccountStatusChip :status="page.data.value.account.status" /></template>
       </ViewHeader>
 
-      <v-alert v-if="notice" :type="notice.type" closable class="mb-4" @click:close="notice = null">
-        {{ notice.text }}
-      </v-alert>
 
       <v-card class="pa-5 mb-6">
         <div class="text-subtitle-1 font-weight-medium mb-4">Settings and permissions</div>
@@ -82,7 +81,7 @@ onMounted(page.load);
         <v-btn color="primary" class="mt-4" :loading="saving.submitting.value" @click="save">Save changes</v-btn>
       </v-card>
 
-      <ApiKeysCard :service-account-id="serviceAccountId" @notice="(type, text) => (notice = { type, text })" />
+      <ApiKeysCard :service-account-id="serviceAccountId" />
     </template>
   </ViewContent>
 </template>

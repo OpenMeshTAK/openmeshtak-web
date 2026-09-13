@@ -3,17 +3,18 @@ import { mdiKeyPlus, mdiTrashCanOutline } from "@mdi/js";
 import { onMounted, ref } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import { useAsyncData } from "@/shared/composables/useAsyncData";
+import { useToast } from "@/shared/feedback/toast";
 import ReauthenticateDialog from "@/modules/auth/ReauthenticateDialog.vue";
 import { useSession } from "@/modules/auth/session";
 import { addPasskey, deletePasskey, listPasskeys, type PasskeySummary } from "../passkeys";
 
 const session = useSession();
+const toast = useToast();
 const passkeys = useAsyncData(listPasskeys, []);
 
 const adding = ref(false);
 const reauthOpen = ref(false);
 const removing = ref<PasskeySummary | null>(null);
-const notice = ref<{ type: "success" | "info" | "error"; text: string } | null>(null);
 
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
 
@@ -23,16 +24,15 @@ function describe(passkey: PasskeySummary): string {
 
 async function add(): Promise<void> {
   adding.value = true;
-  notice.value = null;
   try {
     const result = await addPasskey(session.state.principal?.name ?? "OpenMeshTak");
     if (result.outcome === "added") {
-      notice.value = { type: "success", text: "Passkey added. You can now sign in with it." };
+      toast.success("Passkey added. You can now sign in with it.");
       await passkeys.load();
     } else if (result.outcome === "sign-in-required") {
       reauthOpen.value = true;
     } else {
-      notice.value = { type: "info", text: result.message };
+      toast.info(result.message);
     }
   } finally {
     adding.value = false;
@@ -47,9 +47,9 @@ async function confirmRemove(): Promise<void> {
   }
   try {
     await deletePasskey(passkey.id);
-    notice.value = { type: "success", text: "Passkey removed." };
+    toast.success("Passkey removed.");
   } catch (caught: unknown) {
-    notice.value = { type: "error", text: caught instanceof Error ? caught.message : "The passkey could not be removed." };
+    toast.error(caught instanceof Error ? caught.message : "The passkey could not be removed.");
   }
   await passkeys.load();
 }
@@ -69,9 +69,6 @@ onMounted(passkeys.load);
       </template>
     </v-card-item>
     <v-card-text>
-      <v-alert v-if="notice" :type="notice.type" closable class="mb-4" @click:close="notice = null">
-        {{ notice.text }}
-      </v-alert>
       <v-skeleton-loader v-if="passkeys.state.value === 'loading'" type="list-item-two-line" />
       <v-alert v-else-if="passkeys.state.value === 'error'" type="error">{{ passkeys.error.value }}</v-alert>
       <p v-else-if="passkeys.data.value.length === 0" class="text-body-2 text-medium-emphasis mb-0">

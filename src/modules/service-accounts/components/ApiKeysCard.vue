@@ -5,13 +5,13 @@ import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import OneTimeCredentialReveal from "@/shared/components/OneTimeCredentialReveal.vue";
 import { useAsyncData } from "@/shared/composables/useAsyncData";
 import { useSubmission } from "@/shared/composables/useSubmission";
-import { describeError } from "@/shared/errors/api-problem";
+import { useToast } from "@/shared/feedback/toast";
 import ReauthenticateDialog from "@/modules/auth/ReauthenticateDialog.vue";
 import { createApiKey, listApiKeys, revokeApiKey, type ApiKeyDto } from "../service-accounts.api";
 
 /** API-key lifecycle of one service account: create (rotate), reveal once, revoke. */
 const props = defineProps<{ serviceAccountId: string }>();
-const emit = defineEmits<{ notice: [type: "success" | "error", text: string] }>();
+const toast = useToast();
 
 const keys = useAsyncData(() => listApiKeys(props.serviceAccountId), [] as ApiKeyDto[]);
 const activeKeys = computed(() => keys.data.value.filter(({ status }) => status === "active").length);
@@ -56,10 +56,10 @@ async function confirmRevoke(): Promise<void> {
   }
   try {
     await revokeApiKey(props.serviceAccountId, key.id);
-    emit("notice", "success", `${key.name} was revoked and stops working immediately.`);
+    toast.success(`${key.name} was revoked and stops working immediately.`);
     await keys.load();
   } catch (caught: unknown) {
-    emit("notice", "error", describeError(caught));
+    toast.error(caught);
   }
 }
 

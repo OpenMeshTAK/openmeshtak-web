@@ -7,6 +7,7 @@ import EmptyState from "@/shared/components/EmptyState.vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
 import ProfileSummary from "@/shared/components/ProfileSummary.vue";
 import { describeError } from "@/shared/errors/api-problem";
+import { useToast } from "@/shared/feedback/toast";
 import { useSession } from "@/modules/auth/session";
 import { listGroups } from "@/modules/event-groups/event-groups.api";
 import { listRoles } from "@/modules/event-roles/event-roles.api";
@@ -18,13 +19,13 @@ import { fetchProfile, listMembers, removeMember, type EventMemberDto } from "./
 const props = defineProps<{ event: Schemas["EventDto"] }>();
 const emit = defineEmits<{ issuesChanged: [] }>();
 const session = useSession();
+const toast = useToast();
 
 const members = ref<EventMemberDto[]>([]);
 const roles = ref<{ id: string; slug: string; name: string }[]>([]);
 const groups = ref<{ id: string; slug: string; name: string }[]>([]);
 const state = ref<"loading" | "ready" | "error">("loading");
 const loadError = ref("");
-const notice = ref<{ type: "success" | "warning" | "error"; text: string } | null>(null);
 
 const addOpen = ref(false);
 const claimFor = ref<EventMemberDto | null>(null);
@@ -63,10 +64,11 @@ async function load(): Promise<void> {
 }
 
 async function onAdded(outcome: "member" | "sync-issue"): Promise<void> {
-  notice.value =
-    outcome === "member"
-      ? { type: "success", text: "Member saved." }
-      : { type: "warning", text: "The member could not be resolved and was recorded as a sync issue." };
+  if (outcome === "member") {
+    toast.success("Member saved.");
+  } else {
+    toast.warning("The member could not be resolved and was recorded as a sync issue.");
+  }
   emit("issuesChanged");
   await load();
 }
@@ -77,7 +79,7 @@ function edit(member: EventMemberDto): void {
 }
 
 async function onEdited(member: EventMemberDto): Promise<void> {
-  notice.value = { type: "success", text: `${member.callsign} was updated.` };
+  toast.success(`${member.callsign} was updated.`);
   await load();
 }
 
@@ -93,17 +95,17 @@ async function showProfile(member: EventMemberDto): Promise<void> {
 }
 
 async function confirmRemove(): Promise<void> {
-  if (removing.value === null) {
+  const member = removing.value;
+  removing.value = null;
+  if (member === null) {
     return;
   }
   try {
-    await removeMember(props.event.id, removing.value.id);
-    notice.value = { type: "success", text: `${removing.value.callsign} was removed from this event.` };
-    removing.value = null;
+    await removeMember(props.event.id, member.id);
+    toast.success(`${member.callsign} was removed from this event.`);
     await load();
   } catch (caught: unknown) {
-    notice.value = { type: "error", text: describeError(caught) };
-    removing.value = null;
+    toast.error(caught);
   }
 }
 
@@ -128,9 +130,6 @@ onMounted(load);
       </v-btn>
     </div>
 
-    <v-alert v-if="notice" :type="notice.type" closable class="mb-4" @click:close="notice = null">
-      {{ notice.text }}
-    </v-alert>
     <v-alert v-if="event.status === 'draft' && canClaim === false && members.length > 0" type="info" class="mb-4">
       Access links can be created once the event is active.
     </v-alert>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { useAsyncData } from "@/shared/composables/useAsyncData";
+import { useToast } from "@/shared/feedback/toast";
 import { useSession } from "@/modules/auth/session";
 import { describeUserGroupError } from "../user-group-problems";
 import {
@@ -12,7 +13,7 @@ import {
 } from "../user-groups.api";
 
 const props = defineProps<{ userGroupId: string }>();
-const emit = defineEmits<{ error: [text: string] }>();
+const toast = useToast();
 const session = useSession();
 const canManage = computed(() => session.can("user-groups.manage"));
 
@@ -25,20 +26,22 @@ const candidates = computed(() =>
   users.data.value.filter(({ id }) => !members.data.value.some((member) => member.id === id)),
 );
 
-async function change(action: () => Promise<void>): Promise<void> {
+async function change(action: () => Promise<void>, done: string): Promise<void> {
   try {
     await action();
+    toast.success(done);
     await members.load();
   } catch (caught: unknown) {
-    emit("error", describeUserGroupError(caught));
+    toast.error(describeUserGroupError(caught));
   }
 }
 
 function add(): void {
   const userId = userToAdd.value;
   if (userId !== null) {
+    const user = users.data.value.find(({ id }) => id === userId);
     userToAdd.value = null;
-    void change(() => addGroupMember(props.userGroupId, userId));
+    void change(() => addGroupMember(props.userGroupId, userId), `${user?.displayName ?? "The user"} was added to this group.`);
   }
 }
 
@@ -59,7 +62,7 @@ onMounted(() => Promise.all([members.load(), users.load()]));
         :subtitle="member.email ?? 'No local login'"
       >
         <template v-if="canManage" #append>
-          <v-btn variant="text" size="small" color="error" @click="change(() => removeGroupMember(userGroupId, member.id))">
+          <v-btn variant="text" size="small" color="error" @click="change(() => removeGroupMember(userGroupId, member.id), `${member.displayName} was removed from this group.`)">
             Remove
           </v-btn>
         </template>

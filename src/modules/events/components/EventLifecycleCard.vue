@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
-import { describeError, isApiProblem, type ProblemFieldError } from "@/shared/errors/api-problem";
+import { isApiProblem, type ProblemFieldError } from "@/shared/errors/api-problem";
+import { useToast } from "@/shared/feedback/toast";
 import { useSession } from "@/modules/auth/session";
 import {
   publishConfiguration,
@@ -13,10 +14,10 @@ import {
 const props = defineProps<{ event: EventDto }>();
 const emit = defineEmits<{ changed: [event: EventDto] }>();
 const session = useSession();
+const toast = useToast();
 
 const pending = ref<EventTransition | null>(null);
 const running = ref(false);
-const error = ref<string | null>(null);
 const requirements = ref<ProblemFieldError[]>([]);
 
 const dialogOpen = computed({
@@ -43,42 +44,50 @@ const dialog = computed(() => {
 });
 
 const publishing = ref(false);
-const published = ref<string | null>(null);
+
+const TRANSITION_DONE: Record<EventTransition, string> = {
+  activate: "Event activated. Participants can now see it.",
+  archive: "Event archived. It is now read-only.",
+  reactivate: "Event reactivated.",
+};
 
 /** Group and role changes reach participants only after they are published as a new revision. */
 async function publish(): Promise<void> {
   publishing.value = true;
-  error.value = null;
-  published.value = null;
   try {
     const result = await publishConfiguration(props.event.id);
-    published.value = result.created
-      ? `Published configuration revision ${String(result.revision.number)}.`
-      : `No changes since revision ${String(result.revision.number)}.`;
+    if (result.created) {
+      toast.success(`Published configuration revision ${String(result.revision.number)}.`);
+    } else {
+      toast.info(`No changes since revision ${String(result.revision.number)}.`);
+    }
   } catch (caught: unknown) {
-    error.value = describeError(caught);
+    toast.error(caught);
   } finally {
     publishing.value = false;
   }
 }
 
 async function run(): Promise<void> {
-  if (pending.value === null) {
+  const transition = pending.value;
+  if (transition === null) {
     return;
   }
   running.value = true;
-  error.value = null;
   requirements.value = [];
   try {
-    emit("changed", await transitionEvent(props.event.id, pending.value, props.event.version));
+    emit("changed", await transitionEvent(props.event.id, transition, props.event.version));
+    toast.success(TRANSITION_DONE[transition]);
     pending.value = null;
   } catch (caught: unknown) {
+    // Unmet activation requirements stay listed in the card until they are fixed.
     if (isApiProblem(caught, "EVENT_NOT_READY")) {
       requirements.value = caught.errors;
+    } else {
+      toast.error(
+        isApiProblem(caught, "VERSION_CONFLICT") ? "The event was changed elsewhere. Reload the page and try again." : caught,
+      );
     }
-    error.value = isApiProblem(caught, "VERSION_CONFLICT")
-      ? "The event was changed elsewhere. Reload the page and try again."
-      : describeError(caught);
     pending.value = null;
   } finally {
     running.value = false;
@@ -110,7 +119,6 @@ async function run(): Promise<void> {
       <p class="text-caption text-medium-emphasis mt-2 mb-0">
         Changes to roles and groups reach participants once you publish them.
       </p>
-      <v-alert v-if="published" type="success" class="mt-4">{{ published }}</v-alert>
     </template>
 
     <template v-else>
@@ -123,9 +131,9 @@ async function run(): Promise<void> {
       </v-btn>
     </template>
 
-    <v-alert v-if="error" type="error" class="mt-4">
-      {{ error }}
-      <ul v-if="requirements.length > 0" class="mt-2 ml-4">
+    <v-alert v-if="requirements.length > 0" type="warning" class="mt-4">
+      The event is not ready yet:
+      <ul class="mt-2 ml-4">
         <li v-for="requirement in requirements" :key="requirement.field">{{ requirement.message }}</li>
       </ul>
     </v-alert>

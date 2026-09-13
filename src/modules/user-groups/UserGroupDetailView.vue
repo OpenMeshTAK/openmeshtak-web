@@ -11,6 +11,7 @@ import { useSubmission } from "@/shared/composables/useSubmission";
 import { useSession } from "@/modules/auth/session";
 import { listAllEvents } from "@/modules/events/events.api";
 import UserGroupMembersCard from "./components/UserGroupMembersCard.vue";
+import { useToast } from "@/shared/feedback/toast";
 import { describeUserGroupError } from "./user-group-problems";
 import { deleteUserGroup, getUserGroup, updateUserGroup, type UserGroupDto } from "./user-groups.api";
 
@@ -22,7 +23,7 @@ const canManage = computed(() => session.can("user-groups.manage"));
 
 const name = ref("");
 const grants = ref<Schemas["PermissionGrantDto"][]>([]);
-const notice = ref<{ type: "success" | "error"; text: string } | null>(null);
+const toast = useToast();
 const confirmDelete = ref(false);
 const saving = useSubmission(describeUserGroupError);
 
@@ -42,7 +43,6 @@ async function save(): Promise<void> {
   if (current === null) {
     return;
   }
-  notice.value = null;
   const saved = await saving.run(async () => {
     current.group = show(
       await updateUserGroup(current.group.id, {
@@ -53,18 +53,21 @@ async function save(): Promise<void> {
       }),
     );
   });
-  notice.value = saved !== null
-    ? { type: "success", text: "Saved. Members' access changed immediately." }
-    : { type: "error", text: saving.error.value ?? "" };
+  if (saved !== null) {
+    toast.success("Saved. Members' access changed immediately.");
+  } else {
+    toast.error(saving.error.value);
+  }
 }
 
 async function remove(): Promise<void> {
   confirmDelete.value = false;
   try {
     await deleteUserGroup(userGroupId.value);
+    toast.success(`User group ${name.value} was deleted.`);
     await router.push({ name: "user-groups" });
   } catch (caught: unknown) {
-    notice.value = { type: "error", text: describeUserGroupError(caught) };
+    toast.error(describeUserGroupError(caught));
   }
 }
 
@@ -85,9 +88,6 @@ onMounted(page.load);
         </template>
       </ViewHeader>
 
-      <v-alert v-if="notice" :type="notice.type" closable class="mb-4" @click:close="notice = null">
-        {{ notice.text }}
-      </v-alert>
 
       <v-row>
         <v-col cols="12" lg="7">
@@ -108,7 +108,7 @@ onMounted(page.load);
           </v-card>
         </v-col>
         <v-col cols="12" lg="5">
-          <UserGroupMembersCard :user-group-id="userGroupId" @error="(text) => (notice = { type: 'error', text })" />
+          <UserGroupMembersCard :user-group-id="userGroupId" />
         </v-col>
       </v-row>
 

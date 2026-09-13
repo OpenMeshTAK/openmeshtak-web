@@ -6,6 +6,7 @@ import EmptyState from "@/shared/components/EmptyState.vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
 import { describeError, isApiProblem } from "@/shared/errors/api-problem";
 import { fieldErrors, messagesFor } from "@/shared/errors/field-errors";
+import { useToast } from "@/shared/feedback/toast";
 import GroupProvisioningFields from "./components/GroupProvisioningFields.vue";
 import {
   createGroup,
@@ -17,6 +18,7 @@ import {
 } from "./event-groups.api";
 
 const props = defineProps<{ eventId: string; editable: boolean }>();
+const toast = useToast();
 
 const groups = ref<EventGroupDto[]>([]);
 const state = ref<"loading" | "ready" | "error">("loading");
@@ -31,7 +33,6 @@ const formError = ref<string | null>(null);
 const formFields = ref<Record<string, string>>({});
 
 const deleting = ref<EventGroupDto | null>(null);
-const deleteError = ref<string | null>(null);
 
 /** Mirrors Core's documented defaults so the form starts in a sensible state. */
 function defaultProvisioning(slug: string): GroupProvisioning {
@@ -81,6 +82,7 @@ async function save(): Promise<void> {
       await updateGroup(props.eventId, editing.value.id, { ...body, version: editing.value.version });
     }
     dialogOpen.value = false;
+    toast.success(editing.value === null ? `Group ${form.value.name} was added.` : `Group ${form.value.name} was updated.`);
     await load();
   } catch (caught: unknown) {
     formFields.value = fieldErrors(caught);
@@ -93,19 +95,17 @@ async function save(): Promise<void> {
 }
 
 async function confirmDelete(): Promise<void> {
-  if (deleting.value === null) {
+  const target = deleting.value;
+  deleting.value = null;
+  if (target === null) {
     return;
   }
-  deleteError.value = null;
   try {
-    await deleteGroup(props.eventId, deleting.value.id);
-    deleting.value = null;
+    await deleteGroup(props.eventId, target.id);
+    toast.success(`Group ${target.name} was deleted.`);
     await load();
   } catch (caught: unknown) {
-    deleteError.value = isApiProblem(caught, "GROUP_IN_USE")
-      ? "Members are still in this group. Move them to another group first."
-      : describeError(caught);
-    deleting.value = null;
+    toast.error(isApiProblem(caught, "GROUP_IN_USE") ? "Members are still in this group. Move them to another group first." : caught);
   }
 }
 
@@ -122,7 +122,6 @@ onMounted(load);
       <v-btn v-if="editable" color="primary" :prepend-icon="mdiPlus" @click="open(null)">Add group</v-btn>
     </div>
 
-    <v-alert v-if="deleteError" type="error" class="mb-4">{{ deleteError }}</v-alert>
     <v-skeleton-loader v-if="state === 'loading'" type="table" />
     <ErrorState v-else-if="state === 'error'" :message="loadError" @retry="load" />
     <EmptyState v-else-if="groups.length === 0" title="No groups yet" text="Add at least one group, for example Bravo." />
