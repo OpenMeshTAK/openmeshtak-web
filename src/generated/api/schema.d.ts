@@ -549,7 +549,11 @@ export interface paths {
             cookie?: never;
         };
         get: operations["GetEventMember"];
-        put?: never;
+        /**
+         * @description Replaces the member's event role, event group and callsign override. Requires the current
+         *     `version` and `members.manage`. An integration sync may later set role and group again.
+         */
+        put: operations["UpdateEventMember"];
         post?: never;
         /**
          * @description Removes the member from this event only. The user and other event participations remain.
@@ -1136,6 +1140,17 @@ export interface components {
         EventMemberPage: {
             items: components["schemas"]["EventMemberDto"][];
             page: components["schemas"]["PageInfo"];
+        };
+        UpdateEventMemberRequest: {
+            /**
+             * Format: int32
+             * @description Version the client last read.
+             */
+            version: number;
+            eventRoleId: components["schemas"]["Uuid"];
+            eventGroupId: components["schemas"]["Uuid"];
+            /** @description Callsign to use instead of the group format; `null` returns to the group format. */
+            callsignOverride: string | null;
         };
         /** @description Identifier used for TAK server groups, Meshtastic channel names and mission groups. */
         ProvisioningName: string;
@@ -3599,6 +3614,78 @@ export interface operations {
             };
             /** @description Not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateEventMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+                memberId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateEventMemberRequest"];
+            };
+        };
+        responses: {
+            /** @description Event member updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventMemberDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Version conflict, callsign or short-name conflict, or event archived */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

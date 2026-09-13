@@ -20,6 +20,14 @@ export async function listMembers(eventId: string): Promise<EventMemberDto[]> {
   return members;
 }
 
+export function updateMember(
+  eventId: string,
+  memberId: string,
+  body: Schemas["UpdateEventMemberRequest"],
+): Promise<EventMemberDto> {
+  return unwrap(api.PUT("/events/{eventId}/members/{memberId}", { params: { path: { eventId, memberId } }, body }));
+}
+
 export async function removeMember(eventId: string, memberId: string): Promise<void> {
   await unwrap(api.DELETE("/events/{eventId}/members/{memberId}", { params: { path: { eventId, memberId } } }));
 }

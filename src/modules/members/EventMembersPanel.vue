@@ -12,6 +12,7 @@ import { listGroups } from "@/modules/event-groups/event-groups.api";
 import { listRoles } from "@/modules/event-roles/event-roles.api";
 import ClaimLinkDialog from "@/modules/member-claims/ClaimLinkDialog.vue";
 import AddMemberDialog from "./AddMemberDialog.vue";
+import EditMemberDialog from "./EditMemberDialog.vue";
 import { fetchProfile, listMembers, removeMember, type EventMemberDto } from "./members.api";
 
 const props = defineProps<{ event: Schemas["EventDto"] }>();
@@ -19,14 +20,16 @@ const emit = defineEmits<{ issuesChanged: [] }>();
 const session = useSession();
 
 const members = ref<EventMemberDto[]>([]);
-const roles = ref<{ slug: string; name: string }[]>([]);
-const groups = ref<{ slug: string; name: string }[]>([]);
+const roles = ref<{ id: string; slug: string; name: string }[]>([]);
+const groups = ref<{ id: string; slug: string; name: string }[]>([]);
 const state = ref<"loading" | "ready" | "error">("loading");
 const loadError = ref("");
 const notice = ref<{ type: "success" | "warning" | "error"; text: string } | null>(null);
 
 const addOpen = ref(false);
 const claimFor = ref<EventMemberDto | null>(null);
+const editing = ref<EventMemberDto | null>(null);
+const editOpen = ref(false);
 const removing = ref<EventMemberDto | null>(null);
 const profileFor = ref<EventMemberDto | null>(null);
 const profile = ref<Schemas["ResolvedProfileDto"] | null>(null);
@@ -63,6 +66,16 @@ async function onAdded(outcome: "member" | "sync-issue"): Promise<void> {
       ? { type: "success", text: "Member saved." }
       : { type: "warning", text: "The member could not be resolved and was recorded as a sync issue." };
   emit("issuesChanged");
+  await load();
+}
+
+function edit(member: EventMemberDto): void {
+  editing.value = member;
+  editOpen.value = true;
+}
+
+async function onEdited(member: EventMemberDto): Promise<void> {
+  notice.value = { type: "success", text: `${member.callsign} was updated.` };
   await load();
 }
 
@@ -147,6 +160,7 @@ onMounted(load);
             <td class="text-right text-no-wrap">
               <v-btn variant="text" size="small" @click="showProfile(member)">Profile</v-btn>
               <v-btn v-if="canClaim" variant="text" size="small" @click="claimFor = member">Access link</v-btn>
+              <v-btn v-if="canManage" variant="text" size="small" @click="edit(member)">Edit</v-btn>
               <v-btn v-if="canManage" variant="text" size="small" color="error" @click="removing = member">Remove</v-btn>
             </td>
           </tr>
@@ -155,6 +169,15 @@ onMounted(load);
     </v-card>
 
     <AddMemberDialog v-model="addOpen" :event-id="event.id" :roles="roles" :groups="groups" @saved="onAdded" />
+
+    <EditMemberDialog
+      v-model="editOpen"
+      :event-id="event.id"
+      :member="editing"
+      :roles="roles"
+      :groups="groups"
+      @saved="onEdited"
+    />
 
     <ClaimLinkDialog
       v-if="claimFor"
