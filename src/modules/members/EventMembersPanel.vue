@@ -37,6 +37,8 @@ const profileError = ref<string | null>(null);
 
 const mutable = computed(() => props.event.status !== "archived");
 const canSync = computed(() => mutable.value && session.can("members.sync", props.event.id));
+const canAdd = computed(() => canSync.value || (mutable.value && session.can("members.manage", props.event.id) && session.can("users.read")));
+const memberUserIds = computed(() => members.value.map(({ userId }) => userId));
 const canManage = computed(() => mutable.value && session.can("members.manage", props.event.id));
 const canClaim = computed(
   () => props.event.status === "active" && session.can("member-claims.create", props.event.id),
@@ -116,7 +118,7 @@ onMounted(load);
         you can also add them here.
       </p>
       <v-btn
-        v-if="canSync"
+        v-if="canAdd"
         color="primary"
         :prepend-icon="mdiAccountPlus"
         :disabled="roles.length === 0 || groups.length === 0"
@@ -168,7 +170,14 @@ onMounted(load);
       </v-table>
     </v-card>
 
-    <AddMemberDialog v-model="addOpen" :event-id="event.id" :roles="roles" :groups="groups" @saved="onAdded" />
+    <AddMemberDialog
+      v-model="addOpen"
+      :event-id="event.id"
+      :roles="roles"
+      :groups="groups"
+      :member-user-ids="memberUserIds"
+      @saved="onAdded"
+    />
 
     <EditMemberDialog
       v-model="editOpen"

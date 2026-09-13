@@ -20,6 +20,11 @@ export async function listMembers(eventId: string): Promise<EventMemberDto[]> {
   return members;
 }
 
+/** Adds an existing OpenMeshTak user; external identities use `syncMember` instead. */
+export function createMember(eventId: string, body: Schemas["CreateEventMemberRequest"]): Promise<EventMemberDto> {
+  return unwrap(api.POST("/events/{eventId}/members", { params: { path: { eventId } }, body }));
+}
+
 export function updateMember(
   eventId: string,
   memberId: string,
@@ -32,7 +37,7 @@ export async function removeMember(eventId: string, memberId: string): Promise<v
   await unwrap(api.DELETE("/events/{eventId}/members/{memberId}", { params: { path: { eventId, memberId } } }));
 }
 
-/** Members enter an event only through the idempotent external-identity upsert. */
+/** Idempotent external-identity upsert, the same call integrations use. */
 export function syncMember(
   eventId: string,
   provider: string,

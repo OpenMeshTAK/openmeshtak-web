@@ -534,7 +534,11 @@ export interface paths {
         /** @description Lists the event's members ordered by creation time, oldest first. Requires `members.read`. */
         get: operations["ListEventMembers"];
         put?: never;
-        post?: never;
+        /**
+         * @description Adds an existing OpenMeshTak user to the event. Members from external systems use the
+         *     external-member upsert instead. Requires `members.manage`.
+         */
+        post: operations["CreateEventMember"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1140,6 +1144,14 @@ export interface components {
         EventMemberPage: {
             items: components["schemas"]["EventMemberDto"][];
             page: components["schemas"]["PageInfo"];
+        };
+        CreateEventMemberRequest: {
+            /** @description Existing OpenMeshTak user; their display name feeds the group's callsign format. */
+            userId: components["schemas"]["Uuid"];
+            eventRoleId: components["schemas"]["Uuid"];
+            eventGroupId: components["schemas"]["Uuid"];
+            /** @description Callsign to use instead of the group format. */
+            callsignOverride?: string | null;
         };
         UpdateEventMemberRequest: {
             /**
@@ -3564,6 +3576,77 @@ export interface operations {
             };
             /** @description Not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateEventMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateEventMemberRequest"];
+            };
+        };
+        responses: {
+            /** @description Event member created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventMemberDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Already a member, callsign or short-name conflict, or event archived */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
