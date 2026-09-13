@@ -21,6 +21,7 @@ async function mountClaim(fetchMock: ReturnType<typeof vi.fn>) {
     routes: [
       { path: "/claim", name: "claim", component: ClaimView },
       { path: "/", name: "home", component: { template: "<div />" } },
+      { path: "/sign-in", name: "sign-in", component: { template: "<div />" } },
     ],
   });
   await router.push("/claim");
@@ -64,6 +65,17 @@ describe("claim page", () => {
     const { wrapper } = await mountClaim(fetchMock);
 
     expect(wrapper.text()).toContain("This link cannot be used");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks accounts with their own sign-in to sign in instead", async () => {
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(jsonResponse(403, { status: 403, code: "SIGN_IN_REQUIRED", detail: "Sign in." })),
+    );
+
+    const { wrapper } = await mountClaim(fetchMock);
+
+    expect(wrapper.text()).toContain("Please sign in");
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

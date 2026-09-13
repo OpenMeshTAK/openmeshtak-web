@@ -7,7 +7,7 @@ import { useSession } from "@/modules/auth/session";
 
 const router = useRouter();
 const session = useSession();
-const state = ref<"exchanging" | "invalid" | "failed">("exchanging");
+const state = ref<"exchanging" | "invalid" | "sign-in" | "failed">("exchanging");
 
 /**
  * The claim token arrives in the URL fragment, which browsers never send to a server. Read it and
@@ -31,7 +31,13 @@ async function exchange(): Promise<void> {
     await session.refresh();
     await router.replace({ name: "home" });
   } catch (error: unknown) {
-    state.value = isApiProblem(error) && error.status === 401 ? "invalid" : "failed";
+    // Accounts with their own password or passkey never get a session from a link.
+    if (isApiProblem(error, "SIGN_IN_REQUIRED")) {
+      token = "";
+      state.value = "sign-in";
+    } else {
+      state.value = isApiProblem(error) && error.status === 401 ? "invalid" : "failed";
+    }
   }
 }
 
@@ -60,6 +66,13 @@ onBeforeUnmount(() => {
       <p class="text-body-2 text-medium-emphasis">
         Access links work only once and expire after 24 hours. Ask your organizers for a new one.
       </p>
+    </template>
+    <template v-else-if="state === 'sign-in'">
+      <h1 class="text-h6 mb-2">Please sign in</h1>
+      <p class="text-body-2 text-medium-emphasis mb-4">
+        This account already has its own sign-in. Use your password or passkey to continue.
+      </p>
+      <v-btn color="primary" :to="{ name: 'sign-in' }">Sign in</v-btn>
     </template>
     <template v-else>
       <h1 class="text-h6 mb-2">OpenMeshTak is not reachable</h1>
