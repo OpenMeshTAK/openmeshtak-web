@@ -1,3 +1,4 @@
+import { passkeyClient } from "@better-auth/passkey/client";
 import { createAuthClient } from "better-auth/vue";
 
 /**
@@ -7,4 +8,5 @@ import { createAuthClient } from "better-auth/vue";
 export const authClient = createAuthClient({
   basePath: "/api/auth",
   fetchOptions: { credentials: "same-origin" },
+  plugins: [passkeyClient()],
 });

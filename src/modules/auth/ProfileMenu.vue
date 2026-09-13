@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { mdiLogout } from "@mdi/js";
+import { mdiLogout, mdiShieldAccountOutline } from "@mdi/js";
 import { computed } from "vue";
 import { useRouter } from "vue-router";
 import { useDisplay } from "vuetify";
@@ -42,6 +42,7 @@ async function signOut(): Promise<void> {
       <v-divider />
       <v-list density="compact" nav class="pa-0 pt-2">
         <ThemeToggle v-if="!smAndUp" list />
+        <v-list-item :prepend-icon="mdiShieldAccountOutline" title="Account security" :to="{ name: 'account' }" />
         <v-list-item :prepend-icon="mdiLogout" title="Sign out" @click="signOut" />
       </v-list>
     </v-card>

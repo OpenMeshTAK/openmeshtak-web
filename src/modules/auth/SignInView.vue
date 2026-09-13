@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { mdiKeyVariant } from "@mdi/js";
 import { ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { safeRedirectPath } from "@/shared/security/safe-redirect";
@@ -14,6 +15,29 @@ const password = ref("");
 const submitting = ref(false);
 const error = ref<string | null>(null);
 
+async function completeSignIn(): Promise<void> {
+  password.value = "";
+  await session.refresh();
+  await router.replace(safeRedirectPath(route.query.redirect));
+}
+
+async function signInWithPasskey(): Promise<void> {
+  submitting.value = true;
+  error.value = null;
+  try {
+    const result = await authClient.signIn.passkey();
+    if (result.error) {
+      error.value = "Signing in with a passkey did not work. Try again or use your password.";
+      return;
+    }
+    await completeSignIn();
+  } catch {
+    error.value = "OpenMeshTak is not reachable. Check your connection and try again.";
+  } finally {
+    submitting.value = false;
+  }
+}
+
 async function submit(): Promise<void> {
   submitting.value = true;
   error.value = null;
@@ -27,9 +51,7 @@ async function submit(): Promise<void> {
           : "Email or password is not correct.";
       return;
     }
-    password.value = "";
-    await session.refresh();
-    await router.replace(safeRedirectPath(route.query.redirect));
+    await completeSignIn();
   } catch {
     error.value = "OpenMeshTak is not reachable. Check your connection and try again.";
   } finally {
@@ -55,6 +77,9 @@ async function submit(): Promise<void> {
         Sign in
       </v-btn>
     </v-form>
+    <v-btn variant="tonal" size="large" block class="mt-3" :prepend-icon="mdiKeyVariant" :disabled="submitting" @click="signInWithPasskey">
+      Sign in with a passkey
+    </v-btn>
     <p class="text-body-2 text-medium-emphasis mt-6">
       Participants receive a personal access link from their organizers instead of a password.
     </p>
