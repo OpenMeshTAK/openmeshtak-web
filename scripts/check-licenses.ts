@@ -26,8 +26,10 @@ const allowedLicenses = new Set([
  * - Python-2.0: argparse, used only by the openapi-typescript code generator.
  * - MPL-2.0: lightningcss, an unmodified native CSS tool executed at build time only.
  * - (MIT OR CC0-1.0): type-fest; OpenMeshTak relies on MIT.
+ * - 0BSD: tslib, reached through @simplewebauthn/server of @better-auth/passkey (reviewed 2026-10-05).
  */
 const reviewedExceptions = new Map<string, Set<string>>([
+  ["0BSD", new Set(["tslib@1.14.1", "tslib@2.8.1"])],
   ["MIT-0", new Set(["@csstools/color-helpers@6.1.2", "@csstools/css-syntax-patches-for-csstree@1.1.15"])],
   ["CC0-1.0", new Set(["mdn-data@2.27.1"])],
   ["Python-2.0", new Set(["argparse@2.0.1"])],
