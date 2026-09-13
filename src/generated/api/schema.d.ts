@@ -2232,6 +2232,15 @@ export interface operations {
                     "application/json": components["schemas"]["ProblemDetails"];
                 };
             };
+            /** @description Too many new API keys */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     RevokeApiKey: {
@@ -2508,6 +2517,15 @@ export interface operations {
                     "application/json": components["schemas"]["ProblemDetails"];
                 };
             };
+            /** @description Too many new access links */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     RevokeMemberClaim: {
@@ -2585,6 +2603,15 @@ export interface operations {
             };
             /** @description Claim not usable */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The account has its own sign-in */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
