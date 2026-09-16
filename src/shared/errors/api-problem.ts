@@ -43,10 +43,17 @@ export function isApiProblem(error: unknown, code?: string): error is ApiProblem
   return error instanceof ApiProblem && (code === undefined || error.code === code);
 }
 
-/** Message for a generic error state; network failures are not problems and get their own text. */
+/** Field messages longer than this are schema diagnostics, not text for people. */
+const READABLE_FIELD_MESSAGE_LENGTH = 160;
+
+/**
+ * Message for a generic error state; network failures are not problems and get their own text.
+ * Validation problems add their first readable field message, e.g. why a geometry was rejected.
+ */
 export function describeError(error: unknown): string {
   if (error instanceof ApiProblem) {
-    return error.message;
+    const field = error.errors.find(({ message }) => message.length <= READABLE_FIELD_MESSAGE_LENGTH);
+    return error.code === "VALIDATION_FAILED" && field !== undefined ? `${error.message} ${field.message}` : error.message;
   }
   return "OpenMeshTak is not reachable. Check your connection and try again.";
 }
