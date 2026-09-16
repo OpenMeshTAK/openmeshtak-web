@@ -1,21 +1,21 @@
 import { api, unwrap } from "@/shared/api/client";
 import type { Schemas } from "@/shared/api/types";
 
-export type MissionDto = Schemas["MissionDto"];
-export type MissionLayerDto = Schemas["MissionLayerDto"];
-export type MissionObjectDto = Schemas["MissionObjectDto"];
-export type MissionGeometry = Schemas["MissionGeometry"];
-export type MissionObjectStyle = Schemas["MissionObjectStyle"];
+export type DataPackageDto = Schemas["DataPackageDto"];
+export type PackageLayerDto = Schemas["PackageLayerDto"];
+export type PackageObjectDto = Schemas["PackageObjectDto"];
+export type PackageGeometry = Schemas["PackageGeometry"];
+export type PackageObjectStyle = Schemas["PackageObjectStyle"];
 export type ImportReport = Schemas["GeoJsonImportReport"];
-export type PublishResult = Schemas["PublishMissionResponse"];
+export type PublishResult = Schemas["PublishDataPackageResponse"];
 
-type MissionPath = { eventId: string; missionId: string };
+type PackagePath = { eventId: string; packageId: string };
 
 function pageQuery(cursor: string | undefined): { limit: number; cursor?: string } {
   return cursor === undefined ? { limit: 100 } : { limit: 100, cursor };
 }
 
-/** Collects every page of a cursor-paginated list; mission lists are bounded by Core. */
+/** Collects every page of a cursor-paginated list; data package lists are bounded by Core. */
 async function allPages<T>(fetchPage: (cursor?: string) => Promise<{ items: T[]; page: { nextCursor: string | null } }>): Promise<T[]> {
   const items: T[] = [];
   let cursor: string | undefined;
@@ -27,87 +27,87 @@ async function allPages<T>(fetchPage: (cursor?: string) => Promise<{ items: T[];
   return items;
 }
 
-export function listMissions(eventId: string): Promise<MissionDto[]> {
+export function listDataPackages(eventId: string): Promise<DataPackageDto[]> {
   return allPages((cursor) =>
-    unwrap(api.GET("/events/{eventId}/missions", { params: { path: { eventId }, query: pageQuery(cursor) } })),
+    unwrap(api.GET("/events/{eventId}/data-packages", { params: { path: { eventId }, query: pageQuery(cursor) } })),
   );
 }
 
-export function getMission(path: MissionPath): Promise<MissionDto> {
-  return unwrap(api.GET("/events/{eventId}/missions/{missionId}", { params: { path } }));
+export function getDataPackage(path: PackagePath): Promise<DataPackageDto> {
+  return unwrap(api.GET("/events/{eventId}/data-packages/{packageId}", { params: { path } }));
 }
 
-export function createMission(eventId: string, body: Schemas["CreateMissionRequest"]): Promise<MissionDto> {
-  return unwrap(api.POST("/events/{eventId}/missions", { params: { path: { eventId } }, body }));
+export function createDataPackage(eventId: string, body: Schemas["CreateDataPackageRequest"]): Promise<DataPackageDto> {
+  return unwrap(api.POST("/events/{eventId}/data-packages", { params: { path: { eventId } }, body }));
 }
 
-export async function deleteMission(path: MissionPath): Promise<void> {
-  await unwrap(api.DELETE("/events/{eventId}/missions/{missionId}", { params: { path } }));
+export async function deleteDataPackage(path: PackagePath): Promise<void> {
+  await unwrap(api.DELETE("/events/{eventId}/data-packages/{packageId}", { params: { path } }));
 }
 
-export function listLayers(path: MissionPath): Promise<MissionLayerDto[]> {
+export function listLayers(path: PackagePath): Promise<PackageLayerDto[]> {
   return allPages((cursor) =>
-    unwrap(api.GET("/events/{eventId}/missions/{missionId}/layers", { params: { path, query: pageQuery(cursor) } })),
+    unwrap(api.GET("/events/{eventId}/data-packages/{packageId}/layers", { params: { path, query: pageQuery(cursor) } })),
   );
 }
 
-export function createLayer(path: MissionPath, name: string): Promise<MissionLayerDto> {
-  return unwrap(api.POST("/events/{eventId}/missions/{missionId}/layers", { params: { path }, body: { name } }));
+export function createLayer(path: PackagePath, name: string): Promise<PackageLayerDto> {
+  return unwrap(api.POST("/events/{eventId}/data-packages/{packageId}/layers", { params: { path }, body: { name } }));
 }
 
 export function updateLayer(
-  path: MissionPath,
+  path: PackagePath,
   layerId: string,
-  body: Schemas["UpdateMissionLayerRequest"],
-): Promise<MissionLayerDto> {
+  body: Schemas["UpdatePackageLayerRequest"],
+): Promise<PackageLayerDto> {
   return unwrap(
-    api.PUT("/events/{eventId}/missions/{missionId}/layers/{layerId}", { params: { path: { ...path, layerId } }, body }),
+    api.PUT("/events/{eventId}/data-packages/{packageId}/layers/{layerId}", { params: { path: { ...path, layerId } }, body }),
   );
 }
 
-export async function deleteLayer(path: MissionPath, layerId: string): Promise<void> {
-  await unwrap(api.DELETE("/events/{eventId}/missions/{missionId}/layers/{layerId}", { params: { path: { ...path, layerId } } }));
+export async function deleteLayer(path: PackagePath, layerId: string): Promise<void> {
+  await unwrap(api.DELETE("/events/{eventId}/data-packages/{packageId}/layers/{layerId}", { params: { path: { ...path, layerId } } }));
 }
 
-export function listObjects(path: MissionPath): Promise<MissionObjectDto[]> {
+export function listObjects(path: PackagePath): Promise<PackageObjectDto[]> {
   return allPages((cursor) =>
-    unwrap(api.GET("/events/{eventId}/missions/{missionId}/objects", { params: { path, query: pageQuery(cursor) } })),
+    unwrap(api.GET("/events/{eventId}/data-packages/{packageId}/objects", { params: { path, query: pageQuery(cursor) } })),
   );
 }
 
-export function createObject(path: MissionPath, body: Schemas["CreateMissionObjectRequest"]): Promise<MissionObjectDto> {
-  return unwrap(api.POST("/events/{eventId}/missions/{missionId}/objects", { params: { path }, body }));
+export function createObject(path: PackagePath, body: Schemas["CreatePackageObjectRequest"]): Promise<PackageObjectDto> {
+  return unwrap(api.POST("/events/{eventId}/data-packages/{packageId}/objects", { params: { path }, body }));
 }
 
 export function updateObject(
-  path: MissionPath,
+  path: PackagePath,
   objectId: string,
-  body: Schemas["UpdateMissionObjectRequest"],
-): Promise<MissionObjectDto> {
+  body: Schemas["UpdatePackageObjectRequest"],
+): Promise<PackageObjectDto> {
   return unwrap(
-    api.PUT("/events/{eventId}/missions/{missionId}/objects/{objectId}", { params: { path: { ...path, objectId } }, body }),
+    api.PUT("/events/{eventId}/data-packages/{packageId}/objects/{objectId}", { params: { path: { ...path, objectId } }, body }),
   );
 }
 
-export async function deleteObject(path: MissionPath, objectId: string): Promise<void> {
+export async function deleteObject(path: PackagePath, objectId: string): Promise<void> {
   await unwrap(
-    api.DELETE("/events/{eventId}/missions/{missionId}/objects/{objectId}", { params: { path: { ...path, objectId } } }),
+    api.DELETE("/events/{eventId}/data-packages/{packageId}/objects/{objectId}", { params: { path: { ...path, objectId } } }),
   );
 }
 
-export function publishMission(path: MissionPath): Promise<PublishResult> {
-  return unwrap(api.POST("/events/{eventId}/missions/{missionId}/revisions", { params: { path } }));
+export function publishDataPackage(path: PackagePath): Promise<PublishResult> {
+  return unwrap(api.POST("/events/{eventId}/data-packages/{packageId}/revisions", { params: { path } }));
 }
 
-export function importGeoJson(path: MissionPath, layerId: string, document: Schemas["GeoJsonDocument"]): Promise<ImportReport> {
+export function importGeoJson(path: PackagePath, layerId: string, document: Schemas["GeoJsonDocument"]): Promise<ImportReport> {
   return unwrap(
-    api.POST("/events/{eventId}/missions/{missionId}/layers/{layerId}/import", {
+    api.POST("/events/{eventId}/data-packages/{packageId}/layers/{layerId}/import", {
       params: { path: { ...path, layerId } },
       body: document,
     }),
   );
 }
 
-export function exportDraftGeoJson(path: MissionPath): Promise<Schemas["GeoJsonFeatureCollection"]> {
-  return unwrap(api.GET("/events/{eventId}/missions/{missionId}/geojson", { params: { path } }));
+export function exportDraftGeoJson(path: PackagePath): Promise<Schemas["GeoJsonFeatureCollection"]> {
+  return unwrap(api.GET("/events/{eventId}/data-packages/{packageId}/geojson", { params: { path } }));
 }

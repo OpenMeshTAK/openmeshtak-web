@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import {
+  mdiCircleOutline,
   mdiCursorDefault,
   mdiFitToScreenOutline,
   mdiMapMarkerPlusOutline,
   mdiShapePolygonPlus,
   mdiVectorPolyline,
 } from "@mdi/js";
-import type { EditorTool } from "../map/mission-map";
+import type { EditorTool } from "../map/package-map";
 
 defineProps<{ editable: boolean }>();
 const tool = defineModel<EditorTool>("tool", { required: true });
@@ -17,6 +18,7 @@ const tools = [
   { value: "point", icon: mdiMapMarkerPlusOutline, label: "Add marker (M)" },
   { value: "line", icon: mdiVectorPolyline, label: "Draw line (L)" },
   { value: "polygon", icon: mdiShapePolygonPlus, label: "Draw area (A)" },
+  { value: "circle", icon: mdiCircleOutline, label: "Draw circle (C)" },
 ] as const;
 </script>
 

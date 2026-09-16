@@ -6,32 +6,32 @@ import ErrorState from "@/shared/components/ErrorState.vue";
 import { useToast } from "@/shared/feedback/toast";
 import { useSession } from "@/modules/auth/session";
 import { getEvent, type EventDto } from "@/modules/events/events.api";
-import { exportDraftGeoJson, importGeoJson, publishMission, type ImportReport } from "@/modules/missions/missions.api";
+import { exportDraftGeoJson, importGeoJson, publishDataPackage, type ImportReport } from "@/modules/data-packages/data-packages.api";
 import EditorToolbar from "./components/EditorToolbar.vue";
 import ImportReportDialog from "./components/ImportReportDialog.vue";
 import LayerPanel from "./components/LayerPanel.vue";
-import MissionMapView from "./components/MissionMapView.vue";
+import PackageMapView from "./components/PackageMapView.vue";
 import ObjectInspector from "./components/ObjectInspector.vue";
-import type { EditorTool } from "./map/mission-map";
-import { useMissionEditor } from "./useMissionEditor";
+import type { EditorTool } from "./map/package-map";
+import { usePackageEditor } from "./usePackageEditor";
 
 const route = useRoute();
 const session = useSession();
 const toast = useToast();
 const eventId = String(route.params.eventId);
-const editor = useMissionEditor(eventId, String(route.params.missionId));
+const editor = usePackageEditor(eventId, String(route.params.packageId));
 
 const event = ref<EventDto | null>(null);
 const tool = ref<EditorTool>("select");
-const mapView = ref<InstanceType<typeof MissionMapView> | null>(null);
+const mapView = ref<InstanceType<typeof PackageMapView> | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
 const publishing = ref(false);
 const importing = ref(false);
 const report = ref<ImportReport | null>(null);
 const reportOpen = ref(false);
 
-const editable = computed(() => event.value?.status !== "archived" && session.can("missions.edit", eventId));
-const canPublish = computed(() => event.value?.status !== "archived" && session.can("missions.publish", eventId));
+const editable = computed(() => event.value?.status !== "archived" && session.can("data-packages.edit", eventId));
+const canPublish = computed(() => event.value?.status !== "archived" && session.can("data-packages.publish", eventId));
 
 const saveLabel = computed(() => {
   switch (editor.saveState.value) {
@@ -49,14 +49,14 @@ const saveLabel = computed(() => {
 async function publish(): Promise<void> {
   publishing.value = true;
   try {
-    const result = await publishMission(editor.path);
+    const result = await publishDataPackage(editor.path);
     if (result.created) {
       toast.success(`Published revision ${String(result.revision.number)}.`);
     } else {
       toast.info(`Nothing changed since revision ${String(result.revision.number)}.`);
     }
-    if (editor.mission.value !== null) {
-      editor.mission.value = { ...editor.mission.value, latestRevision: result.revision.number };
+    if (editor.dataPackage.value !== null) {
+      editor.dataPackage.value = { ...editor.dataPackage.value, latestRevision: result.revision.number };
     }
   } catch (caught: unknown) {
     toast.error(caught);
@@ -107,7 +107,7 @@ async function exportDraft(): Promise<void> {
     const url = URL.createObjectURL(new Blob([JSON.stringify(collection, null, 2)], { type: "application/geo+json" }));
     const link = document.createElement("a");
     link.href = url;
-    link.download = `${(editor.mission.value?.name ?? "mission").replace(/[^\w-]+/g, "_")}.geojson`;
+    link.download = `${(editor.dataPackage.value?.name ?? "data-package").replace(/[^\w-]+/g, "_")}.geojson`;
     link.click();
     URL.revokeObjectURL(url);
   } catch (caught: unknown) {
@@ -115,7 +115,7 @@ async function exportDraft(): Promise<void> {
   }
 }
 
-const SHORTCUTS: Record<string, EditorTool> = { s: "select", m: "point", l: "line", a: "polygon" };
+const SHORTCUTS: Record<string, EditorTool> = { s: "select", m: "point", l: "line", a: "polygon", c: "circle" };
 
 /** Keyboard shortcuts, ignored while typing in a field. */
 function onKeydown(keyEvent: KeyboardEvent): void {
@@ -156,10 +156,10 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
         :to="{ name: 'event-detail', params: { eventId } }"
       />
       <div class="flex-grow-1" style="min-width: 0">
-        <div class="text-h6 text-truncate">{{ editor.mission.value?.name ?? "Mission" }}</div>
+        <div class="text-h6 text-truncate">{{ editor.dataPackage.value?.name ?? "Data package" }}</div>
         <div class="text-caption text-medium-emphasis">
           {{ event?.name }} ·
-          {{ editor.mission.value?.latestRevision ? `Revision ${editor.mission.value.latestRevision} published` : "Not published yet" }}
+          {{ editor.dataPackage.value?.latestRevision ? `Revision ${editor.dataPackage.value.latestRevision} published` : "Not published yet" }}
         </div>
       </div>
       <v-chip :color="saveLabel.color" :prepend-icon="saveLabel.icon" size="small" variant="tonal" role="status">
@@ -171,7 +171,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
       <v-btn v-if="canPublish" color="primary" :prepend-icon="mdiPublish" :loading="publishing" @click="publish">Publish</v-btn>
     </div>
 
-    <ErrorState v-if="editor.loadState.value === 'error'" class="ma-6" message="The mission could not be loaded." @retry="editor.load" />
+    <ErrorState v-if="editor.loadState.value === 'error'" class="ma-6" message="The data package could not be loaded." @retry="editor.load" />
     <v-progress-linear v-else-if="editor.loadState.value === 'loading'" indeterminate />
 
     <div v-if="editor.loadState.value === 'ready'" class="editor-body">
@@ -192,7 +192,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
       </aside>
 
       <main class="editor-map">
-        <MissionMapView
+        <PackageMapView
           ref="mapView"
           :layers="editor.layers.value"
           :objects="editor.objects.value"
@@ -216,7 +216,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
           @remove="editor.removeObject(editor.selected.value.id)"
         />
         <div v-else class="pa-4 text-body-2 text-medium-emphasis">
-          Select an object on the map or in the list to edit it. Draw with the tools on the left of the map.
+          Select an object on the map or in the list to edit it. Draw markers, lines, areas and circles with the tools on the left of the map.
         </div>
       </aside>
     </div>

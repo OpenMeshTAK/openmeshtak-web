@@ -2,6 +2,7 @@
 import {
   mdiArrowDown,
   mdiArrowUp,
+  mdiCircleOutline,
   mdiDotsVertical,
   mdiEye,
   mdiEyeOff,
@@ -14,13 +15,13 @@ import {
 } from "@mdi/js";
 import { ref } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
-import type { MissionLayerDto, MissionObjectDto } from "@/modules/missions/missions.api";
+import type { PackageLayerDto, PackageObjectDto } from "@/modules/data-packages/data-packages.api";
 
-type LayerChanges = Partial<Pick<MissionLayerDto, "name" | "visible" | "locked">>;
+type LayerChanges = Partial<Pick<PackageLayerDto, "name" | "visible" | "locked">>;
 
 const props = defineProps<{
-  layers: MissionLayerDto[];
-  objects: MissionObjectDto[];
+  layers: PackageLayerDto[];
+  objects: PackageObjectDto[];
   activeLayerId: string | null;
   selectedId: string | null;
   editable: boolean;
@@ -29,27 +30,27 @@ const emit = defineEmits<{
   activate: [layerId: string];
   select: [objectId: string];
   add: [];
-  change: [layer: MissionLayerDto, changes: LayerChanges];
-  move: [layer: MissionLayerDto, direction: -1 | 1];
-  remove: [layer: MissionLayerDto];
+  change: [layer: PackageLayerDto, changes: LayerChanges];
+  move: [layer: PackageLayerDto, direction: -1 | 1];
+  remove: [layer: PackageLayerDto];
 }>();
 
-const KIND_ICONS = { point: mdiMapMarker, line: mdiVectorPolyline, polygon: mdiShapePolygonPlus } as const;
+const KIND_ICONS = { point: mdiMapMarker, line: mdiVectorPolyline, polygon: mdiShapePolygonPlus, circle: mdiCircleOutline } as const;
 
 const renaming = ref<string | null>(null);
 const newName = ref("");
-const removing = ref<MissionLayerDto | null>(null);
+const removing = ref<PackageLayerDto | null>(null);
 
-function objectsOf(layerId: string): MissionObjectDto[] {
+function objectsOf(layerId: string): PackageObjectDto[] {
   return props.objects.filter((object) => object.layerId === layerId);
 }
 
-function startRename(layer: MissionLayerDto): void {
+function startRename(layer: PackageLayerDto): void {
   renaming.value = layer.id;
   newName.value = layer.name;
 }
 
-function finishRename(layer: MissionLayerDto): void {
+function finishRename(layer: PackageLayerDto): void {
   const name = newName.value.trim();
   renaming.value = null;
   if (name !== "" && name !== layer.name) {

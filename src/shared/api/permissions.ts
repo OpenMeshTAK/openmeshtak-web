@@ -56,11 +56,11 @@ export const permissionAreas: PermissionArea[] = [
   },
   {
     label: "Missions",
-    prefix: "missions.*",
+    prefix: "dataPackages.*",
     permissions: [
-      { permission: "missions.read", label: "View missions" },
-      { permission: "missions.edit", label: "Edit missions" },
-      { permission: "missions.publish", label: "Publish mission packages" },
+      { permission: "data-packages.read", label: "View data packages" },
+      { permission: "data-packages.edit", label: "Edit data packages" },
+      { permission: "data-packages.publish", label: "Publish data packages" },
     ],
   },
   {

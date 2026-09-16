@@ -1,34 +1,35 @@
 <script setup lang="ts">
 import { mdiContentCopy, mdiTrashCanOutline } from "@mdi/js";
 import { computed, ref, watch } from "vue";
-import type { MissionGeometry, MissionLayerDto, MissionObjectDto, MissionObjectStyle } from "@/modules/missions/missions.api";
+import type { PackageGeometry, PackageLayerDto, PackageObjectDto, PackageObjectStyle } from "@/modules/data-packages/data-packages.api";
 
 type ObjectChanges = Partial<{
   name: string;
   description: string | null;
-  style: MissionObjectStyle;
+  style: PackageObjectStyle;
   layerId: string;
-  geometry: MissionGeometry;
+  geometry: PackageGeometry;
 }>;
 
-const props = defineProps<{ object: MissionObjectDto; layers: MissionLayerDto[]; editable: boolean }>();
+const props = defineProps<{ object: PackageObjectDto; layers: PackageLayerDto[]; editable: boolean }>();
 const emit = defineEmits<{ change: [changes: ObjectChanges]; duplicate: []; remove: [] }>();
 
 const name = ref("");
 const description = ref("");
-const position = ref({ longitude: "", latitude: "", altitude: "" });
+const position = ref({ longitude: "", latitude: "", altitude: "", radius: "" });
 
 watch(
   () => props.object,
   (object) => {
     name.value = object.name;
     description.value = object.description ?? "";
-    if (object.geometry.type === "Point") {
+    if (object.geometry.type === "Point" || object.geometry.type === "Circle") {
       const [longitude, latitude, altitude] = object.geometry.coordinates;
       position.value = {
         longitude: String(longitude ?? ""),
         latitude: String(latitude ?? ""),
         altitude: altitude === undefined ? "" : String(altitude),
+        radius: object.geometry.type === "Circle" ? String(object.geometry.radius) : "",
       };
     }
   },
@@ -57,22 +58,28 @@ function commitText(): void {
   }
 }
 
-function changeStyle(changes: Partial<MissionObjectStyle>): void {
+function changeStyle(changes: Partial<PackageObjectStyle>): void {
   emit("change", { style: { ...props.object.style, ...changes } });
 }
 
-/** An empty altitude stays unknown; it is never sent as zero. */
+/** An empty altitude stays unknown; it is never sent as zero. Core validates the values. */
 function commitPosition(): void {
   const longitude = Number.parseFloat(position.value.longitude);
   const latitude = Number.parseFloat(position.value.latitude);
   const altitudeText = position.value.altitude.trim();
   const altitude = altitudeText === "" ? null : Number.parseFloat(altitudeText);
+  const radius = Number.parseFloat(position.value.radius);
   if (Number.isNaN(longitude) || Number.isNaN(latitude) || (altitude !== null && Number.isNaN(altitude))) {
     return;
   }
-  emit("change", {
-    geometry: { type: "Point", coordinates: altitude === null ? [longitude, latitude] : [longitude, latitude, altitude] },
-  });
+  const coordinates = altitude === null ? [longitude, latitude] : [longitude, latitude, altitude];
+  if (props.object.geometry.type === "Circle") {
+    if (!Number.isNaN(radius)) {
+      emit("change", { geometry: { type: "Circle", coordinates, radius } });
+    }
+  } else {
+    emit("change", { geometry: { type: "Point", coordinates } });
+  }
 }
 </script>
 
@@ -134,7 +141,7 @@ function commitPosition(): void {
       />
     </template>
     <v-slider
-      v-if="object.kind === 'polygon'"
+      v-if="object.kind === 'polygon' || object.kind === 'circle'"
       :model-value="object.style.fillOpacity"
       label="Fill"
       :min="0"
@@ -148,7 +155,7 @@ function commitPosition(): void {
     />
 
     <div class="text-caption text-medium-emphasis mt-4 mb-1">Position (WGS84)</div>
-    <template v-if="object.geometry.type === 'Point'">
+    <template v-if="object.geometry.type === 'Point' || object.geometry.type === 'Circle'">
       <div class="d-flex ga-2">
         <v-text-field v-model="position.latitude" label="Latitude" density="compact" :disabled="disabled" @blur="commitPosition" @keydown.enter="commitPosition" />
         <v-text-field v-model="position.longitude" label="Longitude" density="compact" :disabled="disabled" @blur="commitPosition" @keydown.enter="commitPosition" />
@@ -159,6 +166,16 @@ function commitPosition(): void {
         hint="Leave empty when unknown"
         persistent-hint
         density="compact"
+        :disabled="disabled"
+        @blur="commitPosition"
+        @keydown.enter="commitPosition"
+      />
+      <v-text-field
+        v-if="object.geometry.type === 'Circle'"
+        v-model="position.radius"
+        label="Radius (m)"
+        density="compact"
+        class="mt-2"
         :disabled="disabled"
         @blur="commitPosition"
         @keydown.enter="commitPosition"

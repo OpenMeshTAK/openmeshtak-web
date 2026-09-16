@@ -28,9 +28,9 @@ const routes: RouteRecordRaw[] = [
   publicPage("/claim", "claim", () => import("@/modules/member-claims/ClaimView.vue")),
   // The editor uses the whole window; it brings its own header with a way back.
   {
-    path: "/admin/events/:eventId/missions/:missionId",
-    name: "mission-editor",
-    component: () => import("@/modules/editor/MissionEditorView.vue"),
+    path: "/admin/events/:eventId/data-packages/:packageId",
+    name: "package-editor",
+    component: () => import("@/modules/editor/PackageEditorView.vue"),
   },
   {
     path: "/",

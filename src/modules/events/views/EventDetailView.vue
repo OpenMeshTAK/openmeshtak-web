@@ -11,7 +11,7 @@ import EventGroupsPanel from "@/modules/event-groups/EventGroupsPanel.vue";
 import EventRolesPanel from "@/modules/event-roles/EventRolesPanel.vue";
 import EventMembersPanel from "@/modules/members/EventMembersPanel.vue";
 import SyncIssuesPanel from "@/modules/members/SyncIssuesPanel.vue";
-import MissionsPanel from "@/modules/missions/MissionsPanel.vue";
+import DataPackagesPanel from "@/modules/data-packages/DataPackagesPanel.vue";
 import EventLifecycleCard from "../components/EventLifecycleCard.vue";
 import EventSettingsForm from "../components/EventSettingsForm.vue";
 import EventStatusBadge from "../components/EventStatusBadge.vue";
@@ -105,7 +105,7 @@ onMounted(load);
         <v-tab value="groups">Groups</v-tab>
         <v-tab value="members">Members</v-tab>
         <v-tab value="sync-issues">Sync issues</v-tab>
-        <v-tab v-if="session.can('missions.read', event.id)" value="missions">Missions</v-tab>
+        <v-tab v-if="session.can('data-packages.read', event.id)" value="data-packages">Data packages</v-tab>
       </v-tabs>
 
       <v-window v-model="tab">
@@ -141,8 +141,8 @@ onMounted(load);
         <v-window-item value="sync-issues">
           <SyncIssuesPanel :event="event" />
         </v-window-item>
-        <v-window-item value="missions">
-          <MissionsPanel :event="event" />
+        <v-window-item value="data-packages">
+          <DataPackagesPanel :event="event" />
         </v-window-item>
       </v-window>
     </template>

@@ -12,18 +12,18 @@ import { fromLonLat } from "ol/proj";
 import OSM from "ol/source/OSM";
 import VectorSource from "ol/source/Vector";
 import { Circle, Fill, Stroke, Style } from "ol/style";
-import type { MissionGeometry, MissionLayerDto, MissionObjectDto, MissionObjectStyle } from "@/modules/missions/missions.api";
+import type { PackageGeometry, PackageLayerDto, PackageObjectDto, PackageObjectStyle } from "@/modules/data-packages/data-packages.api";
 import { fromMapGeometry, toMapGeometry } from "./geometry-codec";
 
-export type EditorTool = "select" | "point" | "line" | "polygon";
+export type EditorTool = "select" | "point" | "line" | "polygon" | "circle";
 
-export interface MissionMapCallbacks {
-  onDrawn: (geometry: MissionGeometry) => void;
-  onModified: (objectId: string, geometry: MissionGeometry) => void;
+export interface PackageMapCallbacks {
+  onDrawn: (geometry: PackageGeometry) => void;
+  onModified: (objectId: string, geometry: PackageGeometry) => void;
   onSelected: (objectId: string | null) => void;
 }
 
-const DRAW_TYPES = { point: "Point", line: "LineString", polygon: "Polygon" } as const;
+const DRAW_TYPES = { point: "Point", line: "LineString", polygon: "Polygon", circle: "Circle" } as const;
 const DEFAULT_CENTER = fromLonLat([10.45, 51.16]);
 
 function withOpacity(hex: string, opacity: number): string {
@@ -31,7 +31,7 @@ function withOpacity(hex: string, opacity: number): string {
   return `rgba(${String((value >> 16) & 255)}, ${String((value >> 8) & 255)}, ${String(value & 255)}, ${String(opacity)})`;
 }
 
-function styleFor(style: MissionObjectStyle, selected: boolean): Style[] {
+function styleFor(style: PackageObjectStyle, selected: boolean): Style[] {
   const width = style.strokeWidth + (selected ? 2 : 0);
   const main = new Style({
     stroke: new Stroke({ color: style.color, width }),
@@ -47,11 +47,11 @@ function styleFor(style: MissionObjectStyle, selected: boolean): Style[] {
 }
 
 /**
- * OpenLayers adapter of the mission editor (EDITOR.md: map state stays behind this boundary).
- * It renders mission objects, offers select/draw/modify/snap and reports geometry changes as
- * mission GeoJSON. It never talks to the API; the editor decides what to save.
+ * OpenLayers adapter of the data package editor (EDITOR.md: map state stays behind this boundary).
+ * It renders data package objects, offers select/draw/modify/snap and reports geometry changes as
+ * data package GeoJSON. It never talks to the API; the editor decides what to save.
  */
-export class MissionMap {
+export class PackageMap {
   private readonly source = new VectorSource<Feature<Geometry>>();
   private readonly map: OlMap;
   private readonly select: Select;
@@ -59,13 +59,13 @@ export class MissionMap {
   private readonly modify: Modify;
   private readonly snap: Snap;
   private draw: Draw | null = null;
-  private originals = new Map<string, MissionGeometry>();
+  private originals = new Map<string, PackageGeometry>();
   private selectedId: string | null = null;
 
-  constructor(target: HTMLElement, private readonly callbacks: MissionMapCallbacks) {
+  constructor(target: HTMLElement, private readonly callbacks: PackageMapCallbacks) {
     const vectorLayer = new VectorLayer({
       source: this.source,
-      style: (feature) => styleFor(feature.get("missionStyle") as MissionObjectStyle, feature.getId() === this.selectedId),
+      style: (feature) => styleFor(feature.get("missionStyle") as PackageObjectStyle, feature.getId() === this.selectedId),
     });
     this.map = new OlMap({
       target,
@@ -99,7 +99,7 @@ export class MissionMap {
   }
 
   /** Replaces the rendered content. Hidden layers are not drawn; locked layers cannot be modified. */
-  setContent(layers: MissionLayerDto[], objects: MissionObjectDto[]): void {
+  setContent(layers: PackageLayerDto[], objects: PackageObjectDto[]): void {
     const byId = new Map(layers.map((layer) => [layer.id, layer]));
     this.originals = new Map(objects.map((object) => [object.id, object.geometry]));
     this.source.clear();

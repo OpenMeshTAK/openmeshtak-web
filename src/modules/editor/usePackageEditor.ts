@@ -6,40 +6,43 @@ import {
   createObject,
   deleteLayer,
   deleteObject,
-  getMission,
+  getDataPackage,
   listLayers,
   listObjects,
   updateLayer,
   updateObject,
-  type MissionDto,
-  type MissionGeometry,
-  type MissionLayerDto,
-  type MissionObjectDto,
-  type MissionObjectStyle,
-} from "@/modules/missions/missions.api";
+  type DataPackageDto,
+  type PackageGeometry,
+  type PackageLayerDto,
+  type PackageObjectDto,
+  type PackageObjectStyle,
+} from "@/modules/data-packages/data-packages.api";
 
-/** What the editor shows next to the mission name (EDITOR.md: saved, saving, conflicted, invalid). */
+/** What the editor shows next to the data package name (EDITOR.md: saved, saving, conflicted, invalid). */
 export type SaveState = "saved" | "saving" | "error" | "conflict";
 
 export interface ObjectDetails {
   name: string;
   description: string | null;
-  style: MissionObjectStyle;
+  style: PackageObjectStyle;
 }
 
-const KIND_NAMES = { Point: "Point", LineString: "Line", Polygon: "Area" } as const;
+/** Mirrors Core's limit so a too large circle gets a helpful hint instead of a rejection. */
+const MAX_CIRCLE_RADIUS_METRES = 100_000;
+
+const KIND_NAMES = { Point: "Point", LineString: "Line", Polygon: "Area", Circle: "Circle" } as const;
 
 /**
- * Editor state for one mission draft. Every change is saved immediately through the API with the
+ * Editor state for one data package draft. Every change is saved immediately through the API with the
  * object's version, so a concurrent edit surfaces as a conflict instead of being overwritten.
  */
-export function useMissionEditor(eventId: string, missionId: string) {
-  const path = { eventId, missionId };
+export function usePackageEditor(eventId: string, packageId: string) {
+  const path = { eventId, packageId };
   const toast = useToast();
 
-  const mission = ref<MissionDto | null>(null);
-  const layers = ref<MissionLayerDto[]>([]);
-  const objects = ref<MissionObjectDto[]>([]);
+  const dataPackage = ref<DataPackageDto | null>(null);
+  const layers = ref<PackageLayerDto[]>([]);
+  const objects = ref<PackageObjectDto[]>([]);
   const loadState = ref<"loading" | "ready" | "error">("loading");
   const saveState = ref<SaveState>("saved");
   const selectedId = ref<string | null>(null);
@@ -52,8 +55,8 @@ export function useMissionEditor(eventId: string, missionId: string) {
   async function load(): Promise<void> {
     loadState.value = "loading";
     try {
-      [mission.value, layers.value, objects.value] = await Promise.all([
-        getMission(path),
+      [dataPackage.value, layers.value, objects.value] = await Promise.all([
+        getDataPackage(path),
         listLayers(path),
         listObjects(path),
       ]);
@@ -74,7 +77,7 @@ export function useMissionEditor(eventId: string, missionId: string) {
     } catch (caught: unknown) {
       if (isApiProblem(caught, "VERSION_CONFLICT")) {
         saveState.value = "conflict";
-        toast.warning("Someone else changed this mission. The latest version was loaded.");
+        toast.warning("Someone else changed this data package. The latest version was loaded.");
         await load();
         saveState.value = "saved";
       } else {
@@ -85,20 +88,24 @@ export function useMissionEditor(eventId: string, missionId: string) {
     }
   }
 
-  function replaceObject(object: MissionObjectDto): void {
+  function replaceObject(object: PackageObjectDto): void {
     objects.value = objects.value.map((existing) => (existing.id === object.id ? object : existing));
   }
 
-  function replaceLayer(layer: MissionLayerDto): void {
+  function replaceLayer(layer: PackageLayerDto): void {
     layers.value = layers.value.map((existing) => (existing.id === layer.id ? layer : existing));
   }
 
   // ---- Objects --------------------------------------------------------------------------------
 
-  async function addObject(geometry: MissionGeometry): Promise<void> {
+  async function addObject(geometry: PackageGeometry): Promise<void> {
     const layer = activeLayer.value;
     if (layer === null || layer.locked) {
       toast.warning("Choose an unlocked layer before drawing.");
+      return;
+    }
+    if (geometry.type === "Circle" && geometry.radius > MAX_CIRCLE_RADIUS_METRES) {
+      toast.warning("Circles can have a radius of at most 100 km. Zoom in and draw a smaller circle.");
       return;
     }
     const sameKind = objects.value.filter((object) => object.geometry.type === geometry.type).length;
@@ -111,7 +118,7 @@ export function useMissionEditor(eventId: string, missionId: string) {
     }
   }
 
-  function fullUpdate(object: MissionObjectDto, changes: Partial<ObjectDetails & { geometry: MissionGeometry; layerId: string }>) {
+  function fullUpdate(object: PackageObjectDto, changes: Partial<ObjectDetails & { geometry: PackageGeometry; layerId: string }>) {
     return updateObject(path, object.id, {
       version: object.version,
       layerId: changes.layerId ?? object.layerId,
@@ -124,7 +131,7 @@ export function useMissionEditor(eventId: string, missionId: string) {
 
   async function changeObject(
     objectId: string,
-    changes: Partial<ObjectDetails & { geometry: MissionGeometry; layerId: string }>,
+    changes: Partial<ObjectDetails & { geometry: PackageGeometry; layerId: string }>,
   ): Promise<void> {
     const object = objects.value.find(({ id }) => id === objectId);
     if (object === undefined) {
@@ -180,8 +187,8 @@ export function useMissionEditor(eventId: string, missionId: string) {
   }
 
   async function changeLayer(
-    layer: MissionLayerDto,
-    changes: Partial<Pick<MissionLayerDto, "name" | "visible" | "locked" | "sortOrder">>,
+    layer: PackageLayerDto,
+    changes: Partial<Pick<PackageLayerDto, "name" | "visible" | "locked" | "sortOrder">>,
   ): Promise<void> {
     const updated = await save(() =>
       updateLayer(path, layer.id, {
@@ -198,7 +205,7 @@ export function useMissionEditor(eventId: string, missionId: string) {
   }
 
   /** Swaps the drawing order with the neighbour above (`-1`) or below (`1`) in the list. */
-  async function moveLayer(layer: MissionLayerDto, direction: -1 | 1): Promise<void> {
+  async function moveLayer(layer: PackageLayerDto, direction: -1 | 1): Promise<void> {
     const ordered = sortedLayers.value;
     const neighbour = ordered[ordered.findIndex(({ id }) => id === layer.id) + direction];
     if (neighbour === undefined) {
@@ -208,7 +215,7 @@ export function useMissionEditor(eventId: string, missionId: string) {
     await changeLayer(neighbour, { sortOrder: layer.sortOrder });
   }
 
-  async function removeLayer(layer: MissionLayerDto): Promise<void> {
+  async function removeLayer(layer: PackageLayerDto): Promise<void> {
     const removed = await save(() => deleteLayer(path, layer.id));
     if (removed !== null) {
       layers.value = layers.value.filter(({ id }) => id !== layer.id);
@@ -221,7 +228,7 @@ export function useMissionEditor(eventId: string, missionId: string) {
 
   return {
     path,
-    mission,
+    dataPackage,
     layers,
     sortedLayers,
     objects,
@@ -243,4 +250,4 @@ export function useMissionEditor(eventId: string, missionId: string) {
   };
 }
 
-export type MissionEditor = ReturnType<typeof useMissionEditor>;
+export type PackageEditor = ReturnType<typeof usePackageEditor>;

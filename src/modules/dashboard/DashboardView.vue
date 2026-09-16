@@ -103,7 +103,7 @@ onMounted(load);
         <ProvisioningActions />
         <v-card class="pa-5">
           <div class="text-subtitle-1 font-weight-medium mb-1">Downloads</div>
-          <p class="text-body-2 text-medium-emphasis mb-0">No mission packages are published yet.</p>
+          <p class="text-body-2 text-medium-emphasis mb-0">No data packages are published yet.</p>
         </v-card>
       </v-col>
     </v-row>

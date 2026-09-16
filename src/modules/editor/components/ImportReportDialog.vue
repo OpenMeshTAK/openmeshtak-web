@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import type { ImportReport } from "@/modules/missions/missions.api";
+import type { ImportReport } from "@/modules/data-packages/data-packages.api";
 
 /** Shows every changed, skipped and rejected feature so nothing disappears silently (EDITOR.md). */
 const props = defineProps<{ report: ImportReport | null }>();
