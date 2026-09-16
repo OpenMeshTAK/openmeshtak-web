@@ -11,9 +11,9 @@ import VectorLayer from "ol/layer/Vector";
 import { fromLonLat } from "ol/proj";
 import OSM from "ol/source/OSM";
 import VectorSource from "ol/source/Vector";
-import { Circle, Fill, Stroke, Style } from "ol/style";
-import type { PackageGeometry, PackageLayerDto, PackageObjectDto, PackageObjectStyle } from "@/modules/data-packages/data-packages.api";
+import type { PackageGeometry, PackageLayerDto, PackageObjectDto } from "@/modules/data-packages/data-packages.api";
 import { fromMapGeometry, toMapGeometry } from "./geometry-codec";
+import { objectStyle } from "./object-style";
 
 export type EditorTool = "select" | "point" | "line" | "polygon" | "circle";
 
@@ -25,26 +25,6 @@ export interface PackageMapCallbacks {
 
 const DRAW_TYPES = { point: "Point", line: "LineString", polygon: "Polygon", circle: "Circle" } as const;
 const DEFAULT_CENTER = fromLonLat([10.45, 51.16]);
-
-function withOpacity(hex: string, opacity: number): string {
-  const value = Number.parseInt(hex.slice(1), 16);
-  return `rgba(${String((value >> 16) & 255)}, ${String((value >> 8) & 255)}, ${String(value & 255)}, ${String(opacity)})`;
-}
-
-function styleFor(style: PackageObjectStyle, selected: boolean): Style[] {
-  const width = style.strokeWidth + (selected ? 2 : 0);
-  const main = new Style({
-    stroke: new Stroke({ color: style.color, width }),
-    fill: new Fill({ color: withOpacity(style.color, style.fillOpacity) }),
-    image: new Circle({
-      radius: selected ? 9 : 7,
-      fill: new Fill({ color: style.color }),
-      stroke: new Stroke({ color: "#FFFFFF", width: 2 }),
-    }),
-  });
-  // A light halo under the selected object keeps it visible on any base map.
-  return selected ? [new Style({ stroke: new Stroke({ color: "rgba(255, 255, 255, 0.9)", width: width + 4 }) }), main] : [main];
-}
 
 /**
  * OpenLayers adapter of the data package editor (EDITOR.md: map state stays behind this boundary).
@@ -65,7 +45,9 @@ export class PackageMap {
   constructor(target: HTMLElement, private readonly callbacks: PackageMapCallbacks) {
     const vectorLayer = new VectorLayer({
       source: this.source,
-      style: (feature) => styleFor(feature.get("missionStyle") as PackageObjectStyle, feature.getId() === this.selectedId),
+      style: (feature, resolution) => objectStyle(feature, resolution, feature.getId() === this.selectedId),
+      // Overlapping labels are hidden instead of piling up; markers always stay visible.
+      declutter: true,
     });
     this.map = new OlMap({
       target,
@@ -109,7 +91,9 @@ export class PackageMap {
         .map((object) => {
           const feature = new Feature<Geometry>({ geometry: toMapGeometry(object.geometry) });
           feature.setId(object.id);
-          feature.set("missionStyle", object.style);
+          feature.set("objectStyle", object.style);
+          feature.set("kind", object.kind);
+          feature.set("name", object.name);
           feature.set("locked", byId.get(object.layerId)?.locked === true);
           return feature;
         }),
