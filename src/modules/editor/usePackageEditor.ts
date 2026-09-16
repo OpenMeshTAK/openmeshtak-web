@@ -178,8 +178,18 @@ export function usePackageEditor(eventId: string, packageId: string) {
 
   // ---- Layers ---------------------------------------------------------------------------------
 
+  /** First free "Layer N", so names stay unique after layers were deleted. */
+  function nextLayerName(): string {
+    const names = new Set(layers.value.map(({ name }) => name));
+    let number = layers.value.length + 1;
+    while (names.has(`Layer ${String(number)}`)) {
+      number += 1;
+    }
+    return `Layer ${String(number)}`;
+  }
+
   async function addLayer(): Promise<void> {
-    const created = await save(() => createLayer(path, `Layer ${String(layers.value.length + 1)}`));
+    const created = await save(() => createLayer(path, nextLayerName()));
     if (created !== null) {
       layers.value = [...layers.value, created];
       activeLayerId.value = created.id;
