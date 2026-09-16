@@ -1,38 +1,34 @@
-import { mdiMapMarker } from "@mdi/js";
 import type { FeatureLike } from "ol/Feature";
 import CircleGeometry from "ol/geom/Circle";
 import Polygon from "ol/geom/Polygon";
-import { Fill, Icon, Stroke, Style, Text } from "ol/style";
+import { Circle, Fill, Stroke, Style, Text } from "ol/style";
 import type { PackageObjectStyle } from "@/modules/data-packages/data-packages.api";
 
 /** Above this many metres per pixel (roughly zoom 12) only the selected object is labelled. */
 const LABEL_MAX_RESOLUTION = 30;
-/** The tip of the MDI map-marker path sits at y=22 of its 24-unit view box. */
-const PIN_TIP = 22 / 24;
 
-const pinCache = new Map<string, Icon>();
+const dotCache = new Map<string, Circle>();
 
 function withOpacity(hex: string, opacity: number): string {
   const value = Number.parseInt(hex.slice(1), 16);
   return `rgba(${String((value >> 16) & 255)}, ${String((value >> 8) & 255)}, ${String(value & 255)}, ${String(opacity)})`;
 }
 
-/** A map pin in the object's colour with a white outline, readable on any base map. */
-function pin(color: string, selected: boolean): Icon {
+/** A coloured dot with a white outline, like ATAK spot markers (`b-m-p-s-m`). */
+function dot(color: string, selected: boolean): Circle {
   const key = `${color}:${String(selected)}`;
-  let icon = pinCache.get(key);
-  if (icon === undefined) {
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="${mdiMapMarker}" fill="${color}" stroke="#FFFFFF" stroke-width="1.5"/></svg>`;
-    icon = new Icon({
-      src: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
-      anchor: [0.5, PIN_TIP],
-      scale: selected ? 1.6 : 1.3,
+  let image = dotCache.get(key);
+  if (image === undefined) {
+    image = new Circle({
+      radius: selected ? 9 : 7,
+      fill: new Fill({ color }),
+      stroke: new Stroke({ color: "#FFFFFF", width: 2 }),
       // Markers are never hidden by decluttering; only overlapping labels are.
       declutterMode: "none",
     });
-    pinCache.set(key, icon);
+    dotCache.set(key, image);
   }
-  return icon;
+  return image;
 }
 
 function label(name: string, kind: string): Text {
@@ -41,10 +37,10 @@ function label(name: string, kind: string): Text {
     font: "600 12px Roboto, Arial, sans-serif",
     fill: new Fill({ color: "#1A1A1A" }),
     stroke: new Stroke({ color: "rgba(255, 255, 255, 0.95)", width: 3 }),
-    // Lines carry their name along the line; markers below the pin; areas and circles inside.
+    // Lines carry their name along the line; markers below the dot; areas and circles inside.
     placement: kind === "line" ? "line" : "point",
     textBaseline: kind === "point" ? "top" : "middle",
-    offsetY: kind === "point" ? 4 : 0,
+    offsetY: kind === "point" ? 10 : 0,
     // Small areas such as buildings are labelled too, even when the name is wider than the shape.
     overflow: true,
   });
@@ -74,7 +70,7 @@ export function objectStyle(feature: FeatureLike, resolution: number, selected: 
     zIndex: priority(feature, kind),
     stroke: new Stroke({ color: style.color, width }),
     fill: new Fill({ color: withOpacity(style.color, style.fillOpacity) }),
-    ...(kind === "point" ? { image: pin(style.color, selected) } : {}),
+    ...(kind === "point" ? { image: dot(style.color, selected) } : {}),
     ...(selected || resolution <= LABEL_MAX_RESOLUTION ? { text: label(name, kind) } : {}),
   });
   // A light halo under the selected shape keeps it visible on any base map.
