@@ -1,4 +1,5 @@
 import { api, unwrap } from "@/shared/api/client";
+import { ApiProblem } from "@/shared/errors/api-problem";
 import type { Schemas } from "@/shared/api/types";
 
 export type DataPackageDto = Schemas["DataPackageDto"];
@@ -6,7 +7,7 @@ export type PackageLayerDto = Schemas["PackageLayerDto"];
 export type PackageObjectDto = Schemas["PackageObjectDto"];
 export type PackageGeometry = Schemas["PackageGeometry"];
 export type PackageObjectStyle = Schemas["PackageObjectStyle"];
-export type ImportReport = Schemas["GeoJsonImportReport"];
+export type ImportReport = Schemas["ImportReport"];
 export type PublishResult = Schemas["PublishDataPackageResponse"];
 
 type PackagePath = { eventId: string; packageId: string };
@@ -110,4 +111,46 @@ export function importGeoJson(path: PackagePath, layerId: string, document: Sche
 
 export function exportDraftGeoJson(path: PackagePath): Promise<Schemas["GeoJsonFeatureCollection"]> {
   return unwrap(api.GET("/events/{eventId}/data-packages/{packageId}/geojson", { params: { path } }));
+}
+
+function packageUrl(path: PackagePath, suffix: string): string {
+  const base = `/api/v1/events/${encodeURIComponent(path.eventId)}/data-packages/${encodeURIComponent(path.packageId)}`;
+  return new URL(`${base}/${suffix}`, window.location.origin).href;
+}
+
+async function failure(response: Response): Promise<ApiProblem> {
+  return new ApiProblem(response.status, await response.json().catch(() => ({})));
+}
+
+/** ZIP archives start with "PK"; anything else is treated as a single CoT XML file. */
+async function isZipFile(file: File): Promise<boolean> {
+  const head = new Uint8Array(await file.slice(0, 2).arrayBuffer());
+  return head[0] === 0x50 && head[1] === 0x4b;
+}
+
+/**
+ * Uploads an ATAK Data Package or CoT file as raw bytes. The typed client only sends JSON, so this
+ * one call uses fetch directly; the same-origin session cookie authenticates it.
+ */
+export async function importAtak(path: PackagePath, layerId: string, file: File): Promise<ImportReport> {
+  const response = await fetch(packageUrl(path, `layers/${encodeURIComponent(layerId)}/import/atak`), {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": (await isZipFile(file)) ? "application/zip" : "application/xml" },
+    body: file,
+  });
+  if (!response.ok) {
+    throw await failure(response);
+  }
+  return (await response.json()) as ImportReport;
+}
+
+/** Downloads the ATAK Data Package of a published revision. */
+export async function downloadAtak(path: PackagePath, revision: number): Promise<{ blob: Blob; fileName: string }> {
+  const response = await fetch(packageUrl(path, `revisions/${String(revision)}/atak`), { credentials: "same-origin" });
+  if (!response.ok) {
+    throw await failure(response);
+  }
+  const fileName = /filename="([^"]+)"/.exec(response.headers.get("Content-Disposition") ?? "")?.[1] ?? "data-package.zip";
+  return { blob: await response.blob(), fileName };
 }

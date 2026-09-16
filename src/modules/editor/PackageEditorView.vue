@@ -6,7 +6,14 @@ import ErrorState from "@/shared/components/ErrorState.vue";
 import { useToast } from "@/shared/feedback/toast";
 import { useSession } from "@/modules/auth/session";
 import { getEvent, type EventDto } from "@/modules/events/events.api";
-import { exportDraftGeoJson, importGeoJson, publishDataPackage, type ImportReport } from "@/modules/data-packages/data-packages.api";
+import {
+  downloadAtak,
+  exportDraftGeoJson,
+  importAtak,
+  importGeoJson,
+  publishDataPackage,
+  type ImportReport,
+} from "@/modules/data-packages/data-packages.api";
 import EditorToolbar from "./components/EditorToolbar.vue";
 import ImportReportDialog from "./components/ImportReportDialog.vue";
 import LayerPanel from "./components/LayerPanel.vue";
@@ -32,6 +39,11 @@ const reportOpen = ref(false);
 
 const editable = computed(() => event.value?.status !== "archived" && session.can("data-packages.edit", eventId));
 const canPublish = computed(() => event.value?.status !== "archived" && session.can("data-packages.publish", eventId));
+
+const revisionLabel = computed(() => {
+  const revision = editor.dataPackage.value?.latestRevision;
+  return revision ? `Revision ${String(revision)}` : "Publish first";
+});
 
 const saveLabel = computed(() => {
   switch (editor.saveState.value) {
@@ -65,23 +77,35 @@ async function publish(): Promise<void> {
   }
 }
 
-/** Reads a local GeoJSON file; Core converts, validates and reports every feature. */
-async function importFile(file: File): Promise<void> {
-  const layer = editor.activeLayer.value;
-  if (layer === null || layer.locked) {
-    toast.warning("Choose an unlocked layer before importing.");
-    return;
+/** GeoJSON is sent as JSON; ATAK packages (.zip) and CoT files are uploaded as they are. */
+async function convertAndImport(file: File, layerId: string): Promise<ImportReport | null> {
+  if (!/\.(geo)?json$/i.test(file.name)) {
+    return importAtak(editor.path, layerId, file);
   }
   let document: unknown;
   try {
     document = JSON.parse(await file.text());
   } catch {
     toast.error(`${file.name} is not valid JSON.`);
+    return null;
+  }
+  return importGeoJson(editor.path, layerId, document as { type: string });
+}
+
+/** Core converts, validates and reports every item of the file. */
+async function importFile(file: File): Promise<void> {
+  const layer = editor.activeLayer.value;
+  if (layer === null || layer.locked) {
+    toast.warning("Choose an unlocked layer before importing.");
     return;
   }
   importing.value = true;
   try {
-    report.value = await importGeoJson(editor.path, layer.id, document as { type: string });
+    const result = await convertAndImport(file, layer.id);
+    if (result === null) {
+      return;
+    }
+    report.value = result;
     reportOpen.value = true;
     await editor.load();
     mapView.value?.fitToContent();
@@ -101,15 +125,35 @@ function onFileChosen(changeEvent: Event): void {
   }
 }
 
+function saveFile(blob: Blob, fileName: string): void {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 async function exportDraft(): Promise<void> {
   try {
     const collection = await exportDraftGeoJson(editor.path);
-    const url = URL.createObjectURL(new Blob([JSON.stringify(collection, null, 2)], { type: "application/geo+json" }));
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${(editor.dataPackage.value?.name ?? "data-package").replace(/[^\w-]+/g, "_")}.geojson`;
-    link.click();
-    URL.revokeObjectURL(url);
+    const name = (editor.dataPackage.value?.name ?? "data-package").replace(/[^\w-]+/g, "_");
+    saveFile(new Blob([JSON.stringify(collection, null, 2)], { type: "application/geo+json" }), `${name}.geojson`);
+  } catch (caught: unknown) {
+    toast.error(caught);
+  }
+}
+
+/** ATAK receives published revisions only, never the draft. */
+async function exportAtak(): Promise<void> {
+  const revision = editor.dataPackage.value?.latestRevision;
+  if (revision === null || revision === undefined) {
+    toast.info("Publish the data package first; ATAK packages are built from published revisions.");
+    return;
+  }
+  try {
+    const { blob, fileName } = await downloadAtak(editor.path, revision);
+    saveFile(blob, fileName);
   } catch (caught: unknown) {
     toast.error(caught);
   }
@@ -165,9 +209,17 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
       <v-chip :color="saveLabel.color" :prepend-icon="saveLabel.icon" size="small" variant="tonal" role="status">
         {{ saveLabel.text }}
       </v-chip>
-      <input ref="fileInput" type="file" accept=".geojson,.json,application/geo+json,application/json" hidden @change="onFileChosen">
+      <input ref="fileInput" type="file" accept=".zip,.cot,.xml,.geojson,.json" hidden @change="onFileChosen">
       <v-btn v-if="editable" variant="text" :prepend-icon="mdiUpload" :loading="importing" @click="fileInput?.click()">Import</v-btn>
-      <v-btn variant="text" :prepend-icon="mdiDownload" @click="exportDraft">Export</v-btn>
+      <v-menu>
+        <template #activator="{ props: menu }">
+          <v-btn v-bind="menu" variant="text" :prepend-icon="mdiDownload">Export</v-btn>
+        </template>
+        <v-list density="compact">
+          <v-list-item title="ATAK Data Package (.zip)" :subtitle="revisionLabel" @click="exportAtak" />
+          <v-list-item title="GeoJSON of the draft" @click="exportDraft" />
+        </v-list>
+      </v-menu>
       <v-btn v-if="canPublish" color="primary" :prepend-icon="mdiPublish" :loading="publishing" @click="publish">Publish</v-btn>
     </div>
 
