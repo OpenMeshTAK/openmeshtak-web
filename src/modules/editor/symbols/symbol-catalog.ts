@@ -7,15 +7,13 @@
 export interface Affiliation {
   code: string;
   label: string;
-  /** Matches the 2525 frame colour, so the choice is recognisable before picking a symbol. */
-  color: string;
 }
 
 export const AFFILIATIONS: Affiliation[] = [
-  { code: "f", label: "Friendly", color: "#80E0FF" },
-  { code: "h", label: "Hostile", color: "#FF8080" },
-  { code: "n", label: "Neutral", color: "#AAFFAA" },
-  { code: "u", label: "Unknown", color: "#FFFF80" },
+  { code: "f", label: "Friendly" },
+  { code: "h", label: "Hostile" },
+  { code: "n", label: "Neutral" },
+  { code: "u", label: "Unknown" },
 ];
 
 export interface CatalogSymbol {
