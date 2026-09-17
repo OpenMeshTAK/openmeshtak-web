@@ -46,11 +46,20 @@ function label(name: string, kind: string): Text {
   });
 }
 
+/** Room for the within-layer priority below, so every layer sits completely above the previous. */
+const LAYER_STEP = 2_000_000;
+
 /**
- * Drawing priority: markers on top, then smaller shapes above larger ones. Decluttering keeps the
- * label drawn on top, so a building inside an operation area keeps its name.
+ * Drawing priority: higher layers above lower ones (as in the layer list), and within a layer
+ * markers on top, then smaller shapes above larger ones. The selection and decluttering follow
+ * the same order, so a building inside an operation area keeps its name and can be clicked.
  */
 function priority(feature: FeatureLike, kind: string): number {
+  const layerBase = Number(feature.get("layerRank") ?? 0) * LAYER_STEP;
+  return layerBase + withinLayerPriority(feature, kind);
+}
+
+function withinLayerPriority(feature: FeatureLike, kind: string): number {
   if (kind === "point") {
     return 1_000_000;
   }

@@ -83,6 +83,8 @@ export class PackageMap {
   /** Replaces the rendered content. Hidden layers are not drawn; locked layers cannot be modified. */
   setContent(layers: PackageLayerDto[], objects: PackageObjectDto[]): void {
     const byId = new Map(layers.map((layer) => [layer.id, layer]));
+    // Rank 0 is the bottom layer; higher layers are drawn and hit-tested above lower ones.
+    const rank = new Map([...layers].sort((a, b) => a.sortOrder - b.sortOrder).map(({ id }, index) => [id, index]));
     this.originals = new Map(objects.map((object) => [object.id, object.geometry]));
     this.source.clear();
     this.source.addFeatures(
@@ -93,6 +95,7 @@ export class PackageMap {
           feature.setId(object.id);
           feature.set("objectStyle", object.style);
           feature.set("kind", object.kind);
+          feature.set("layerRank", rank.get(object.layerId) ?? 0);
           feature.set("name", object.name);
           feature.set("locked", byId.get(object.layerId)?.locked === true);
           return feature;
