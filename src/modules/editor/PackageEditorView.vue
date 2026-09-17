@@ -278,6 +278,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
     <div v-if="editor.loadState.value === 'ready'" class="editor-body">
       <aside class="editor-panel">
         <LayerPanel
+          :package-id="editor.path.packageId"
           :layers="editor.sortedLayers.value"
           :objects="editor.objects.value"
           :active-layer-id="editor.activeLayerId.value"

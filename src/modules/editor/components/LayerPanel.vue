@@ -19,12 +19,15 @@ import {
 } from "@mdi/js";
 import { computed, ref } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
+import { readCollapsedLayers, storeCollapsedLayers } from "../collapsed-layers";
 import type { PackageLayerDto, PackageObjectDto } from "@/modules/data-packages/data-packages.api";
 
 type LayerChanges = Partial<Pick<PackageLayerDto, "name" | "visible" | "locked">>;
 export type LayerExportFormat = "atak" | "geojson";
 
 const props = defineProps<{
+  /** Used to remember collapsed layers per data package in this browser. */
+  packageId: string;
   layers: PackageLayerDto[];
   objects: PackageObjectDto[];
   activeLayerId: string | null;
@@ -50,7 +53,7 @@ const OBJECT_DRAG = "application/x-openmeshtak-object";
 
 /** The top of the list is drawn last, matching how map layers stack. */
 const displayed = computed(() => [...props.layers].reverse());
-const collapsed = ref(new Set<string>());
+const collapsed = ref(readCollapsedLayers(props.packageId));
 const renaming = ref<string | null>(null);
 const newName = ref("");
 const removing = ref<PackageLayerDto | null>(null);
@@ -66,6 +69,7 @@ function toggleCollapsed(layerId: string): void {
     next.add(layerId);
   }
   collapsed.value = next;
+  storeCollapsedLayers(props.packageId, next);
 }
 
 function startRename(layer: PackageLayerDto): void {
