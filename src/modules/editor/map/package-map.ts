@@ -5,7 +5,7 @@ import View from "ol/View";
 import { defaults as defaultControls, ScaleLine } from "ol/control";
 import { isEmpty } from "ol/extent";
 import type Geometry from "ol/geom/Geometry";
-import { Draw, Modify, Select, Snap } from "ol/interaction";
+import { Draw, Modify, Select, Snap, Translate } from "ol/interaction";
 import TileLayer from "ol/layer/Tile";
 import VectorLayer from "ol/layer/Vector";
 import { fromLonLat, toLonLat } from "ol/proj";
@@ -39,6 +39,7 @@ export class PackageMap {
   private readonly select: Select;
   private readonly editable = new Collection<Feature<Geometry>>();
   private readonly modify: Modify;
+  private readonly translate: Translate;
   private readonly snap: Snap;
   private draw: Draw | null = null;
   private originals = new Map<string, PackageGeometry>();
@@ -68,18 +69,15 @@ export class PackageMap {
     });
 
     this.modify = new Modify({ features: this.editable });
-    this.modify.on("modifyend", (event) => {
-      for (const feature of event.features.getArray()) {
-        const id = String(feature.getId());
-        const geometry = feature.getGeometry();
-        if (geometry !== undefined) {
-          this.callbacks.onModified(id, fromMapGeometry(geometry, this.originals.get(id)));
-        }
-      }
-    });
+    this.modify.on("modifyend", (event) => this.reportChanged(event.features.getArray()));
+    // Dragging inside the selected object moves all of it; Modify keeps vertex and edge drags.
+    this.translate = new Translate({ features: this.editable });
+    this.translate.on("translateend", (event) => this.reportChanged(event.features.getArray()));
     this.snap = new Snap({ source: this.source });
 
     this.map.addInteraction(this.select);
+    // Interactions added later see pointer events first, so Modify wins near vertices and edges.
+    this.map.addInteraction(this.translate);
     this.map.addInteraction(this.modify);
     this.map.addInteraction(this.snap);
 
@@ -93,6 +91,16 @@ export class PackageMap {
       event.preventDefault();
       this.openContextMenu(event, vectorLayer);
     });
+  }
+
+  private reportChanged(features: Feature<Geometry>[]): void {
+    for (const feature of features) {
+      const id = String(feature.getId());
+      const geometry = feature.getGeometry();
+      if (geometry !== undefined) {
+        this.callbacks.onModified(id, fromMapGeometry(geometry, this.originals.get(id)));
+      }
+    }
   }
 
   private openContextMenu(event: MouseEvent, vectorLayer: VectorLayer): void {
@@ -148,6 +156,7 @@ export class PackageMap {
     }
     this.select.setActive(tool === "select");
     this.modify.setActive(tool === "select");
+    this.translate.setActive(tool === "select");
     if (tool !== "select") {
       this.draw = new Draw({ type: DRAW_TYPES[tool] });
       this.draw.on("drawend", (event) => {
