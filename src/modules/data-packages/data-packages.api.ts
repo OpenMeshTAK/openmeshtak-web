@@ -7,6 +7,7 @@ export type PackageLayerDto = Schemas["PackageLayerDto"];
 export type PackageObjectDto = Schemas["PackageObjectDto"];
 export type PackageGeometry = Schemas["PackageGeometry"];
 export type PackageObjectStyle = Schemas["PackageObjectStyle"];
+export type TakMarker = Schemas["TakMarker"];
 export type ImportReport = Schemas["ImportReport"];
 export type PublishResult = Schemas["PublishDataPackageResponse"];
 

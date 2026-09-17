@@ -16,6 +16,7 @@ import {
   type PackageLayerDto,
   type PackageObjectDto,
   type PackageObjectStyle,
+  type TakMarker,
 } from "@/modules/data-packages/data-packages.api";
 import { moveGeometry } from "./map/move-geometry";
 
@@ -26,6 +27,8 @@ export interface ObjectDetails {
   name: string;
   description: string | null;
   style: PackageObjectStyle;
+  /** TAK symbol of a marker; `null` is a plain spot marker. */
+  tak: TakMarker | null;
 }
 
 /** Mirrors Core's limit so a too large circle gets a helpful hint instead of a rejection. */
@@ -127,6 +130,7 @@ export function usePackageEditor(eventId: string, packageId: string) {
       description: changes.description === undefined ? object.description : changes.description,
       geometry: changes.geometry ?? object.geometry,
       style: changes.style ?? object.style,
+      tak: changes.tak === undefined ? object.tak : changes.tak,
     });
   }
 
@@ -159,6 +163,7 @@ export function usePackageEditor(eventId: string, packageId: string) {
         description: object.description,
         geometry: object.geometry,
         style: object.style,
+        tak: object.tak,
       }),
     );
     if (copy !== null) {
@@ -197,6 +202,7 @@ export function usePackageEditor(eventId: string, packageId: string) {
         description: source.description,
         geometry: position === null ? source.geometry : moveGeometry(source.geometry, position),
         style: source.style,
+        tak: source.tak,
       }),
     );
     if (created !== null) {

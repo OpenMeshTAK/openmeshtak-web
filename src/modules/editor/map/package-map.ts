@@ -142,6 +142,7 @@ export class PackageMap {
           feature.set("kind", object.kind);
           feature.set("layerRank", rank.get(object.layerId) ?? 0);
           feature.set("name", object.name);
+          feature.set("cotType", object.tak?.cotType ?? null);
           feature.set("locked", byId.get(object.layerId)?.locked === true);
           return feature;
         }),

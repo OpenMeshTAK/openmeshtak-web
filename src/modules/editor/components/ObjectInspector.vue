@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import { mdiContentCopy, mdiTrashCanOutline } from "@mdi/js";
 import { computed, ref, watch } from "vue";
-import type { PackageGeometry, PackageLayerDto, PackageObjectDto, PackageObjectStyle } from "@/modules/data-packages/data-packages.api";
+import type {
+  PackageGeometry,
+  PackageLayerDto,
+  PackageObjectDto,
+  PackageObjectStyle,
+  TakMarker,
+} from "@/modules/data-packages/data-packages.api";
+import MarkerSymbolField from "./MarkerSymbolField.vue";
 
 type ObjectChanges = Partial<{
   name: string;
@@ -9,6 +16,7 @@ type ObjectChanges = Partial<{
   style: PackageObjectStyle;
   layerId: string;
   geometry: PackageGeometry;
+  tak: TakMarker | null;
 }>;
 
 const props = defineProps<{ object: PackageObjectDto; layers: PackageLayerDto[]; editable: boolean }>();
@@ -113,6 +121,8 @@ function commitPosition(): void {
       :disabled="disabled"
       @update:model-value="emit('change', { layerId: $event })"
     />
+
+    <MarkerSymbolField v-if="object.kind === 'point'" :tak="object.tak" :disabled="disabled" @change="emit('change', { tak: $event })" />
 
     <div class="text-caption text-medium-emphasis mb-1">Style</div>
     <div class="d-flex align-center ga-3 mb-2">

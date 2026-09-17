@@ -3,6 +3,7 @@ import CircleGeometry from "ol/geom/Circle";
 import Polygon from "ol/geom/Polygon";
 import { Circle, Fill, Stroke, Style, Text } from "ol/style";
 import type { PackageObjectStyle } from "@/modules/data-packages/data-packages.api";
+import { symbolIcon } from "./cot-symbol";
 
 /** Above this many metres per pixel (roughly zoom 12) only the selected object is labelled. */
 const LABEL_MAX_RESOLUTION = 30;
@@ -31,7 +32,7 @@ function dot(color: string, selected: boolean): Circle {
   return image;
 }
 
-function label(name: string, kind: string): Text {
+function label(name: string, kind: string, belowSymbol: boolean): Text {
   return new Text({
     text: name,
     font: "600 12px Roboto, Arial, sans-serif",
@@ -40,7 +41,7 @@ function label(name: string, kind: string): Text {
     // Lines carry their name along the line; markers below the dot; areas and circles inside.
     placement: kind === "line" ? "line" : "point",
     textBaseline: kind === "point" ? "top" : "middle",
-    offsetY: kind === "point" ? 10 : 0,
+    offsetY: kind === "point" ? (belowSymbol ? 18 : 10) : 0,
     // Small areas such as buildings are labelled too, even when the name is wider than the shape.
     overflow: true,
   });
@@ -74,13 +75,16 @@ export function objectStyle(feature: FeatureLike, resolution: number, selected: 
   const kind = String(feature.get("kind"));
   const name = String(feature.get("name") ?? "");
   const width = style.strokeWidth + (selected ? 2 : 0);
+  // Military symbols for CoT atom types (a-*); spot markers and icon sets we cannot draw get a dot.
+  const cotType = feature.get("cotType") as string | null;
+  const symbol = kind === "point" && cotType !== null ? symbolIcon(cotType, selected) : null;
 
   const main = new Style({
     zIndex: priority(feature, kind),
     stroke: new Stroke({ color: style.color, width }),
     fill: new Fill({ color: withOpacity(style.color, style.fillOpacity) }),
-    ...(kind === "point" ? { image: dot(style.color, selected) } : {}),
-    ...(selected || resolution <= LABEL_MAX_RESOLUTION ? { text: label(name, kind) } : {}),
+    ...(kind === "point" ? { image: symbol ?? dot(style.color, selected) } : {}),
+    ...(selected || resolution <= LABEL_MAX_RESOLUTION ? { text: label(name, kind, symbol !== null) } : {}),
   });
   // A light halo under the selected shape keeps it visible on any base map.
   return selected && kind !== "point"

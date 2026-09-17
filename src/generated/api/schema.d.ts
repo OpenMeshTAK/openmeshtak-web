@@ -1603,6 +1603,21 @@ export interface components {
              */
             fillOpacity: number;
         };
+        /**
+         * @description CoT event type, e.g. `b-m-p-s-m` (spot marker) or `a-f-G-U-C-I` (MIL-STD-2525 friendly
+         *     infantry).
+         */
+        CotType: string;
+        /** @description Optional TAK presentation of a marker, kept so ATAK packages round-trip without loss. */
+        TakMarker: {
+            /** @description Defaults to the spot marker `b-m-p-s-m`; `a-*` types are drawn as military symbols. */
+            cotType: components["schemas"]["CotType"];
+            /**
+             * @description ATAK icon set path such as `COT_MAPPING_SPOTMAP/b-m-p-s-m/-35072` or an icon in a custom
+             *     icon set. Passed through unchanged; the editor shows a plain marker when it cannot draw it.
+             */
+            iconsetPath: string | null;
+        };
         PackageSnapshotObject: {
             id: string;
             layerId: string;
@@ -1611,6 +1626,7 @@ export interface components {
             description: string | null;
             geometry: components["schemas"]["PackageGeometry"];
             style: components["schemas"]["PackageObjectStyle"];
+            tak: components["schemas"]["TakMarker"] | null;
         };
         /** @description Everything a package generator needs; timestamps and versions are left out on purpose. */
         PackageSnapshot: {
@@ -1649,6 +1665,8 @@ export interface components {
             description: string | null;
             geometry: components["schemas"]["PackageGeometry"];
             style: components["schemas"]["PackageObjectStyle"];
+            /** @description Only markers carry TAK metadata; `null` means a plain spot marker. */
+            tak: components["schemas"]["TakMarker"] | null;
             /** Format: double */
             version: number;
             /** Format: date-time */
@@ -1667,6 +1685,8 @@ export interface components {
             geometry: components["schemas"]["PackageGeometry"];
             /** @description Defaults to a blue outline with a light fill. */
             style?: components["schemas"]["PackageObjectStyle"];
+            /** @description Markers only. */
+            tak?: components["schemas"]["TakMarker"] | null;
         };
         UpdatePackageObjectRequest: {
             /** Format: int32 */
@@ -1677,6 +1697,8 @@ export interface components {
             description: string | null;
             geometry: components["schemas"]["PackageGeometry"];
             style: components["schemas"]["PackageObjectStyle"];
+            /** @description Markers only; send `null` for a plain spot marker. */
+            tak: components["schemas"]["TakMarker"] | null;
         };
         PackageLayerDto: {
             id: components["schemas"]["Uuid"];
