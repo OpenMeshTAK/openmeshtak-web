@@ -71,9 +71,6 @@ const groups = computed(() => {
         <v-icon :icon="mdiCircle" size="28" />
         <span>Coloured dot</span>
       </button>
-      <p class="text-caption text-medium-emphasis mt-3 mb-0">
-        The ATAK spot marker. Its colour is set under Style.
-      </p>
     </div>
 
     <template v-else>

@@ -130,9 +130,6 @@ function drop(event: DragEvent, layerId: string): void {
       <div class="text-subtitle-2 flex-grow-1">Layers</div>
       <v-btn v-if="editable" size="small" variant="tonal" :prepend-icon="mdiPlus" @click="emit('add')">Layer</v-btn>
     </div>
-    <p class="text-caption text-medium-emphasis px-3 mb-2">
-      New objects go into the highlighted layer. Drag layers to reorder them and objects to move them.
-    </p>
 
     <div class="flex-grow-1 overflow-y-auto pb-3">
       <div
