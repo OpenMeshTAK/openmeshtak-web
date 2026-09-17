@@ -109,8 +109,12 @@ export function importGeoJson(path: PackagePath, layerId: string, document: Sche
   );
 }
 
-export function exportDraftGeoJson(path: PackagePath): Promise<Schemas["GeoJsonFeatureCollection"]> {
-  return unwrap(api.GET("/events/{eventId}/data-packages/{packageId}/geojson", { params: { path } }));
+export function exportDraftGeoJson(path: PackagePath, layerId?: string): Promise<Schemas["GeoJsonFeatureCollection"]> {
+  return unwrap(
+    api.GET("/events/{eventId}/data-packages/{packageId}/geojson", {
+      params: { path, query: layerId === undefined ? {} : { layerId } },
+    }),
+  );
 }
 
 function packageUrl(path: PackagePath, suffix: string): string {
@@ -146,8 +150,13 @@ export async function importAtak(path: PackagePath, layerId: string, file: File)
 }
 
 /** Downloads the ATAK Data Package of a published revision. */
-export async function downloadAtak(path: PackagePath, revision: number): Promise<{ blob: Blob; fileName: string }> {
-  const response = await fetch(packageUrl(path, `revisions/${String(revision)}/atak`), { credentials: "same-origin" });
+export async function downloadAtak(
+  path: PackagePath,
+  revision: number,
+  layerId?: string,
+): Promise<{ blob: Blob; fileName: string }> {
+  const query = layerId === undefined ? "" : `?layerId=${encodeURIComponent(layerId)}`;
+  const response = await fetch(packageUrl(path, `revisions/${String(revision)}/atak${query}`), { credentials: "same-origin" });
   if (!response.ok) {
     throw await failure(response);
   }

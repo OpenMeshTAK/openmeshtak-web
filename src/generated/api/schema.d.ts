@@ -773,7 +773,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Exports the current draft as a GeoJSON FeatureCollection with simplestyle properties. */
+        /**
+         * @description Exports the current draft as a GeoJSON FeatureCollection with simplestyle properties.
+         *     `layerId` limits the export to one layer.
+         */
         get: operations["ExportPackageDraftGeoJson"];
         put?: never;
         post?: never;
@@ -790,7 +793,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Exports a published revision as a GeoJSON FeatureCollection. */
+        /** @description Exports a published revision as a GeoJSON FeatureCollection; `layerId` limits it to one layer. */
         get: operations["ExportPackageRevisionGeoJson"];
         put?: never;
         post?: never;
@@ -828,7 +831,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Downloads a published revision as an ATAK Data Package (ZIP with `MANIFEST/manifest.xml`). */
+        /**
+         * @description Downloads a published revision as an ATAK Data Package (ZIP with `MANIFEST/manifest.xml`).
+         *     `layerId` exports only that layer, as its own package.
+         */
         get: operations["ExportAtakDataPackage"];
         put?: never;
         post?: never;
@@ -5616,7 +5622,9 @@ export interface operations {
     };
     ExportPackageDraftGeoJson: {
         parameters: {
-            query?: never;
+            query?: {
+                layerId?: components["schemas"]["Uuid"];
+            };
             header?: never;
             path: {
                 eventId: components["schemas"]["Uuid"];
@@ -5666,7 +5674,9 @@ export interface operations {
     };
     ExportPackageRevisionGeoJson: {
         parameters: {
-            query?: never;
+            query?: {
+                layerId?: components["schemas"]["Uuid"];
+            };
             header?: never;
             path: {
                 eventId: components["schemas"]["Uuid"];
@@ -5804,7 +5814,9 @@ export interface operations {
     };
     ExportAtakDataPackage: {
         parameters: {
-            query?: never;
+            query?: {
+                layerId?: components["schemas"]["Uuid"];
+            };
             header?: never;
             path: {
                 eventId: components["schemas"]["Uuid"];

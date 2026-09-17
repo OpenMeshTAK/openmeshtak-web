@@ -225,6 +225,35 @@ export function usePackageEditor(eventId: string, packageId: string) {
     await changeLayer(neighbour, { sortOrder: layer.sortOrder });
   }
 
+  /**
+   * Moves a layer to the position of another (drag and drop) and renumbers the drawing order.
+   * Only layers whose number changes are saved.
+   */
+  async function reorderLayer(layerId: string, targetLayerId: string): Promise<void> {
+    const ordered = sortedLayers.value.filter(({ id }) => id !== layerId);
+    const dragged = layers.value.find(({ id }) => id === layerId);
+    const targetIndex = ordered.findIndex(({ id }) => id === targetLayerId);
+    if (dragged === undefined || targetIndex === -1) {
+      return;
+    }
+    // Dropping onto a layer below the dragged one places it under that layer, and vice versa.
+    const insertAt = dragged.sortOrder > (ordered[targetIndex]?.sortOrder ?? 0) ? targetIndex : targetIndex + 1;
+    ordered.splice(insertAt, 0, dragged);
+    for (const [sortOrder, layer] of ordered.entries()) {
+      const current = layers.value.find(({ id }) => id === layer.id);
+      if (current !== undefined && current.sortOrder !== sortOrder) {
+        await changeLayer(current, { sortOrder });
+      }
+    }
+  }
+
+  async function moveObjectToLayer(objectId: string, layerId: string): Promise<void> {
+    const object = objects.value.find(({ id }) => id === objectId);
+    if (object !== undefined && object.layerId !== layerId) {
+      await changeObject(objectId, { layerId });
+    }
+  }
+
   async function removeLayer(layer: PackageLayerDto): Promise<void> {
     const removed = await save(() => deleteLayer(path, layer.id));
     if (removed !== null) {
@@ -256,6 +285,8 @@ export function usePackageEditor(eventId: string, packageId: string) {
     addLayer,
     changeLayer,
     moveLayer,
+    reorderLayer,
+    moveObjectToLayer,
     removeLayer,
   };
 }

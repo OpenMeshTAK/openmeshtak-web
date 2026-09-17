@@ -13,10 +13,13 @@ import {
   importGeoJson,
   publishDataPackage,
   type ImportReport,
+  type PackageGeometry,
+  type PackageLayerDto,
 } from "@/modules/data-packages/data-packages.api";
+import { isApiProblem } from "@/shared/errors/api-problem";
 import EditorToolbar from "./components/EditorToolbar.vue";
 import ImportReportDialog from "./components/ImportReportDialog.vue";
-import LayerPanel from "./components/LayerPanel.vue";
+import LayerPanel, { type LayerExportFormat } from "./components/LayerPanel.vue";
 import PackageMapView from "./components/PackageMapView.vue";
 import ObjectInspector from "./components/ObjectInspector.vue";
 import type { EditorTool } from "./map/package-map";
@@ -134,10 +137,15 @@ function saveFile(blob: Blob, fileName: string): void {
   URL.revokeObjectURL(url);
 }
 
-async function exportDraft(): Promise<void> {
+function fileNameOf(name: string): string {
+  return name.replace(/[^\w-]+/g, "_");
+}
+
+/** The draft as GeoJSON, optionally only one layer. */
+async function exportDraft(layer?: PackageLayerDto): Promise<void> {
   try {
-    const collection = await exportDraftGeoJson(editor.path);
-    const name = (editor.dataPackage.value?.name ?? "data-package").replace(/[^\w-]+/g, "_");
+    const collection = await exportDraftGeoJson(editor.path, layer?.id);
+    const name = fileNameOf([editor.dataPackage.value?.name ?? "data-package", layer?.name].filter(Boolean).join("-"));
     saveFile(new Blob([JSON.stringify(collection, null, 2)], { type: "application/geo+json" }), `${name}.geojson`);
   } catch (caught: unknown) {
     toast.error(caught);
@@ -145,18 +153,34 @@ async function exportDraft(): Promise<void> {
 }
 
 /** ATAK receives published revisions only, never the draft. */
-async function exportAtak(): Promise<void> {
+async function exportAtak(layer?: PackageLayerDto): Promise<void> {
   const revision = editor.dataPackage.value?.latestRevision;
   if (revision === null || revision === undefined) {
     toast.info("Publish the data package first; ATAK packages are built from published revisions.");
     return;
   }
   try {
-    const { blob, fileName } = await downloadAtak(editor.path, revision);
+    const { blob, fileName } = await downloadAtak(editor.path, revision, layer?.id);
     saveFile(blob, fileName);
   } catch (caught: unknown) {
-    toast.error(caught);
+    // A layer created after the last publish is not in that revision yet.
+    toast.error(isApiProblem(caught, "NOT_FOUND") ? "Publish first: this layer is not in the latest revision." : caught);
   }
+}
+
+function exportLayer(layer: PackageLayerDto, format: LayerExportFormat): void {
+  void (format === "atak" ? exportAtak(layer) : exportDraft(layer));
+}
+
+function importInto(layer: PackageLayerDto): void {
+  editor.activeLayerId.value = layer.id;
+  fileInput.value?.click();
+}
+
+/** After a finished drawing the editor returns to selecting, so the new object can be adjusted. */
+async function onDrawn(geometry: PackageGeometry): Promise<void> {
+  tool.value = "select";
+  await editor.addObject(geometry);
 }
 
 const SHORTCUTS: Record<string, EditorTool> = { s: "select", m: "point", l: "line", a: "polygon", c: "circle" };
@@ -216,8 +240,8 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
           <v-btn v-bind="menu" variant="text" :prepend-icon="mdiDownload">Export</v-btn>
         </template>
         <v-list density="compact">
-          <v-list-item title="ATAK Data Package (.zip)" :subtitle="revisionLabel" @click="exportAtak" />
-          <v-list-item title="GeoJSON of the draft" @click="exportDraft" />
+          <v-list-item title="ATAK Data Package (.zip)" :subtitle="revisionLabel" @click="exportAtak()" />
+          <v-list-item title="GeoJSON of the draft" @click="exportDraft()" />
         </v-list>
       </v-menu>
       <v-btn v-if="canPublish" color="primary" :prepend-icon="mdiPublish" :loading="publishing" @click="publish">Publish</v-btn>
@@ -239,6 +263,10 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
           @add="editor.addLayer"
           @change="editor.changeLayer"
           @move="editor.moveLayer"
+          @reorder="editor.reorderLayer"
+          @move-object="editor.moveObjectToLayer"
+          @import-into="importInto"
+          @export-layer="exportLayer"
           @remove="editor.removeLayer"
         />
       </aside>
@@ -250,7 +278,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
           :objects="editor.objects.value"
           :selected-id="editor.selectedId.value"
           :tool="tool"
-          @drawn="editor.addObject"
+          @drawn="onDrawn"
           @modified="(id, geometry) => editor.changeObject(id, { geometry })"
           @select="editor.selectedId.value = $event"
         />
