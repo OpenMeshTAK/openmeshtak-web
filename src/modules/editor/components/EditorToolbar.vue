@@ -23,24 +23,36 @@ const tools = [
 </script>
 
 <template>
-  <v-sheet rounded="lg" elevation="2" class="editor-toolbar d-flex flex-column pa-1 ga-1">
-    <v-btn-toggle v-model="tool" mandatory divided direction="vertical" density="comfortable" variant="text">
-      <v-tooltip v-for="item in tools" :key="item.value" :text="item.label" location="end">
-        <template #activator="{ props: tooltip }">
-          <v-btn
-            v-bind="tooltip"
-            :value="item.value"
-            :icon="item.icon"
-            :aria-label="item.label"
-            :disabled="!editable && item.value !== 'select'"
-          />
-        </template>
-      </v-tooltip>
-    </v-btn-toggle>
-    <v-divider />
+  <!-- Plain icon buttons: v-btn-toggle adds group padding that misaligns a vertical bar. -->
+  <v-sheet rounded="lg" elevation="2" class="editor-toolbar d-flex flex-column align-center pa-1 ga-1" role="toolbar" aria-label="Drawing tools">
+    <v-tooltip v-for="item in tools" :key="item.value" :text="item.label" location="end">
+      <template #activator="{ props: tooltip }">
+        <v-btn
+          v-bind="tooltip"
+          :icon="item.icon"
+          :variant="tool === item.value ? 'tonal' : 'text'"
+          :color="tool === item.value ? 'primary' : undefined"
+          size="small"
+          rounded="lg"
+          :aria-label="item.label"
+          :aria-pressed="tool === item.value"
+          :disabled="!editable && item.value !== 'select'"
+          @click="tool = item.value"
+        />
+      </template>
+    </v-tooltip>
+    <v-divider class="align-self-stretch my-1" />
     <v-tooltip text="Zoom to content" location="end">
       <template #activator="{ props: tooltip }">
-        <v-btn v-bind="tooltip" :icon="mdiFitToScreenOutline" variant="text" aria-label="Zoom to content" @click="$emit('fit')" />
+        <v-btn
+          v-bind="tooltip"
+          :icon="mdiFitToScreenOutline"
+          variant="text"
+          size="small"
+          rounded="lg"
+          aria-label="Zoom to content"
+          @click="$emit('fit')"
+        />
       </template>
     </v-tooltip>
   </v-sheet>
