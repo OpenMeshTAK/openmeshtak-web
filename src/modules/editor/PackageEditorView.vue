@@ -17,6 +17,7 @@ import {
   type PackageLayerDto,
 } from "@/modules/data-packages/data-packages.api";
 import { isApiProblem } from "@/shared/errors/api-problem";
+import EditorContextMenu, { type ContextTarget } from "./components/EditorContextMenu.vue";
 import EditorToolbar from "./components/EditorToolbar.vue";
 import ImportReportDialog from "./components/ImportReportDialog.vue";
 import LayerPanel, { type LayerExportFormat } from "./components/LayerPanel.vue";
@@ -39,6 +40,10 @@ const publishing = ref(false);
 const importing = ref(false);
 const report = ref<ImportReport | null>(null);
 const reportOpen = ref(false);
+const contextTarget = ref<ContextTarget | null>(null);
+const contextObject = computed(
+  () => editor.objects.value.find(({ id }) => id === contextTarget.value?.objectId) ?? null,
+);
 
 const editable = computed(() => event.value?.status !== "archived" && session.can("data-packages.edit", eventId));
 const canPublish = computed(() => event.value?.status !== "archived" && session.can("data-packages.publish", eventId));
@@ -186,9 +191,29 @@ async function onDrawn(geometry: PackageGeometry): Promise<void> {
 const SHORTCUTS: Record<string, EditorTool> = { s: "select", m: "point", l: "line", a: "polygon", c: "circle" };
 
 /** Keyboard shortcuts, ignored while typing in a field. */
+/** Copy and paste of map objects; ignored while typing so text fields keep their own clipboard. */
+function onClipboardKey(keyEvent: KeyboardEvent): boolean {
+  const key = keyEvent.key.toLowerCase();
+  if (key === "c" && editor.selectedId.value !== null) {
+    editor.copySelected();
+    return true;
+  }
+  if (key === "v" && editable.value && editor.clipboard.value !== null) {
+    void editor.paste(mapView.value?.pointerPosition() ?? null);
+    return true;
+  }
+  return false;
+}
+
 function onKeydown(keyEvent: KeyboardEvent): void {
   const target = keyEvent.target as HTMLElement | null;
-  if (target?.closest("input, textarea, [contenteditable]") || keyEvent.ctrlKey || keyEvent.metaKey || keyEvent.altKey) {
+  if (target?.closest("input, textarea, [contenteditable]") || keyEvent.altKey) {
+    return;
+  }
+  if (keyEvent.ctrlKey || keyEvent.metaKey) {
+    if (onClipboardKey(keyEvent)) {
+      keyEvent.preventDefault();
+    }
     return;
   }
   const shortcut = SHORTCUTS[keyEvent.key.toLowerCase()];
@@ -281,6 +306,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
           @drawn="onDrawn"
           @modified="(id, geometry) => editor.changeObject(id, { geometry })"
           @select="editor.selectedId.value = $event"
+          @contextmenu="contextTarget = $event"
         />
         <EditorToolbar v-model:tool="tool" :editable="editable" class="editor-toolbar-position" @fit="mapView?.fitToContent()" />
       </main>
@@ -302,6 +328,21 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
     </div>
 
     <ImportReportDialog v-model="reportOpen" :report="report" />
+
+    <EditorContextMenu
+      :target="contextTarget"
+      :object="contextObject"
+      :layers="editor.sortedLayers.value"
+      :editable="editable"
+      :can-paste="editor.clipboard.value !== null"
+      @close="contextTarget = null"
+      @copy="editor.copySelected()"
+      @duplicate="contextObject && editor.duplicateObject(contextObject.id)"
+      @remove="contextObject && editor.removeObject(contextObject.id)"
+      @move-to="(layerId) => contextObject && editor.moveObjectToLayer(contextObject.id, layerId)"
+      @paste="(position) => editor.paste(position)"
+      @add-marker="(position) => editor.addObject({ type: 'Point', coordinates: position })"
+    />
   </div>
 </template>
 

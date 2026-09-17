@@ -17,6 +17,7 @@ import {
   type PackageObjectDto,
   type PackageObjectStyle,
 } from "@/modules/data-packages/data-packages.api";
+import { moveGeometry } from "./map/move-geometry";
 
 /** What the editor shows next to the data package name (EDITOR.md: saved, saving, conflicted, invalid). */
 export type SaveState = "saved" | "saving" | "error" | "conflict";
@@ -166,6 +167,44 @@ export function usePackageEditor(eventId: string, packageId: string) {
     }
   }
 
+  // ---- Clipboard ------------------------------------------------------------------------------
+
+  /** Kept in memory for this editor session only; it never leaves the browser tab. */
+  const clipboard = ref<PackageObjectDto | null>(null);
+
+  function copySelected(): void {
+    clipboard.value = selected.value;
+    if (selected.value !== null) {
+      toast.info(`Copied ${selected.value.name}.`);
+    }
+  }
+
+  /** Pastes into the active layer, at `position` when given (the cursor) or in place. */
+  async function paste(position: number[] | null): Promise<void> {
+    const source = clipboard.value;
+    const layer = activeLayer.value;
+    if (source === null) {
+      return;
+    }
+    if (layer === null || layer.locked) {
+      toast.warning("Choose an unlocked layer before pasting.");
+      return;
+    }
+    const created = await save(() =>
+      createObject(path, {
+        layerId: layer.id,
+        name: source.name,
+        description: source.description,
+        geometry: position === null ? source.geometry : moveGeometry(source.geometry, position),
+        style: source.style,
+      }),
+    );
+    if (created !== null) {
+      objects.value = [...objects.value, created];
+      selectedId.value = created.id;
+    }
+  }
+
   async function removeObject(objectId: string): Promise<void> {
     const removed = await save(() => deleteObject(path, objectId));
     if (removed !== null) {
@@ -282,6 +321,9 @@ export function usePackageEditor(eventId: string, packageId: string) {
     changeObject,
     duplicateObject,
     removeObject,
+    clipboard,
+    copySelected,
+    paste,
     addLayer,
     changeLayer,
     moveLayer,

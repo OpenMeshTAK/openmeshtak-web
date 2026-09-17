@@ -14,6 +14,7 @@ const emit = defineEmits<{
   drawn: [geometry: PackageGeometry];
   modified: [objectId: string, geometry: PackageGeometry];
   select: [objectId: string | null];
+  contextmenu: [target: { objectId: string | null; clientX: number; clientY: number; position: number[] }];
 }>();
 
 const container = ref<HTMLElement | null>(null);
@@ -28,6 +29,7 @@ onMounted(() => {
     onDrawn: (geometry) => emit("drawn", geometry),
     onModified: (objectId, geometry) => emit("modified", objectId, geometry),
     onSelected: (objectId) => emit("select", objectId),
+    onContextMenu: (target) => emit("contextmenu", target),
   });
   map.setContent(props.layers, props.objects);
   map.setTool(props.tool);
@@ -51,7 +53,7 @@ onBeforeUnmount(() => {
   map = null;
 });
 
-defineExpose({ fitToContent: () => map?.fitToContent() });
+defineExpose({ fitToContent: () => map?.fitToContent(), pointerPosition: () => map?.pointerPosition() ?? null });
 </script>
 
 <template>

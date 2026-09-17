@@ -8,7 +8,7 @@ import type Geometry from "ol/geom/Geometry";
 import { Draw, Modify, Select, Snap } from "ol/interaction";
 import TileLayer from "ol/layer/Tile";
 import VectorLayer from "ol/layer/Vector";
-import { fromLonLat } from "ol/proj";
+import { fromLonLat, toLonLat } from "ol/proj";
 import OSM from "ol/source/OSM";
 import VectorSource from "ol/source/Vector";
 import type { PackageGeometry, PackageLayerDto, PackageObjectDto } from "@/modules/data-packages/data-packages.api";
@@ -21,6 +21,8 @@ export interface PackageMapCallbacks {
   onDrawn: (geometry: PackageGeometry) => void;
   onModified: (objectId: string, geometry: PackageGeometry) => void;
   onSelected: (objectId: string | null) => void;
+  /** Right click: the object under the cursor (if any), screen position and WGS84 position. */
+  onContextMenu: (target: { objectId: string | null; clientX: number; clientY: number; position: number[] }) => void;
 }
 
 const DRAW_TYPES = { point: "Point", line: "LineString", polygon: "Polygon", circle: "Circle" } as const;
@@ -41,6 +43,8 @@ export class PackageMap {
   private draw: Draw | null = null;
   private originals = new Map<string, PackageGeometry>();
   private selectedId: string | null = null;
+  /** Last pointer position over the map in WGS84, used for pasting at the cursor. */
+  private pointer: number[] | null = null;
 
   constructor(target: HTMLElement, private readonly callbacks: PackageMapCallbacks) {
     const vectorLayer = new VectorLayer({
@@ -78,6 +82,39 @@ export class PackageMap {
     this.map.addInteraction(this.select);
     this.map.addInteraction(this.modify);
     this.map.addInteraction(this.snap);
+
+    this.map.on("pointermove", (event) => {
+      this.pointer = toLonLat(event.coordinate);
+    });
+    this.map.getViewport().addEventListener("mouseleave", () => {
+      this.pointer = null;
+    });
+    this.map.getViewport().addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+      this.openContextMenu(event, vectorLayer);
+    });
+  }
+
+  private openContextMenu(event: MouseEvent, vectorLayer: VectorLayer): void {
+    const pixel = this.map.getEventPixel(event);
+    // The topmost object under the cursor, in the same order as drawing and selection.
+    const feature = this.map.forEachFeatureAtPixel(pixel, (hit) => hit, { layerFilter: (layer) => layer === vectorLayer });
+    const objectId = feature === undefined ? null : String(feature.getId());
+    if (objectId !== null) {
+      this.highlight(objectId);
+      this.callbacks.onSelected(objectId);
+    }
+    this.callbacks.onContextMenu({
+      objectId,
+      clientX: event.clientX,
+      clientY: event.clientY,
+      position: toLonLat(this.map.getCoordinateFromPixel(pixel)),
+    });
+  }
+
+  /** WGS84 position of the pointer while it is over the map, otherwise `null`. */
+  pointerPosition(): number[] | null {
+    return this.pointer;
   }
 
   /** Replaces the rendered content. Hidden layers are not drawn; locked layers cannot be modified. */
