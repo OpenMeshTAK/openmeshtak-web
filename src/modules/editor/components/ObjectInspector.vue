@@ -122,7 +122,7 @@ function commitPosition(): void {
       @update:model-value="emit('change', { layerId: $event })"
     />
 
-    <MarkerSymbolField v-if="object.kind === 'point'" :tak="object.tak" :disabled="disabled" @change="emit('change', { tak: $event })" />
+    <MarkerSymbolField v-if="object.kind === 'point'" :tak="object.tak" :color="object.style.color" :disabled="disabled" @change="emit('change', { tak: $event })" />
 
     <div class="text-caption text-medium-emphasis mb-1">Style</div>
     <div class="d-flex align-center ga-3 mb-2">

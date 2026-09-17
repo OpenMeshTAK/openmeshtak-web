@@ -1,0 +1,149 @@
+<script setup lang="ts">
+import { mdiCircle, mdiMagnify } from "@mdi/js";
+import { computed, ref, watch } from "vue";
+import { symbolPreview } from "../map/cot-symbol";
+import { AFFILIATIONS, cotTypeOf, SYMBOLS, type CatalogSymbol } from "./symbol-catalog";
+
+/**
+ * Emoji-picker style choice of a marker symbol: pick the affiliation, then click a symbol.
+ * `null` selects the plain coloured spot marker.
+ */
+const props = defineProps<{ cotType: string | null }>();
+const emit = defineEmits<{ select: [cotType: string | null] }>();
+
+const affiliation = ref("f");
+const search = ref("");
+
+watch(
+  () => props.cotType,
+  (cotType) => {
+    const current = cotType?.split("-")[1];
+    if (cotType?.startsWith("a-") && AFFILIATIONS.some(({ code }) => code === current)) {
+      affiliation.value = current ?? "f";
+    }
+  },
+  { immediate: true },
+);
+
+interface Tile extends CatalogSymbol {
+  cotType: string;
+  preview: string;
+}
+
+/** Catalogue entries the symbol library can draw, filtered by the search words. */
+const groups = computed(() => {
+  const words = search.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const tiles: Tile[] = SYMBOLS.flatMap((symbol) => {
+    const cotType = cotTypeOf(affiliation.value, symbol);
+    const preview = symbolPreview(cotType, 32);
+    const haystack = `${symbol.label} ${symbol.group} ${symbol.keywords ?? ""}`.toLowerCase();
+    return preview !== null && words.every((word) => haystack.includes(word)) ? [{ ...symbol, cotType, preview }] : [];
+  });
+  return [...new Set(tiles.map(({ group }) => group))].map((group) => ({
+    group,
+    tiles: tiles.filter((tile) => tile.group === group),
+  }));
+});
+</script>
+
+<template>
+  <v-card width="440" max-height="520" class="d-flex flex-column">
+    <div class="pa-3 pb-2">
+      <div class="d-flex flex-wrap ga-2 mb-3">
+        <v-chip
+          v-for="option in AFFILIATIONS"
+          :key="option.code"
+          :variant="affiliation === option.code ? 'flat' : 'outlined'"
+          :color="affiliation === option.code ? 'primary' : undefined"
+          size="small"
+          @click="affiliation = option.code"
+        >
+          <span class="affiliation-swatch mr-2" :style="{ background: option.color }" />
+          {{ option.label }}
+        </v-chip>
+        <v-chip
+          :variant="cotType === null ? 'flat' : 'outlined'"
+          :color="cotType === null ? 'primary' : undefined"
+          size="small"
+          :prepend-icon="mdiCircle"
+          @click="emit('select', null)"
+        >
+          Spot marker
+        </v-chip>
+      </div>
+      <v-text-field
+        v-model="search"
+        :prepend-inner-icon="mdiMagnify"
+        placeholder="Search symbols, e.g. medic or drone"
+        density="compact"
+        hide-details
+        autofocus
+        clearable
+      />
+    </div>
+
+    <div class="flex-grow-1 overflow-y-auto px-3 pb-3">
+      <p v-if="groups.length === 0" class="text-body-2 text-medium-emphasis">No symbol matches.</p>
+      <div v-for="section in groups" :key="section.group" class="mb-3">
+        <div class="text-caption text-medium-emphasis mb-1">{{ section.group }}</div>
+        <div class="symbol-grid">
+          <button
+            v-for="tile in section.tiles"
+            :key="tile.cotType"
+            type="button"
+            class="symbol-tile"
+            :class="{ 'symbol-tile--active': tile.cotType === cotType }"
+            :title="tile.cotType"
+            @click="emit('select', tile.cotType)"
+          >
+            <img :src="tile.preview" alt="">
+            <span>{{ tile.label }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </v-card>
+</template>
+
+<style scoped>
+.affiliation-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  border: 1px solid rgba(0, 0, 0, 0.4);
+}
+.symbol-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+.symbol-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 4px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 1.2;
+  text-align: center;
+}
+.symbol-tile img {
+  height: 32px;
+  width: auto;
+}
+.symbol-tile:hover,
+.symbol-tile:focus-visible {
+  background: rgba(var(--v-theme-on-surface), 0.08);
+  outline: none;
+}
+.symbol-tile--active {
+  border-color: rgb(var(--v-theme-primary));
+  background: rgba(var(--v-theme-primary), 0.12);
+}
+</style>

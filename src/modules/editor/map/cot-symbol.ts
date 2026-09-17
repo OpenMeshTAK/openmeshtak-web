@@ -63,8 +63,15 @@ export function symbolIcon(cotType: string, selected: boolean): Icon | null {
   return icon;
 }
 
-/** Data URL of a symbol for previews in the inspector. */
-export function symbolPreview(cotType: string): string | null {
-  const sidc = sidcForCotType(cotType);
-  return sidc === null ? null : new ms.Symbol(sidc, { size: 28 }).asCanvas().toDataURL();
+const previewCache = new Map<string, string | null>();
+
+/** Data URL of a symbol for the inspector and the picker, or `null` when it is not drawable. */
+export function symbolPreview(cotType: string, size = 28): string | null {
+  const key = `${cotType}:${String(size)}`;
+  if (!previewCache.has(key)) {
+    const sidc = sidcForCotType(cotType);
+    const symbol = sidc === null ? null : new ms.Symbol(sidc, { size });
+    previewCache.set(key, symbol?.isValid() === true ? symbol.asCanvas().toDataURL() : null);
+  }
+  return previewCache.get(key) ?? null;
 }
