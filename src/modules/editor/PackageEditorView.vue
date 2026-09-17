@@ -221,6 +221,7 @@ function onKeydown(keyEvent: KeyboardEvent): void {
     tool.value = shortcut;
   } else if (keyEvent.key === "Escape") {
     tool.value = "select";
+    editor.selectedId.value = null;
   } else if ((keyEvent.key === "Delete" || keyEvent.key === "Backspace") && editable.value && editor.selectedId.value !== null) {
     void editor.removeObject(editor.selectedId.value);
   }
@@ -310,22 +311,18 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
           @contextmenu="contextTarget = $event"
         />
         <EditorToolbar v-model:tool="tool" :editable="editable" class="editor-toolbar-position" @fit="mapView?.fitToContent()" />
+        <!-- Floats over the map so selecting an object never resizes the map. -->
+        <v-sheet v-if="editor.selected.value" elevation="4" rounded="lg" class="editor-inspector">
+          <ObjectInspector
+            :object="editor.selected.value"
+            :layers="editor.sortedLayers.value"
+            :editable="editable"
+            @change="editor.changeObject(editor.selected.value.id, $event)"
+            @duplicate="editor.duplicateObject(editor.selected.value.id)"
+            @remove="editor.removeObject(editor.selected.value.id)"
+          />
+        </v-sheet>
       </main>
-
-      <aside class="editor-panel">
-        <ObjectInspector
-          v-if="editor.selected.value"
-          :object="editor.selected.value"
-          :layers="editor.sortedLayers.value"
-          :editable="editable"
-          @change="editor.changeObject(editor.selected.value.id, $event)"
-          @duplicate="editor.duplicateObject(editor.selected.value.id)"
-          @remove="editor.removeObject(editor.selected.value.id)"
-        />
-        <div v-else class="pa-4 text-body-2 text-medium-emphasis">
-          Select an object on the map or in the list to edit it. Draw markers, lines, areas and circles with the tools on the left of the map.
-        </div>
-      </aside>
     </div>
 
     <ImportReportDialog v-model="reportOpen" :report="report" />
@@ -359,7 +356,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 .editor-body {
   flex: 1;
   display: grid;
-  grid-template-columns: 280px 1fr 320px;
+  grid-template-columns: 280px 1fr;
   min-height: 0;
 }
 .editor-panel {
@@ -369,8 +366,14 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 .editor-panel:first-child {
   border-right: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
-.editor-panel:last-child {
-  border-left: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+.editor-inspector {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  bottom: 12px;
+  width: 320px;
+  overflow-y: auto;
+  z-index: 1;
 }
 .editor-map {
   position: relative;
@@ -385,7 +388,10 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 /* Tablets: narrower side panels; phones are out of scope for authoring (WEB.md). */
 @media (max-width: 1100px) {
   .editor-body {
-    grid-template-columns: 220px 1fr 260px;
+    grid-template-columns: 220px 1fr;
+  }
+  .editor-inspector {
+    width: 280px;
   }
 }
 </style>
