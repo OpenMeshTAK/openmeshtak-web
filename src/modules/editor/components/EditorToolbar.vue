@@ -3,15 +3,16 @@ import {
   mdiCircleOutline,
   mdiCursorDefault,
   mdiFitToScreenOutline,
+  mdiLayersOutline,
   mdiMapMarkerPlusOutline,
   mdiShapePolygonPlus,
   mdiVectorPolyline,
 } from "@mdi/js";
 import type { EditorTool } from "../map/package-map";
 
-defineProps<{ editable: boolean }>();
+defineProps<{ editable: boolean; layersOpen: boolean }>();
 const tool = defineModel<EditorTool>("tool", { required: true });
-defineEmits<{ fit: [] }>();
+defineEmits<{ fit: []; toggleLayers: [] }>();
 
 const tools = [
   { value: "select", icon: mdiCursorDefault, label: "Select and move (S)" },
@@ -25,6 +26,21 @@ const tools = [
 <template>
   <!-- Plain icon buttons: v-btn-toggle adds group padding that misaligns a vertical bar. -->
   <v-sheet rounded="lg" elevation="2" class="editor-toolbar d-flex flex-column align-center pa-1 ga-1" role="toolbar" aria-label="Drawing tools">
+    <v-tooltip :text="layersOpen ? 'Hide layers' : 'Show layers'" location="end">
+      <template #activator="{ props: tooltip }">
+        <v-btn
+          v-bind="tooltip"
+          :icon="mdiLayersOutline"
+          :variant="layersOpen ? 'tonal' : 'text'"
+          size="small"
+          rounded="lg"
+          :aria-label="layersOpen ? 'Hide layers' : 'Show layers'"
+          :aria-pressed="layersOpen"
+          @click="$emit('toggleLayers')"
+        />
+      </template>
+    </v-tooltip>
+    <v-divider class="align-self-stretch my-1" />
     <v-tooltip v-for="item in tools" :key="item.value" :text="item.label" location="end">
       <template #activator="{ props: tooltip }">
         <v-btn

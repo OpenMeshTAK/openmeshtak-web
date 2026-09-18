@@ -24,6 +24,7 @@ import LayerPanel, { type LayerExportFormat } from "./components/LayerPanel.vue"
 import PackageMapView from "./components/PackageMapView.vue";
 import ObjectInspector from "./components/ObjectInspector.vue";
 import type { EditorTool } from "./map/package-map";
+import { readLayersOpen, storeLayersOpen } from "./editor-preferences";
 import { usePackageEditor } from "./usePackageEditor";
 
 const route = useRoute();
@@ -41,6 +42,12 @@ const importing = ref(false);
 const report = ref<ImportReport | null>(null);
 const reportOpen = ref(false);
 const contextTarget = ref<ContextTarget | null>(null);
+const layersOpen = ref(readLayersOpen());
+
+function toggleLayers(): void {
+  layersOpen.value = !layersOpen.value;
+  storeLayersOpen(layersOpen.value);
+}
 const contextObject = computed(
   () => editor.objects.value.find(({ id }) => id === contextTarget.value?.objectId) ?? null,
 );
@@ -276,8 +283,21 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
     <ErrorState v-if="editor.loadState.value === 'error'" class="ma-6" message="The data package could not be loaded." @retry="editor.load" />
     <v-progress-linear v-else-if="editor.loadState.value === 'loading'" indeterminate />
 
-    <div v-if="editor.loadState.value === 'ready'" class="editor-body">
-      <aside class="editor-panel">
+    <!-- The map always fills the body; both panels float over it, so it never changes size. -->
+    <main v-if="editor.loadState.value === 'ready'" class="editor-body">
+      <PackageMapView
+        ref="mapView"
+        :layers="editor.layers.value"
+        :objects="editor.objects.value"
+        :selected-id="editor.selectedId.value"
+        :tool="tool"
+        @drawn="onDrawn"
+        @modified="(id, geometry) => editor.changeObject(id, { geometry })"
+        @select="editor.selectedId.value = $event"
+        @contextmenu="contextTarget = $event"
+      />
+
+      <v-sheet v-if="layersOpen" elevation="4" rounded="lg" class="editor-floating editor-layers">
         <LayerPanel
           :package-id="editor.path.packageId"
           :layers="editor.sortedLayers.value"
@@ -296,34 +316,29 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
           @export-layer="exportLayer"
           @remove="editor.removeLayer"
         />
-      </aside>
+      </v-sheet>
 
-      <main class="editor-map">
-        <PackageMapView
-          ref="mapView"
-          :layers="editor.layers.value"
-          :objects="editor.objects.value"
-          :selected-id="editor.selectedId.value"
-          :tool="tool"
-          @drawn="onDrawn"
-          @modified="(id, geometry) => editor.changeObject(id, { geometry })"
-          @select="editor.selectedId.value = $event"
-          @contextmenu="contextTarget = $event"
+      <EditorToolbar
+        v-model:tool="tool"
+        :editable="editable"
+        :layers-open="layersOpen"
+        class="editor-toolbar-position"
+        :class="{ 'editor-toolbar-position--beside': layersOpen }"
+        @fit="mapView?.fitToContent()"
+        @toggle-layers="toggleLayers"
+      />
+
+      <v-sheet v-if="editor.selected.value" elevation="4" rounded="lg" class="editor-floating editor-inspector">
+        <ObjectInspector
+          :object="editor.selected.value"
+          :layers="editor.sortedLayers.value"
+          :editable="editable"
+          @change="editor.changeObject(editor.selected.value.id, $event)"
+          @duplicate="editor.duplicateObject(editor.selected.value.id)"
+          @remove="editor.removeObject(editor.selected.value.id)"
         />
-        <EditorToolbar v-model:tool="tool" :editable="editable" class="editor-toolbar-position" @fit="mapView?.fitToContent()" />
-        <!-- Floats over the map so selecting an object never resizes the map. -->
-        <v-sheet v-if="editor.selected.value" elevation="4" rounded="lg" class="editor-inspector">
-          <ObjectInspector
-            :object="editor.selected.value"
-            :layers="editor.sortedLayers.value"
-            :editable="editable"
-            @change="editor.changeObject(editor.selected.value.id, $event)"
-            @duplicate="editor.duplicateObject(editor.selected.value.id)"
-            @remove="editor.removeObject(editor.selected.value.id)"
-          />
-        </v-sheet>
-      </main>
-    </div>
+      </v-sheet>
+    </main>
 
     <ImportReportDialog v-model="reportOpen" :report="report" />
 
@@ -354,30 +369,24 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 .editor-body {
+  position: relative;
   flex: 1;
-  display: grid;
-  grid-template-columns: 280px 1fr;
   min-height: 0;
 }
-.editor-panel {
-  overflow-y: auto;
-  min-height: 0;
-}
-.editor-panel:first-child {
-  border-right: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-}
-.editor-inspector {
+.editor-floating {
   position: absolute;
   top: 12px;
-  right: 12px;
   bottom: 12px;
-  width: 320px;
   overflow-y: auto;
   z-index: 1;
 }
-.editor-map {
-  position: relative;
-  min-height: 0;
+.editor-layers {
+  left: 12px;
+  width: 300px;
+}
+.editor-inspector {
+  right: 12px;
+  width: 320px;
 }
 .editor-toolbar-position {
   position: absolute;
@@ -385,10 +394,16 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   left: 12px;
   z-index: 1;
 }
-/* Tablets: narrower side panels; phones are out of scope for authoring (WEB.md). */
+.editor-toolbar-position--beside {
+  left: calc(12px + 300px + 12px);
+}
+/* Tablets: narrower panels; phones are out of scope for authoring (WEB.md). */
 @media (max-width: 1100px) {
-  .editor-body {
-    grid-template-columns: 220px 1fr;
+  .editor-layers {
+    width: 240px;
+  }
+  .editor-toolbar-position--beside {
+    left: calc(12px + 240px + 12px);
   }
   .editor-inspector {
     width: 280px;
