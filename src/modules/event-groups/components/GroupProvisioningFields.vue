@@ -65,19 +65,7 @@ const provisioning = defineModel<GroupProvisioning>({ required: true });
     :items="deviceRoleOptions"
     label="Device role"
     :error-messages="messagesFor(errors, 'provisioning.meshtastic.deviceRole')"
-  />
-  <v-combobox
-    v-model="provisioning.meshtastic.channels"
-    label="Channels"
-    multiple
-    chips
-    closable-chips
-    variant="outlined"
-    density="comfortable"
-    hint="Up to 8 channels, each at most 11 characters"
-    persistent-hint
-    class="mb-4"
-    :error-messages="messagesFor(errors, 'provisioning.meshtastic.channels')"
+    class="mb-2"
   />
 
   <div class="text-subtitle-2 mb-2">Mission content</div>

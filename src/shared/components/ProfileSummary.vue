@@ -1,8 +1,16 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import type { Schemas } from "@/shared/api/types";
 import { takTeamSwatches } from "./tak-team-colors";
 
-defineProps<{ eventName: string; profile: Schemas["ResolvedProfileDto"] }>();
+const props = defineProps<{ eventName: string; profile: Schemas["ResolvedProfileDto"] }>();
+
+/** Secret channels that a key holder shares on site are named, but marked as such. */
+const channelNames = computed(() =>
+  props.profile.meshtastic.channels
+    .map(({ name, delivery }) => (delivery === "on-site" ? `${name} (handed out on site)` : name))
+    .join(", "),
+);
 </script>
 
 <template>
@@ -32,7 +40,7 @@ defineProps<{ eventName: string; profile: Schemas["ResolvedProfileDto"] }>();
       <dt>Meshtastic</dt>
       <dd>{{ profile.meshtastic.shortName ?? "—" }} · {{ profile.meshtastic.longName }}</dd>
       <dt>Channels</dt>
-      <dd>{{ profile.meshtastic.channels.join(", ") || "—" }}</dd>
+      <dd>{{ channelNames || "—" }}</dd>
       <dt>Mission groups</dt>
       <dd>{{ profile.missionGroups.join(", ") || "—" }}</dd>
     </dl>

@@ -260,6 +260,95 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/events/{eventId}/meshtastic/channels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Lists the event's channels in creation order; sort by `sortOrder` for the device order. */
+        get: operations["ListMeshtasticChannels"];
+        put?: never;
+        /** @description Creates a channel; without `psk` the server generates a random 32-byte key. */
+        post: operations["CreateMeshtasticChannel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{eventId}/meshtastic/channels/{channelId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["GetMeshtasticChannel"];
+        /** @description Replaces everything except the key. Requires the current `version`. */
+        put: operations["UpdateMeshtasticChannel"];
+        post?: never;
+        delete: operations["DeleteMeshtasticChannel"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{eventId}/meshtastic/channels/{channelId}/psk/rotate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Replaces the key, for example after a leak. Audited; requires the current `version`. */
+        post: operations["RotateMeshtasticChannelPsk"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{eventId}/meshtastic/channels/{channelId}/release": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Releases a withheld secret channel to its whole audience. Audited; requires the current
+         *     `version`.
+         */
+        post: operations["ReleaseMeshtasticChannel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{eventId}/meshtastic/channels/{channelId}/psk/reveal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Returns the plain key. Requires `channel-keys.reveal`; every reveal is audited. */
+        post: operations["RevealMeshtasticChannelPsk"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/events/{eventId}/members/{memberId}/claims": {
         parameters: {
             query?: never;
@@ -924,7 +1013,7 @@ export interface components {
             page: components["schemas"]["PageInfo"];
         };
         /** @enum {string} */
-        Permission: "users.read" | "users.manage" | "user-groups.read" | "user-groups.manage" | "events.read" | "events.manage" | "events.reactivate" | "members.read" | "members.manage" | "members.sync" | "member-claims.create" | "data-packages.read" | "data-packages.edit" | "data-packages.publish" | "artifacts.generate" | "artifacts.download" | "service-accounts.manage" | "audit.read";
+        Permission: "users.read" | "users.manage" | "user-groups.read" | "user-groups.manage" | "events.read" | "events.manage" | "events.reactivate" | "members.read" | "members.manage" | "members.sync" | "member-claims.create" | "channel-keys.reveal" | "data-packages.read" | "data-packages.edit" | "data-packages.publish" | "artifacts.generate" | "artifacts.download" | "service-accounts.manage" | "audit.read";
         PermissionGrantDto: {
             permission: components["schemas"]["Permission"];
             /** @description Event the grant is limited to, or `null` for an instance-wide grant. */
@@ -1092,6 +1181,23 @@ export interface components {
          */
         MeshtasticDeviceRole: "CLIENT" | "CLIENT_MUTE" | "CLIENT_HIDDEN" | "CLIENT_BASE" | "ROUTER" | "ROUTER_LATE" | "TRACKER" | "SENSOR" | "TAK" | "TAK_TRACKER" | "LOST_AND_FOUND";
         /**
+         * @description A channel the member receives. `included` channels come with the member's channel set;
+         *     `on-site` channels are secret and handed out on site by a key holder before their release.
+         */
+        ProfileChannel: {
+            id: components["schemas"]["Uuid"];
+            name: string;
+            primary: boolean;
+            uplinkEnabled: boolean;
+            downlinkEnabled: boolean;
+            /** Format: double */
+            positionPrecision: number;
+            /** @enum {string} */
+            delivery: "included" | "on-site";
+            /** @description Holds this secret channel ahead of the event to share it on site. */
+            keyHolder: boolean;
+        };
+        /**
          * @description The single resolved provisioning identity of one member in one event. Every TAK, Meshtastic and
          *     mission output is derived from this shape.
          */
@@ -1121,7 +1227,8 @@ export interface components {
                 callsign: string;
             };
             meshtastic: {
-                channels: string[];
+                /** @description Device order, primary first. Channels outside the member's audience are absent. */
+                channels: components["schemas"]["ProfileChannel"][];
                 deviceRole: components["schemas"]["MeshtasticDeviceRole"];
                 /** @description `null` only in previews while the group has no short-name prefix. */
                 shortName: string | null;
@@ -1145,6 +1252,145 @@ export interface components {
             name: string;
             /** @description Effective grants, deduplicated across all sources. */
             permissions: components["schemas"]["PermissionGrantDto"][];
+        };
+        /**
+         * @description How a channel encrypts traffic, derived from the PSK length as defined by upstream
+         *     `channel.proto`: no key disables encryption, one byte selects a well-known default key, and 16
+         *     or 32 bytes are AES-128 or AES-256 keys.
+         * @enum {string}
+         */
+        ChannelPskKind: "none" | "default" | "aes128" | "aes256";
+        /** @description Describes the stored key without revealing it. */
+        ChannelPskInfo: {
+            kind: components["schemas"]["ChannelPskKind"];
+            /**
+             * Format: double
+             * @description Increments on every rotation.
+             */
+            version: number;
+            /** Format: date-time */
+            rotatedAt: string | null;
+        };
+        /**
+         * @description Who receives a secondary channel: every member that matches any listed group, role or member.
+         *     The primary channel always reaches every member, so its audience is ignored.
+         */
+        ChannelAudience: {
+            groupIds: components["schemas"]["Uuid"][];
+            roleIds: components["schemas"]["Uuid"][];
+            memberIds: components["schemas"]["Uuid"][];
+        };
+        MeshtasticChannelDto: {
+            id: components["schemas"]["Uuid"];
+            eventId: components["schemas"]["Uuid"];
+            name: string;
+            /**
+             * Format: double
+             * @description Channel order; the lowest value (oldest on ties) is the primary channel.
+             */
+            sortOrder: number;
+            primary: boolean;
+            psk: components["schemas"]["ChannelPskInfo"];
+            uplinkEnabled: boolean;
+            downlinkEnabled: boolean;
+            /**
+             * Format: double
+             * @description Upstream position precision: 0 sends no position, 32 sends the full position.
+             */
+            positionPrecision: number;
+            audience: components["schemas"]["ChannelAudience"];
+            /**
+             * @description Secret channels withhold their key from every participant view and artifact except those of
+             *     key holders until the channel is released.
+             */
+            secret: boolean;
+            /**
+             * Format: date-time
+             * @description When a secret channel was released to its whole audience; `null` while withheld.
+             */
+            releasedAt: string | null;
+            /**
+             * @description Members of the audience who receive a secret channel ahead of the event to share it on site.
+             *     Selected like the audience; only members who are also in the audience count.
+             */
+            keyHolders: components["schemas"]["ChannelAudience"];
+            /**
+             * Format: double
+             * @description Optimistic-concurrency version; send it back unchanged with updates.
+             */
+            version: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        MeshtasticChannelPage: {
+            items: components["schemas"]["MeshtasticChannelDto"][];
+            page: components["schemas"]["PageInfo"];
+        };
+        /** @description Meshtastic channel name; ASCII so the upstream 11-byte limit equals the character count. */
+        MeshtasticChannelName: string;
+        /** Format: int32 */
+        ChannelSortOrder: number;
+        /** Format: int32 */
+        PositionPrecision: number;
+        CreateMeshtasticChannelRequest: {
+            name: components["schemas"]["MeshtasticChannelName"];
+            /** @description Defaults to after the last channel. */
+            sortOrder?: components["schemas"]["ChannelSortOrder"];
+            /**
+             * @description Optional base64 key: empty (no encryption), 1 byte (upstream default key), 16 or 32 bytes.
+             *     Omit it to let the server generate a random 32-byte key.
+             */
+            psk?: string;
+            uplinkEnabled?: boolean;
+            downlinkEnabled?: boolean;
+            positionPrecision?: components["schemas"]["PositionPrecision"];
+            audience?: components["schemas"]["ChannelAudience"];
+            /** @description Secret channels need an AES key and cannot be the primary channel. */
+            secret?: boolean;
+            /** @description Only for secret channels. */
+            keyHolders?: components["schemas"]["ChannelAudience"];
+        };
+        UpdateMeshtasticChannelRequest: {
+            /**
+             * Format: int32
+             * @description Version the client last read.
+             */
+            version: number;
+            name: components["schemas"]["MeshtasticChannelName"];
+            sortOrder: components["schemas"]["ChannelSortOrder"];
+            uplinkEnabled: boolean;
+            downlinkEnabled: boolean;
+            positionPrecision: components["schemas"]["PositionPrecision"];
+            audience: components["schemas"]["ChannelAudience"];
+            /** @description Turning a channel secret again withholds it until it is released anew. */
+            secret: boolean;
+            keyHolders: components["schemas"]["ChannelAudience"];
+        };
+        RotateChannelPskRequest: {
+            /**
+             * Format: int32
+             * @description Version the client last read.
+             */
+            version: number;
+            /** @description Optional replacement key in the same format as on creation; omit it for a random key. */
+            psk?: string;
+        };
+        ReleaseMeshtasticChannelRequest: {
+            /**
+             * Format: int32
+             * @description Version the client last read.
+             */
+            version: number;
+        };
+        /** @description Plain key material; returned only by the audited reveal action. */
+        RevealedChannelPsk: {
+            kind: components["schemas"]["ChannelPskKind"];
+            /** Format: double */
+            version: number;
+            /** @description Base64 key exactly as Meshtastic clients expect it. */
+            psk: string;
         };
         /** @enum {string} */
         MemberClaimStatus: "open" | "consumed" | "revoked" | "expired";
@@ -1404,10 +1650,8 @@ export interface components {
             /** @description Callsign to use instead of the group format; `null` returns to the group format. */
             callsignOverride: string | null;
         };
-        /** @description Identifier used for TAK server groups, Meshtastic channel names and mission groups. */
+        /** @description Identifier used for TAK server groups and mission groups. */
         ProvisioningName: string;
-        /** @description Meshtastic channel name; ASCII so the upstream 11-byte limit equals the character count. */
-        MeshtasticChannelName: string;
         GroupProvisioning: {
             /**
              * @description Callsign template. Allowed placeholders: `{username}` (required) and `{group}`.
@@ -1424,8 +1668,8 @@ export interface components {
                 role: components["schemas"]["TakRole"];
                 team: components["schemas"]["TakTeam"];
             };
+            /** @description Channels are event resources with their own audience; see the Meshtastic channels API. */
             meshtastic: {
-                channels: components["schemas"]["MeshtasticChannelName"][];
                 deviceRole: components["schemas"]["MeshtasticDeviceRole"];
             };
             missionGroups: components["schemas"]["ProvisioningName"][];
@@ -1501,12 +1745,34 @@ export interface components {
             name: string;
             provisioning: components["schemas"]["GroupProvisioning"];
         };
-        /** @description Bump `schemaVersion` whenever the snapshot shape changes; old revisions are never rewritten. */
+        /**
+         * @description A channel's published settings. Keys never enter snapshots: they stay encrypted on the channel,
+         *     and rotation and release act on the channel directly so a leaked key stops being handed out at
+         *     once. `pskVersion` records which key was current when the revision was created.
+         */
+        SnapshotChannel: {
+            id: string;
+            name: string;
+            uplinkEnabled: boolean;
+            downlinkEnabled: boolean;
+            /** Format: double */
+            positionPrecision: number;
+            secret: boolean;
+            /** Format: double */
+            pskVersion: number;
+            audience: components["schemas"]["ChannelAudience"];
+            keyHolders: components["schemas"]["ChannelAudience"];
+        };
+        /**
+         * @description Bump `schemaVersion` whenever the snapshot shape changes; old revisions are never rewritten.
+         *     Version 2 added `channels` in device order, the first being the primary channel.
+         */
         ConfigurationSnapshot: {
             /** @enum {number} */
-            schemaVersion: 1;
+            schemaVersion: 1 | 2;
             roles: components["schemas"]["SnapshotRole"][];
             groups: components["schemas"]["SnapshotGroup"][];
+            channels: components["schemas"]["SnapshotChannel"][];
         };
         ConfigurationRevisionDto: {
             id: components["schemas"]["Uuid"];
@@ -2919,6 +3185,484 @@ export interface operations {
             };
             /** @description Authentication required */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListMeshtasticChannels: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Meshtastic channels */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeshtasticChannelPage"];
+                };
+            };
+            /** @description Invalid cursor */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateMeshtasticChannel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateMeshtasticChannelRequest"];
+            };
+        };
+        responses: {
+            /** @description Meshtastic channel created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeshtasticChannelDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Name in use, channel limit reached or event archived */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetMeshtasticChannel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+                channelId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Meshtastic channel */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeshtasticChannelDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateMeshtasticChannel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+                channelId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateMeshtasticChannelRequest"];
+            };
+        };
+        responses: {
+            /** @description Meshtastic channel updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeshtasticChannelDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Version conflict, name in use or event archived */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeleteMeshtasticChannel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+                channelId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Meshtastic channel deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Event archived */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RotateMeshtasticChannelPsk: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+                channelId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RotateChannelPskRequest"];
+            };
+        };
+        responses: {
+            /** @description Key rotated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeshtasticChannelDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Version conflict or event archived */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ReleaseMeshtasticChannel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+                channelId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReleaseMeshtasticChannelRequest"];
+            };
+        };
+        responses: {
+            /** @description Channel released */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeshtasticChannelDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Version conflict, channel not withheld or event archived */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RevealMeshtasticChannelPsk: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+                channelId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Channel key */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RevealedChannelPsk"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

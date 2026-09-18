@@ -55,6 +55,11 @@ export const permissionAreas: PermissionArea[] = [
     ],
   },
   {
+    label: "Meshtastic",
+    prefix: "channel-keys.*",
+    permissions: [{ permission: "channel-keys.reveal", label: "Reveal channel keys" }],
+  },
+  {
     label: "Missions",
     prefix: "dataPackages.*",
     permissions: [
