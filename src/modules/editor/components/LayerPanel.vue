@@ -126,7 +126,7 @@ function drop(event: DragEvent, layerId: string): void {
 
 <template>
   <div class="d-flex flex-column h-100">
-    <div class="d-flex align-center px-3 pt-3 pb-2">
+    <div class="d-flex align-center px-3 pt-2 pb-1">
       <div class="text-subtitle-2 flex-grow-1">Layers</div>
       <v-btn v-if="editable" size="small" variant="tonal" :prepend-icon="mdiPlus" @click="emit('add')">Layer</v-btn>
     </div>
@@ -145,7 +145,8 @@ function drop(event: DragEvent, layerId: string): void {
           :active="layer.id === activeLayerId"
           color="primary"
           rounded="lg"
-          class="mx-2"
+          class="mx-1 ps-1"
+          prepend-gap="4"
           density="compact"
           :draggable="editable && renaming !== layer.id"
           @dragstart="startDrag($event, LAYER_DRAG, layer.id)"
@@ -224,12 +225,14 @@ function drop(event: DragEvent, layerId: string): void {
           </template>
         </v-list-item>
 
-        <v-list v-if="!collapsed.has(layer.id)" density="compact" class="py-0 ml-8 mr-2" bg-color="transparent">
+        <v-list v-if="!collapsed.has(layer.id)" density="compact" class="py-0 ml-6 mr-1" bg-color="transparent">
           <v-list-item
             v-for="object in objectsOf(layer.id)"
             :key="object.id"
             :active="object.id === selectedId"
             :prepend-icon="KIND_ICONS[object.kind]"
+            prepend-gap="10"
+            class="ps-2"
             :title="object.name"
             rounded="lg"
             density="compact"
