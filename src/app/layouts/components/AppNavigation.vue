@@ -1,13 +1,22 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import { useRoute } from "vue-router";
 import { useDisplay } from "vuetify";
 import AppLogo from "@/shared/components/AppLogo.vue";
 import ThemeToggle from "@/shared/components/ThemeToggle.vue";
 import { useSession } from "@/modules/auth/session";
-import { navigationItems } from "./navigation-items";
+import { navigationItems, type NavigationItem } from "./navigation-items";
 
 const session = useSession();
 const { smAndUp } = useDisplay();
+const route = useRoute();
+
+// Detail pages are sibling routes, not children, so vue-router's own active check
+// misses them. Match by path prefix instead: /admin/events/<id> keeps "Events" lit.
+function isActive(item: NavigationItem): boolean {
+  if (item.to === "/") return route.path === "/";
+  return route.path === item.to || route.path.startsWith(`${item.to}/`);
+}
 
 const visibleItems = computed(() =>
   navigationItems.filter((item) => item.permission === undefined || session.can(item.permission)),
@@ -25,7 +34,7 @@ const visibleItems = computed(() =>
           <v-btn
             v-bind="tooltip"
             :to="item.to"
-            :exact="item.to === '/'"
+            :active="isActive(item)"
             :icon="item.icon"
             :aria-label="item.title"
             variant="text"
@@ -46,7 +55,7 @@ const visibleItems = computed(() =>
       v-for="item in visibleItems"
       :key="item.to"
       :to="item.to"
-      :exact="item.to === '/'"
+      :active="isActive(item)"
       :icon="item.icon"
       :aria-label="item.title"
       variant="text"
