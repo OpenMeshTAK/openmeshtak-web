@@ -112,7 +112,6 @@ async function channelRotated(channel: MeshtasticChannelDto): Promise<void> {
 async function move(channel: MeshtasticChannelDto, offset: -1 | 1): Promise<void> {
   const desired = moveInDeviceOrder(channels.value, channel.id, offset);
   if (desired === null) {
-    toast.warning("A secret channel cannot become the primary channel.");
     return;
   }
 
@@ -274,7 +273,7 @@ onMounted(load);
                 size="small"
                 variant="text"
                 aria-label="Move channel up"
-                :disabled="busy || index === 0 || (index === 1 && channel.secret)"
+                :disabled="busy || index === 0"
                 @click="move(channel, -1)"
               />
               <v-btn
@@ -283,7 +282,7 @@ onMounted(load);
                 size="small"
                 variant="text"
                 aria-label="Move channel down"
-                :disabled="busy || index === channels.length - 1 || (index === 0 && channels[1]?.secret === true)"
+                :disabled="busy || index === channels.length - 1"
                 @click="move(channel, 1)"
               />
               <v-btn :icon="mdiKeyVariant" size="small" variant="text" aria-label="Manage channel key" @click="openKey(channel)" />

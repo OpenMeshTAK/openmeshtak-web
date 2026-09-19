@@ -1347,7 +1347,7 @@ export interface components {
             downlinkEnabled?: boolean;
             positionPrecision?: components["schemas"]["PositionPrecision"];
             audience?: components["schemas"]["ChannelAudience"];
-            /** @description Secret channels need an AES key and cannot be the primary channel. */
+            /** @description Secret channels need an AES key. The primary channel may also be secret. */
             secret?: boolean;
             /** @description Only for secret channels. */
             keyHolders?: components["schemas"]["ChannelAudience"];

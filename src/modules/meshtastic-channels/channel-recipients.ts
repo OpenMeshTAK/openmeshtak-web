@@ -33,5 +33,5 @@ export function moveInDeviceOrder(
 
   const reordered = [...channels];
   [reordered[from], reordered[to]] = [reordered[to]!, reordered[from]!];
-  return reordered[0]?.secret === true ? null : reordered;
+  return reordered;
 }

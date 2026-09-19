@@ -136,12 +136,7 @@ async function save(): Promise<void> {
           v-model="form.secret"
           label="Secret channel"
           color="primary"
-          :disabled="primary"
-          :hint="
-            primary
-              ? 'The primary channel cannot be secret.'
-              : 'Only key holders receive the key before release; they share it on site.'
-          "
+          hint="Only key holders receive the key before release; they share it on site. This can also apply to the primary channel."
           persistent-hint
           :error-messages="messagesFor(formFields, 'secret')"
         />

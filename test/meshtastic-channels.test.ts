@@ -74,9 +74,9 @@ describe("Meshtastic channel ordering", () => {
     expect(moveInDeviceOrder([first, second], "second", -1)?.map(({ id }) => id)).toEqual(["second", "first"]);
   });
 
-  it("does not move a secret channel into the primary position", () => {
+  it("allows a secret channel to move into the primary position", () => {
     const first = channel({ id: "first", primary: true });
     const secret = channel({ id: "secret", sortOrder: 1, secret: true });
-    expect(moveInDeviceOrder([first, secret], "secret", -1)).toBeNull();
+    expect(moveInDeviceOrder([first, secret], "secret", -1)?.map(({ id }) => id)).toEqual(["secret", "first"]);
   });
 });
