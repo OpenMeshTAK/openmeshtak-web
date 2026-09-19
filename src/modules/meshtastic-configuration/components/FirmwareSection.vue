@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { mdiAlertDecagram, mdiCheckDecagram, mdiChip, mdiOpenInNew } from "@mdi/js";
+import { computed, ref } from "vue";
+import SectionHeader from "@/shared/components/layout/SectionHeader.vue";
 import { describeError } from "@/shared/errors/api-problem";
 import { fieldErrors } from "@/shared/errors/field-errors";
 import { useToast } from "@/shared/feedback/toast";
@@ -22,51 +24,58 @@ const props = defineProps<{
 const emit = defineEmits<{ changed: [configuration: MeshtasticConfigurationDto] }>();
 const toast = useToast();
 
+const dialogOpen = ref(false);
 const line = ref("");
 const patch = ref("");
-const checking = ref(false);
-const applying = ref(false);
+const busy = ref(false);
 const formError = ref<string | null>(null);
+/** Second dialog step: the server's dry-run report waiting for confirmation. */
 const preview = ref<FirmwareChangePreviewDto | null>(null);
 
-watch(
-  () => props.configuration.firmwareVersion,
-  (version) => {
-    const [major, minor, minimumPatch] = version.split(".");
-    line.value = `${major ?? ""}.${minor ?? ""}`;
-    patch.value = minimumPatch ?? "";
-  },
-  { immediate: true },
-);
-
+const facts = computed(() => [
+  { label: "Minimum version", value: props.configuration.effectiveMinimumVersion ?? "Not supported" },
+  { label: "Tested on", value: props.profile?.testedVersions.join(", ") || "No device yet" },
+  { label: "Release channel", value: props.profile ? capitalize(props.profile.channel) : "—" },
+]);
 const lineOptions = computed(() =>
-  props.profiles.map((profile) => ({
-    value: profile.line,
-    title: `${profile.line}.x${profile.channel === "stable" ? "" : ` (${profile.channel})`}${profile.default ? " · default" : ""}`,
+  props.profiles.map((option) => ({
+    value: option.line,
+    title: `Meshtastic ${option.line}`,
+    subtitle: `${capitalize(option.channel)} · from ${option.minVersion}${option.default ? " · default" : ""}`,
   })),
 );
 const target = computed(() => (patch.value.trim() === "" ? line.value : `${line.value}.${patch.value.trim()}`));
-const unchanged = computed(() => target.value === props.configuration.firmwareVersion);
+const reportRows = computed(() => {
+  const report = preview.value?.report;
+  return report === undefined
+    ? []
+    : [
+        { title: "Kept", color: "success", keys: report.kept },
+        { title: "Removed", color: "error", keys: report.dropped },
+        { title: "Reset to the default", color: "warning", keys: report.invalid },
+        { title: "Added with defaults", color: "info", keys: report.added },
+      ].filter(({ keys }) => keys.length > 0);
+});
+
+function capitalize(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
 
 function label(key: string): string {
   return props.profile?.fields.find((field) => field.key === key)?.label ?? key;
 }
 
-const reportRows = computed(() => {
-  const report = preview.value?.report;
-  if (report === undefined) {
-    return [];
-  }
-  return [
-    { title: "Kept", color: "success", keys: report.kept },
-    { title: "Dropped", color: "error", keys: report.dropped },
-    { title: "Reset to default (invalid)", color: "warning", keys: report.invalid },
-    { title: "Added with default", color: "info", keys: report.added },
-  ].filter(({ keys }) => keys.length > 0);
-});
+function openDialog(): void {
+  const [major, minor, minimumPatch] = props.configuration.firmwareVersion.split(".");
+  line.value = `${major ?? ""}.${minor ?? ""}`;
+  patch.value = minimumPatch ?? "";
+  formError.value = null;
+  preview.value = null;
+  dialogOpen.value = true;
+}
 
-async function check(): Promise<void> {
-  checking.value = true;
+async function review(): Promise<void> {
+  busy.value = true;
   formError.value = null;
   try {
     const result = await previewFirmwareChange(props.eventId, target.value);
@@ -79,12 +88,12 @@ async function check(): Promise<void> {
   } catch (caught: unknown) {
     formError.value = Object.values(fieldErrors(caught))[0] ?? describeError(caught);
   } finally {
-    checking.value = false;
+    busy.value = false;
   }
 }
 
 async function apply(confirmed: FirmwareChangePreviewDto): Promise<void> {
-  applying.value = true;
+  busy.value = true;
   try {
     const updated = await changeFirmware(
       props.eventId,
@@ -92,98 +101,135 @@ async function apply(confirmed: FirmwareChangePreviewDto): Promise<void> {
       confirmed.firmwareVersion,
       confirmed.confirmation,
     );
-    preview.value = null;
+    dialogOpen.value = false;
     toast.success(`The event now targets Meshtastic ${updated.firmwareVersion}.`);
     emit("changed", updated);
   } catch (caught: unknown) {
-    toast.error(caught);
+    formError.value = describeError(caught);
   } finally {
-    applying.value = false;
+    busy.value = false;
   }
 }
 </script>
 
 <template>
   <div>
-    <div class="text-h6 mb-1">Firmware</div>
-    <p class="text-body-2 text-medium-emphasis mb-4">
-      Participants are asked to flash this firmware before they import their settings. Fields
-      that need a newer patch stay hidden until you raise the minimum version.
-    </p>
+    <SectionHeader
+      title="Firmware"
+      description="Participants are asked to flash this firmware before importing their settings. Settings that need a newer patch appear once you raise the minimum version."
+    >
+      <template #actions>
+        <v-btn v-if="editable" variant="tonal" @click="openDialog">Change firmware</v-btn>
+      </template>
+    </SectionHeader>
 
-    <v-card variant="outlined" class="pa-4 mb-6">
-      <div class="d-flex align-center flex-wrap ga-2 mb-2">
-        <span class="text-h5">Meshtastic {{ configuration.firmwareVersion }}</span>
-        <v-chip v-if="profile && profile.channel !== 'stable'" size="small" color="warning" variant="tonal" label>
-          {{ profile.channel }}
-        </v-chip>
-        <v-chip v-if="!configuration.verified" size="small" color="warning" variant="tonal" label>
-          Not verified
-        </v-chip>
+    <v-card class="pa-5">
+      <div class="d-flex align-center ga-4 flex-wrap">
+        <v-avatar color="primary" variant="tonal" size="48" rounded="lg">
+          <v-icon :icon="mdiChip" />
+        </v-avatar>
+        <div class="flex-grow-1">
+          <div class="text-h6">Meshtastic {{ configuration.firmwareVersion }}</div>
+          <div class="d-flex align-center ga-2 mt-1 flex-wrap">
+            <v-chip
+              size="small"
+              variant="tonal"
+              label
+              :color="configuration.verified ? 'success' : 'warning'"
+              :prepend-icon="configuration.verified ? mdiCheckDecagram : mdiAlertDecagram"
+            >
+              {{ configuration.verified ? "Tested on a device" : "Not verified" }}
+            </v-chip>
+            <v-chip v-if="profile && profile.channel !== 'stable'" size="small" variant="tonal" label color="warning">
+              {{ capitalize(profile.channel) }} firmware
+            </v-chip>
+          </div>
+        </div>
+        <v-btn
+          v-if="profile"
+          :href="profile.flasherUrl"
+          target="_blank"
+          rel="noopener noreferrer"
+          variant="outlined"
+          :append-icon="mdiOpenInNew"
+        >
+          Meshtastic flasher
+        </v-btn>
       </div>
-      <div class="text-body-2">
-        At least {{ configuration.effectiveMinimumVersion ?? "—" }}
-        <span v-if="profile"> · tested {{ profile.testedVersions.join(", ") || "on no device yet" }}</span>
-      </div>
-      <div v-if="profile?.flashingNotes" class="text-body-2 text-medium-emphasis mt-2">{{ profile.flashingNotes }}</div>
-      <v-btn
-        v-if="profile"
-        :href="profile.flasherUrl"
-        target="_blank"
-        rel="noopener noreferrer"
-        variant="text"
-        class="mt-2 px-0"
-      >
-        Open the Meshtastic flasher
-      </v-btn>
+
+      <v-divider class="my-4" />
+
+      <dl class="firmware-facts">
+        <div v-for="fact in facts" :key="fact.label">
+          <dt class="text-caption text-medium-emphasis">{{ fact.label }}</dt>
+          <dd class="text-body-1">{{ fact.value }}</dd>
+        </div>
+      </dl>
+      <p v-if="profile?.flashingNotes" class="text-body-2 text-medium-emphasis mt-4 mb-0">{{ profile.flashingNotes }}</p>
     </v-card>
 
-    <template v-if="editable">
-      <div class="text-subtitle-1 font-weight-medium mb-2">Change the recommended firmware</div>
-      <v-alert v-if="formError" type="error" class="mb-4">{{ formError }}</v-alert>
-      <v-row dense>
-        <v-col cols="12" sm="6">
-          <v-select v-model="line" :items="lineOptions" label="Firmware line" />
-        </v-col>
-        <v-col cols="12" sm="6">
-          <v-text-field
-            v-model="patch"
-            label="Minimum patch (optional)"
-            hint="For example 3 for 2.8.3. Empty uses the profile minimum."
-            persistent-hint
-            inputmode="numeric"
-          />
-        </v-col>
-      </v-row>
-      <v-btn color="primary" class="mt-2" :disabled="unchanged" :loading="checking" @click="check">
-        Check change
-      </v-btn>
-    </template>
-
-    <v-dialog :model-value="preview !== null" max-width="640" scrollable @update:model-value="preview = null">
-      <v-card v-if="preview" class="pa-2">
-        <v-card-title>Switch to Meshtastic {{ preview.firmwareVersion }}?</v-card-title>
+    <v-dialog v-model="dialogOpen" max-width="600" scrollable>
+      <v-card class="pa-2">
+        <v-card-title>{{ preview ? `Review the switch to ${preview.firmwareVersion}` : "Change firmware" }}</v-card-title>
         <v-card-text>
-          <p class="text-body-2 mb-4">
-            Settings are checked against the {{ preview.firmwareVersion }} profile (at least
-            {{ preview.effectiveMinimumVersion }}). Already generated device files keep their old
-            settings until members download them again after the next publication.
-          </p>
-          <div v-for="row in reportRows" :key="row.title" class="mb-3">
-            <div class="text-subtitle-2 mb-1">{{ row.title }} ({{ row.keys.length }})</div>
-            <div class="d-flex flex-wrap ga-1">
-              <v-chip v-for="key in row.keys" :key="key" :color="row.color" size="small" variant="tonal" label>
-                {{ label(key) }}
-              </v-chip>
+          <v-alert v-if="formError" type="error" class="mb-4">{{ formError }}</v-alert>
+
+          <template v-if="preview === null">
+            <v-select v-model="line" :items="lineOptions" label="Firmware line" item-props class="mb-2" />
+            <v-text-field
+              v-model="patch"
+              label="Minimum patch (optional)"
+              :prefix="`${line}.`"
+              hint="Leave empty for the line's minimum. A higher patch unlocks settings added in it."
+              persistent-hint
+              inputmode="numeric"
+            />
+          </template>
+
+          <template v-else>
+            <p class="text-body-2 mb-4">
+              Settings are checked against Meshtastic {{ preview.firmwareVersion }} (at least
+              {{ preview.effectiveMinimumVersion }}). Members need new device files after the next
+              publication.
+            </p>
+            <div v-for="row in reportRows" :key="row.title" class="mb-4">
+              <div class="text-subtitle-2 mb-2">{{ row.title }} · {{ row.keys.length }}</div>
+              <div class="d-flex flex-wrap ga-1">
+                <v-chip v-for="key in row.keys" :key="key" :color="row.color" size="small" variant="tonal" label>
+                  {{ label(key) }}
+                </v-chip>
+              </div>
             </div>
-          </div>
+          </template>
         </v-card-text>
         <v-card-actions>
+          <v-btn v-if="preview" variant="text" :disabled="busy" @click="preview = null">Back</v-btn>
           <v-spacer />
-          <v-btn variant="text" @click="preview = null">Cancel</v-btn>
-          <v-btn color="primary" variant="flat" :loading="applying" @click="apply(preview)">Apply change</v-btn>
+          <v-btn variant="text" :disabled="busy" @click="dialogOpen = false">Cancel</v-btn>
+          <v-btn
+            v-if="preview === null"
+            color="primary"
+            :disabled="target === configuration.firmwareVersion"
+            :loading="busy"
+            @click="review"
+          >
+            Continue
+          </v-btn>
+          <v-btn v-else color="primary" :loading="busy" @click="apply(preview)">Apply change</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
   </div>
 </template>
+
+<style scoped>
+.firmware-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+  margin: 0;
+}
+.firmware-facts dd {
+  margin: 0;
+}
+</style>

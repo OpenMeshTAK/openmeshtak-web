@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { mdiAccessPointNetwork, mdiChip, mdiCog } from "@mdi/js";
+import { mdiAccessPointNetwork, mdiAlertCircle, mdiChip } from "@mdi/js";
 import { computed, onMounted, ref } from "vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
 import { describeError } from "@/shared/errors/api-problem";
@@ -8,6 +8,7 @@ import { useToast } from "@/shared/feedback/toast";
 import MeshtasticChannelsPanel from "@/modules/meshtastic-channels/MeshtasticChannelsPanel.vue";
 import FirmwareSection from "./components/FirmwareSection.vue";
 import SettingsSection from "./components/SettingsSection.vue";
+import { sectionIcon } from "./section-icons";
 import {
   getConfiguration,
   getFirmwareProfile,
@@ -88,6 +89,11 @@ async function load(): Promise<void> {
   }
 }
 
+function discard(): void {
+  draft.value = { ...configuration.value?.settings };
+  saveErrors.value = {};
+}
+
 async function save(): Promise<void> {
   if (configuration.value === null) {
     return;
@@ -121,34 +127,38 @@ onMounted(load);
     <v-skeleton-loader v-if="state === 'loading'" type="list-item@6" />
     <ErrorState v-else-if="state === 'error' || configuration === null" :message="loadError" @retry="load" />
 
-    <v-row v-else>
-      <v-col cols="12" md="3" lg="2">
+    <div v-else class="meshtastic-layout">
+      <v-card class="meshtastic-menu pa-2" tag="nav" aria-label="Meshtastic settings">
         <v-list
-          density="compact"
+          density="comfortable"
           nav
           mandatory
-          class="meshtastic-menu"
           :selected="[selected]"
           @update:selected="selected = String($event[0] ?? selected)"
         >
-          <v-list-item value="firmware" :prepend-icon="mdiChip" title="Firmware" :subtitle="configuration.firmwareVersion" />
+          <v-list-subheader>Setup</v-list-subheader>
+          <v-list-item value="firmware" :prepend-icon="mdiChip" title="Firmware">
+            <template #append>
+              <span class="text-caption text-medium-emphasis">{{ configuration.firmwareVersion }}</span>
+            </template>
+          </v-list-item>
           <v-list-item value="channels" :prepend-icon="mdiAccessPointNetwork" title="Channels" />
-          <v-divider class="my-2" />
+          <v-list-subheader>Radio settings</v-list-subheader>
           <v-list-item
             v-for="section in sections"
             :key="section.id"
             :value="section.id"
-            :prepend-icon="mdiCog"
+            :prepend-icon="sectionIcon(section.id)"
             :title="section.label"
           >
             <template v-if="sectionHasProblem(section.id)" #append>
-              <v-badge color="error" dot inline />
+              <v-icon :icon="mdiAlertCircle" color="error" size="18" aria-label="Has invalid settings" />
             </template>
           </v-list-item>
         </v-list>
-      </v-col>
+      </v-card>
 
-      <v-col cols="12" md="9" lg="10">
+      <div class="meshtastic-content">
         <FirmwareSection
           v-if="selected === 'firmware'"
           :event-id="eventId"
@@ -159,7 +169,7 @@ onMounted(load);
           @changed="show"
         />
         <MeshtasticChannelsPanel v-else-if="selected === 'channels'" :event-id="eventId" :editable="editable" :active="false" />
-        <v-card v-else-if="currentSection" class="pa-5">
+        <template v-else-if="currentSection">
           <SettingsSection
             v-model="draft"
             :label="currentSection.label"
@@ -168,19 +178,41 @@ onMounted(load);
             :editable="editable"
             :errors="errors"
           />
-          <div v-if="editable" class="d-flex align-center ga-3 mt-2">
-            <v-btn color="primary" :disabled="!dirty" :loading="saving" @click="save">Save settings</v-btn>
-            <span v-if="dirty" class="text-caption text-medium-emphasis">Unsaved changes in one or more sections</span>
-          </div>
-        </v-card>
-      </v-col>
-    </v-row>
+          <v-slide-y-reverse-transition>
+            <v-card v-if="editable && dirty" class="save-bar d-flex align-center ga-3 pa-3 mt-4" elevation="4">
+              <span class="text-body-2 flex-grow-1">You have unsaved Meshtastic settings.</span>
+              <v-btn variant="text" :disabled="saving" @click="discard">Discard</v-btn>
+              <v-btn color="primary" :loading="saving" @click="save">Save changes</v-btn>
+            </v-card>
+          </v-slide-y-reverse-transition>
+        </template>
+      </div>
+    </div>
   </div>
 </template>
 
 <style scoped>
+.meshtastic-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
 .meshtastic-menu {
   position: sticky;
   top: 16px;
+}
+.save-bar {
+  position: sticky;
+  bottom: 16px;
+}
+/* Tablets and phones: the menu sits above the content instead of beside it. */
+@media (max-width: 959px) {
+  .meshtastic-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .meshtastic-menu {
+    position: static;
+  }
 }
 </style>

@@ -1,16 +1,10 @@
 <script setup lang="ts">
-import {
-  mdiArrowDown,
-  mdiArrowUp,
-  mdiKeyVariant,
-  mdiLock,
-  mdiLockOpenVariant,
-  mdiPlus,
-} from "@mdi/js";
+import { mdiPlus } from "@mdi/js";
 import { computed, onMounted, ref } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import EmptyState from "@/shared/components/EmptyState.vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
+import SectionHeader from "@/shared/components/layout/SectionHeader.vue";
 import { describeError, isApiProblem } from "@/shared/errors/api-problem";
 import { useToast } from "@/shared/feedback/toast";
 import { useSession } from "@/modules/auth/session";
@@ -18,6 +12,7 @@ import { listGroups } from "@/modules/event-groups/event-groups.api";
 import { listRoles } from "@/modules/event-roles/event-roles.api";
 import { listMembers, type EventMemberDto } from "@/modules/members/members.api";
 import { channelKeyHolders, channelRecipients, moveInDeviceOrder } from "./channel-recipients";
+import ChannelCard from "./components/ChannelCard.vue";
 import ChannelDialog from "./components/ChannelDialog.vue";
 import ChannelKeyDialog from "./components/ChannelKeyDialog.vue";
 import {
@@ -29,7 +24,6 @@ import {
   updateChannel,
   type MeshtasticChannelDto,
 } from "./meshtastic-channels.api";
-import { positionPrecisionLabel } from "./position-precision";
 
 const props = defineProps<{ eventId: string; editable: boolean; active: boolean }>();
 const session = useSession();
@@ -177,37 +171,49 @@ function keyHolderList(channel: MeshtasticChannelDto): EventMemberDto[] {
   return members.value === null ? [] : channelKeyHolders(channel, members.value);
 }
 
+/** Names of the selected groups, roles and members, for a readable audience summary. */
+function selectionNames(selection: MeshtasticChannelDto["audience"]): string[] {
+  const nameOf = (options: Array<{ id: string; title: string }>, id: string) =>
+    options.find((option) => option.id === id)?.title ?? "Unknown";
+  return [
+    ...selection.groupIds.map((id) => nameOf(groups.value, id)),
+    ...selection.roleIds.map((id) => `${nameOf(roles.value, id)} (role)`),
+    ...selection.memberIds.map((id) => members.value?.find((member) => member.id === id)?.callsign ?? "Member"),
+  ];
+}
+
 onMounted(load);
 </script>
 
 <template>
   <div>
-    <v-alert v-if="active" type="info" variant="tonal" class="mb-4">
+    <v-alert v-if="active" type="info" class="mb-4">
       Channel changes stay in the event draft until you publish a new configuration revision from
       the Overview tab.
     </v-alert>
-    <v-alert v-if="members === null && state === 'ready'" type="info" variant="tonal" density="compact" class="mb-4">
-      You can manage group and role audiences, but member names and recipient previews require
-      permission to view event members.
+
+    <SectionHeader
+      title="Channels"
+      :description="`${channels.length} of 8 channels. The first channel is the primary channel and reaches every member; the others reach only their audience.`"
+    >
+      <template #actions>
+        <v-btn
+          v-if="editable"
+          color="primary"
+          :prepend-icon="mdiPlus"
+          :disabled="channels.length >= 8"
+          @click="openChannel(null)"
+        >
+          Add channel
+        </v-btn>
+      </template>
+    </SectionHeader>
+
+    <v-alert v-if="members === null && state === 'ready'" type="info" density="compact" class="mb-4">
+      Member names and recipient counts need permission to view event members.
     </v-alert>
 
-    <div class="d-flex align-center mb-4 ga-4 flex-wrap">
-      <p class="text-body-2 text-medium-emphasis flex-grow-1 mb-0">
-        The primary channel reaches everyone. Secondary channels can target any union of groups,
-        roles and individual members. Meshtastic devices support at most eight channels.
-      </p>
-      <v-btn
-        v-if="editable"
-        color="primary"
-        :prepend-icon="mdiPlus"
-        :disabled="channels.length >= 8"
-        @click="openChannel(null)"
-      >
-        Add channel
-      </v-btn>
-    </div>
-
-    <v-skeleton-loader v-if="state === 'loading'" type="table" />
+    <v-skeleton-loader v-if="state === 'loading'" type="list-item-avatar-two-line@3" />
     <ErrorState v-else-if="state === 'error'" :message="loadError" @retry="load" />
     <EmptyState
       v-else-if="channels.length === 0"
@@ -216,91 +222,25 @@ onMounted(load);
     />
 
     <v-card v-else>
-      <v-table hover>
-        <thead>
-          <tr>
-            <th>Channel</th>
-            <th>Audience</th>
-            <th class="d-none d-lg-table-cell">Position</th>
-            <th class="text-right">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="(channel, index) in channels" :key="channel.id">
-            <td>
-              <div class="d-flex align-center ga-2 flex-wrap py-2">
-                <span class="font-weight-medium">{{ channel.name }}</span>
-                <v-chip v-if="channel.primary" size="x-small" color="primary" label>Primary</v-chip>
-                <v-chip v-if="channel.secret" size="x-small" color="warning" label :prepend-icon="mdiLock">
-                  {{ channel.releasedAt === null ? "Secret · withheld" : "Secret · released" }}
-                </v-chip>
-              </div>
-              <div class="text-caption text-medium-emphasis">
-                {{ channel.psk.kind.toUpperCase() }} · key version {{ channel.psk.version }}
-                <template v-if="channel.uplinkEnabled"> · MQTT uplink</template>
-                <template v-if="channel.downlinkEnabled"> · MQTT downlink</template>
-              </div>
-            </td>
-            <td>
-              <template v-if="members !== null">
-                <v-menu>
-                  <template #activator="{ props: activatorProps }">
-                    <v-btn v-bind="activatorProps" variant="text" size="small">
-                      {{ recipientList(channel).length }} recipients
-                    </v-btn>
-                  </template>
-                  <v-list density="compact" max-height="320">
-                    <v-list-item
-                      v-for="member in recipientList(channel)"
-                      :key="member.id"
-                      :title="member.callsign"
-                      :subtitle="member.displayName"
-                    />
-                    <v-list-item v-if="recipientList(channel).length === 0" title="Nobody receives this channel" />
-                  </v-list>
-                </v-menu>
-                <div v-if="channel.secret" class="text-caption text-medium-emphasis">
-                  {{ keyHolderList(channel).length }} key holders
-                </div>
-              </template>
-              <span v-else class="text-medium-emphasis">Preview unavailable</span>
-            </td>
-            <td class="d-none d-lg-table-cell">{{ positionPrecisionLabel(channel.positionPrecision) }}</td>
-            <td class="text-right text-no-wrap">
-              <v-btn
-                v-if="editable"
-                :icon="mdiArrowUp"
-                size="small"
-                variant="text"
-                aria-label="Move channel up"
-                :disabled="busy || index === 0"
-                @click="move(channel, -1)"
-              />
-              <v-btn
-                v-if="editable"
-                :icon="mdiArrowDown"
-                size="small"
-                variant="text"
-                aria-label="Move channel down"
-                :disabled="busy || index === channels.length - 1"
-                @click="move(channel, 1)"
-              />
-              <v-btn :icon="mdiKeyVariant" size="small" variant="text" aria-label="Manage channel key" @click="openKey(channel)" />
-              <v-btn
-                v-if="editable && channel.secret && channel.releasedAt === null"
-                :prepend-icon="mdiLockOpenVariant"
-                size="small"
-                variant="text"
-                @click="releasing = channel"
-              >
-                Release
-              </v-btn>
-              <v-btn v-if="editable" variant="text" size="small" @click="openChannel(channel)">Edit</v-btn>
-              <v-btn v-if="editable" variant="text" size="small" color="error" @click="deleting = channel">Delete</v-btn>
-            </td>
-          </tr>
-        </tbody>
-      </v-table>
+      <template v-for="(channel, index) in channels" :key="channel.id">
+        <v-divider v-if="index > 0" />
+        <ChannelCard
+          :channel="channel"
+          :position="index"
+          :audience="selectionNames(channel.audience)"
+          :key-holders="members === null ? selectionNames(channel.keyHolders) : keyHolderList(channel).map((member) => member.callsign)"
+          :recipient-count="members === null ? null : recipientList(channel).length"
+          :editable="editable"
+          :first="index === 0"
+          :last="index === channels.length - 1"
+          :busy="busy"
+          @edit="openChannel(channel)"
+          @key="openKey(channel)"
+          @release="releasing = channel"
+          @remove="deleting = channel"
+          @move="move(channel, $event)"
+        />
+      </template>
     </v-card>
 
     <ChannelDialog
