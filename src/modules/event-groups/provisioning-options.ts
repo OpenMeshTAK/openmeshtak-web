@@ -10,12 +10,7 @@ const takTeams = [
 const takRoles = [
   "Team Member", "Team Lead", "HQ", "Sniper", "Medic", "Forward Observer", "RTO", "K9",
 ] as const;
-const deviceRoles = [
-  "CLIENT", "CLIENT_MUTE", "CLIENT_HIDDEN", "CLIENT_BASE", "ROUTER", "ROUTER_LATE",
-  "TRACKER", "SENSOR", "TAK", "TAK_TRACKER", "LOST_AND_FOUND",
-] as const;
 
 /** Select options mirroring Core's allowlists, which in turn mirror the upstream protobufs. */
 export const takTeamOptions: Exhaustive<Schemas["TakTeam"], typeof takTeams> = takTeams;
 export const takRoleOptions: Exhaustive<Schemas["TakRole"], typeof takRoles> = takRoles;
-export const deviceRoleOptions: Exhaustive<Schemas["MeshtasticDeviceRole"], typeof deviceRoles> = deviceRoles;

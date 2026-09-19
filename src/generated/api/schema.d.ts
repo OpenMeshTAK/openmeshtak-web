@@ -1321,12 +1321,6 @@ export interface components {
          */
         TakRole: "Team Member" | "Team Lead" | "HQ" | "Sniper" | "Medic" | "Forward Observer" | "RTO" | "K9";
         /**
-         * @description Non-deprecated Meshtastic `Config.DeviceConfig.Role` values from upstream `config.proto`.
-         *     `ROUTER_CLIENT` and `REPEATER` are deprecated upstream and intentionally excluded.
-         * @enum {string}
-         */
-        MeshtasticDeviceRole: "CLIENT" | "CLIENT_MUTE" | "CLIENT_HIDDEN" | "CLIENT_BASE" | "ROUTER" | "ROUTER_LATE" | "TRACKER" | "SENSOR" | "TAK" | "TAK_TRACKER" | "LOST_AND_FOUND";
-        /**
          * @description A channel the member receives. `included` channels come with the member's channel set;
          *     `on-site` channels are secret and handed out on site by a key holder before their release.
          */
@@ -1391,7 +1385,6 @@ export interface components {
                 firmware: components["schemas"]["ProfileFirmware"] | null;
                 /** @description Device order, primary first. Channels outside the member's audience are absent. */
                 channels: components["schemas"]["ProfileChannel"][];
-                deviceRole: components["schemas"]["MeshtasticDeviceRole"];
                 /** @description `null` only in previews while the group has no short-name prefix. */
                 shortName: string | null;
                 longName: string;
@@ -1976,10 +1969,6 @@ export interface components {
                 role: components["schemas"]["TakRole"];
                 team: components["schemas"]["TakTeam"];
             };
-            /** @description Channels are event resources with their own audience; see the Meshtastic channels API. */
-            meshtastic: {
-                deviceRole: components["schemas"]["MeshtasticDeviceRole"];
-            };
             missionGroups: components["schemas"]["ProvisioningName"][];
         };
         EventGroupDto: {
@@ -1989,7 +1978,7 @@ export interface components {
             /** @description Stable key used by integrations, unique within the event, e.g. `bravo`. */
             slug: string;
             description: string | null;
-            /** @description Callsign, TAK and Meshtastic settings shared by every member of the group. */
+            /** @description Callsign, TAK and short-name settings shared by every member of the group. */
             provisioning: components["schemas"]["GroupProvisioning"];
             /**
              * Format: double

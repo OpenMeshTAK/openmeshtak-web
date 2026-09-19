@@ -40,7 +40,6 @@ function defaultProvisioning(slug: string): GroupProvisioning {
     callsignFormat: "{username}",
     shortNamePrefix: slug.charAt(0).toUpperCase() || null,
     tak: { team: "Cyan", role: "Team Member", serverGroups: [] },
-    meshtastic: { deviceRole: "CLIENT" },
     missionGroups: [],
   };
 }
@@ -116,7 +115,7 @@ onMounted(load);
   <div>
     <div class="d-flex align-center mb-4">
       <p class="text-body-2 text-medium-emphasis flex-grow-1 mb-0">
-        Groups are tactical units such as Bravo. They define callsigns, TAK team and Meshtastic
+        Groups are tactical units such as Bravo. They define callsigns, TAK team and Meshtastic short-name
         settings for their members; they never grant administrative rights.
       </p>
       <v-btn v-if="editable" color="primary" :prepend-icon="mdiPlus" @click="open(null)">Add group</v-btn>

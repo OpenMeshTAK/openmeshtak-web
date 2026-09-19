@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { messagesFor } from "@/shared/errors/field-errors";
 import type { GroupProvisioning } from "../event-groups.api";
-import { deviceRoleOptions, takRoleOptions, takTeamOptions } from "../provisioning-options";
+import { takRoleOptions, takTeamOptions } from "../provisioning-options";
 
 defineProps<{ errors: Record<string, string> }>();
 // Field-error keys from Core look like `provisioning.tak.team`.
@@ -57,15 +57,6 @@ const provisioning = defineModel<GroupProvisioning>({ required: true });
     persistent-hint
     class="mb-4"
     :error-messages="messagesFor(errors, 'provisioning.tak.serverGroups')"
-  />
-
-  <div class="text-subtitle-2 mb-2">Meshtastic</div>
-  <v-select
-    v-model="provisioning.meshtastic.deviceRole"
-    :items="deviceRoleOptions"
-    label="Device role"
-    :error-messages="messagesFor(errors, 'provisioning.meshtastic.deviceRole')"
-    class="mb-2"
   />
 
   <div class="text-subtitle-2 mb-2">Mission content</div>
