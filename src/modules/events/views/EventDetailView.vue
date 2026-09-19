@@ -12,7 +12,7 @@ import EventRolesPanel from "@/modules/event-roles/EventRolesPanel.vue";
 import EventMembersPanel from "@/modules/members/EventMembersPanel.vue";
 import SyncIssuesPanel from "@/modules/members/SyncIssuesPanel.vue";
 import DataPackagesPanel from "@/modules/data-packages/DataPackagesPanel.vue";
-import MeshtasticChannelsPanel from "@/modules/meshtastic-channels/MeshtasticChannelsPanel.vue";
+import MeshtasticPanel from "@/modules/meshtastic-configuration/MeshtasticPanel.vue";
 import EventLifecycleCard from "../components/EventLifecycleCard.vue";
 import EventSettingsForm from "../components/EventSettingsForm.vue";
 import EventStatusBadge from "../components/EventStatusBadge.vue";
@@ -141,7 +141,7 @@ onMounted(load);
           <EventMembersPanel :event="event" />
         </v-window-item>
         <v-window-item value="meshtastic">
-          <MeshtasticChannelsPanel :event-id="event.id" :editable="editable" :active="event.status === 'active'" />
+          <MeshtasticPanel :event-id="event.id" :editable="editable" :active="event.status === 'active'" />
         </v-window-item>
         <v-window-item value="sync-issues">
           <SyncIssuesPanel :event="event" />
