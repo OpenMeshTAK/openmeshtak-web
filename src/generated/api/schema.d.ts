@@ -280,6 +280,110 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/meshtastic/firmware-profiles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Lists the supported firmware lines, newest first. */
+        get: operations["ListFirmwareProfiles"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/meshtastic/firmware-profiles/{profileId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns the sections, fields and enums of one profile. */
+        get: operations["GetFirmwareProfile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{eventId}/meshtastic/configuration": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["GetMeshtasticConfiguration"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{eventId}/meshtastic/configuration/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** @description Replaces the settings for the current firmware version. Requires the current `version`. */
+        put: operations["UpdateMeshtasticSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{eventId}/meshtastic/configuration/firmware/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Reports which settings a firmware change would keep, drop, invalidate or add. */
+        post: operations["PreviewFirmwareChange"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{eventId}/meshtastic/configuration/firmware": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * @description Changes the recommended firmware. Except for raising the minimum patch within a line, send
+         *     the `confirmation` of the preview that was accepted.
+         */
+        put: operations["ChangeFirmware"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/events/{eventId}/meshtastic/channels": {
         parameters: {
             query?: never;
@@ -363,6 +467,28 @@ export interface paths {
         put?: never;
         /** @description Returns the plain key. Requires `channel-keys.reveal`; every reveal is audited. */
         post: operations["RevealMeshtasticChannelPsk"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{eventId}/members/{memberId}/meshtastic/device-profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Generates the signed-in member's Meshtastic device profile (`.cfg`) from the published event
+         *     configuration: owner names, device role, the event's radio settings and the channels the
+         *     member receives now. The file contains channel keys; every download is audited. The file
+         *     name names the firmware line it is made for.
+         */
+        get: operations["GetMeshtasticDeviceProfile"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1217,6 +1343,20 @@ export interface components {
             /** @description Holds this secret channel ahead of the event to share it on site. */
             keyHolder: boolean;
         };
+        /** @description The Meshtastic firmware a participant must flash before importing OpenMeshTak settings. */
+        ProfileFirmware: {
+            /** @description As recommended by the event, e.g. `2.8` or `2.8.3`. */
+            recommendedVersion: string;
+            line: string;
+            /** @description Lowest version the settings are made for, e.g. `2.8.1`. */
+            minimumVersion: string;
+            /** @enum {string} */
+            channel: "stable" | "beta" | "alpha";
+            /** @description `false` while no tested patch reaches the minimum version. */
+            verified: boolean;
+            flasherUrl: string;
+            flashingNotes: string | null;
+        };
         /**
          * @description The single resolved provisioning identity of one member in one event. Every TAK, Meshtastic and
          *     mission output is derived from this shape.
@@ -1247,6 +1387,8 @@ export interface components {
                 callsign: string;
             };
             meshtastic: {
+                /** @description `null` for configurations published before events had a firmware version. */
+                firmware: components["schemas"]["ProfileFirmware"] | null;
                 /** @description Device order, primary first. Channels outside the member's audience are absent. */
                 channels: components["schemas"]["ProfileChannel"][];
                 deviceRole: components["schemas"]["MeshtasticDeviceRole"];
@@ -1285,6 +1427,139 @@ export interface components {
             name: string;
             /** @description Effective grants, deduplicated across all sources. */
             permissions: components["schemas"]["PermissionGrantDto"][];
+        };
+        FirmwareProfileSummaryDto: {
+            /** @description Stable profile id such as `meshtastic-2.8`. */
+            id: string;
+            /** @description Firmware line such as `2.8`. */
+            line: string;
+            /** @description Lowest supported patch of the line, e.g. `2.8.1`. */
+            minVersion: string;
+            /** @description Patches verified on a real device. Newer patches are allowed but not verified. */
+            testedVersions: string[];
+            /** @enum {string} */
+            channel: "stable" | "beta" | "alpha";
+            default: boolean;
+            flasherUrl: string;
+        };
+        FirmwareSectionDto: {
+            id: string;
+            label: string;
+        };
+        FirmwareFieldDto: {
+            /** @description Path in the Meshtastic `DeviceProfile`, e.g. `config.lora.hopLimit`. */
+            key: string;
+            section: string;
+            /** @enum {string} */
+            type: "string" | "integer" | "number" | "boolean" | "enum" | "bytes";
+            label: string;
+            description?: string;
+            unit?: string;
+            /** @description First patch that has the field; hidden while the event's minimum version is lower. */
+            since: string;
+            /** @description Resolved per member by OpenMeshTak and never editable. */
+            managed: boolean;
+            /** Format: double */
+            maxBytes?: number;
+            /** Format: double */
+            min?: number;
+            /** Format: double */
+            max?: number;
+            /** @description Name of the enum in `enums`. */
+            enum?: string;
+            default?: string | number | boolean;
+        };
+        /** @description Construct a type with a set of properties K of type T */
+        "Record_string.string-Array_": {
+            [key: string]: string[];
+        };
+        FirmwareProfileDto: {
+            /** @description Stable profile id such as `meshtastic-2.8`. */
+            id: string;
+            /** @description Firmware line such as `2.8`. */
+            line: string;
+            /** @description Lowest supported patch of the line, e.g. `2.8.1`. */
+            minVersion: string;
+            /** @description Patches verified on a real device. Newer patches are allowed but not verified. */
+            testedVersions: string[];
+            /** @enum {string} */
+            channel: "stable" | "beta" | "alpha";
+            default: boolean;
+            flasherUrl: string;
+            flashingNotes: string | null;
+            /** @description SHA-256 of the profile file, recorded in configuration revisions. */
+            sha256: string;
+            sections: components["schemas"]["FirmwareSectionDto"][];
+            fields: components["schemas"]["FirmwareFieldDto"][];
+            enums: components["schemas"]["Record_string.string-Array_"];
+        };
+        /** @description Values of a firmware profile's editable fields, keyed by field key. */
+        FirmwareSettingsDocument: {
+            [key: string]: string | number | boolean;
+        };
+        ConfigurationProblemDto: {
+            field: string;
+            code: string;
+            message: string;
+        };
+        MeshtasticConfigurationDto: {
+            eventId: components["schemas"]["Uuid"];
+            /** @description Recommended firmware: a line such as `2.8` or a minimum patch such as `2.8.3`. */
+            firmwareVersion: string;
+            /** @description The given patch or the profile minimum; `null` when the version is no longer supported. */
+            effectiveMinimumVersion: string | null;
+            profileId: string | null;
+            /** @description `false` when no tested patch reaches the effective minimum version. */
+            verified: boolean;
+            settings: components["schemas"]["FirmwareSettingsDocument"];
+            /** @description Why the stored configuration is not valid for this Core release; empty when it is. */
+            problems: components["schemas"]["ConfigurationProblemDto"][];
+            /**
+             * Format: double
+             * @description Optimistic-concurrency version; 0 until the configuration is first saved.
+             */
+            version: number;
+            /** Format: date-time */
+            updatedAt: string | null;
+        };
+        UpdateMeshtasticSettingsRequest: {
+            /**
+             * Format: int32
+             * @description Version the client last read.
+             */
+            version: number;
+            /** @description Complete or partial document; missing fields take the profile default. */
+            settings: components["schemas"]["FirmwareSettingsDocument"];
+        };
+        FirmwareChangeReportDto: {
+            kept: string[];
+            dropped: string[];
+            invalid: string[];
+            added: string[];
+        };
+        FirmwareChangePreviewDto: {
+            firmwareVersion: string;
+            effectiveMinimumVersion: string;
+            profileId: string;
+            report: components["schemas"]["FirmwareChangeReportDto"];
+            /**
+             * @description Token to send with the change when it needs confirmation; `null` when only the minimum patch
+             *     within the same line is raised, which never drops values.
+             */
+            confirmation: string | null;
+        };
+        PreviewFirmwareChangeRequest: {
+            firmwareVersion: string;
+        };
+        ChangeFirmwareRequest: {
+            /**
+             * Format: int32
+             * @description Version the client last read.
+             */
+            version: number;
+            firmwareVersion: string;
+            /** @description The `confirmation` of the preview the administrator accepted. */
+            confirmation?: string;
         };
         /**
          * @description How a channel encrypts traffic, derived from the PSK length as defined by upstream
@@ -1797,15 +2072,29 @@ export interface components {
             keyHolders: components["schemas"]["ChannelAudience"];
         };
         /**
+         * @description The event's Meshtastic firmware target and settings, with the profile file hash so an artifact
+         *     can always be traced back to the exact field definitions used to generate it.
+         */
+        SnapshotMeshtastic: {
+            firmwareVersion: string;
+            effectiveMinimumVersion: string;
+            profileId: string;
+            profileSha256: string;
+            settings: components["schemas"]["FirmwareSettingsDocument"];
+        };
+        /**
          * @description Bump `schemaVersion` whenever the snapshot shape changes; old revisions are never rewritten.
-         *     Version 2 added `channels` in device order, the first being the primary channel.
+         *     Version 2 added `channels` in device order, the first being the primary channel; version 3
+         *     added `meshtastic`.
          */
         ConfigurationSnapshot: {
             /** @enum {number} */
-            schemaVersion: 1 | 2;
+            schemaVersion: 1 | 2 | 3;
             roles: components["schemas"]["SnapshotRole"][];
             groups: components["schemas"]["SnapshotGroup"][];
             channels: components["schemas"]["SnapshotChannel"][];
+            /** @description `null` in revisions created before version 3. */
+            meshtastic: components["schemas"]["SnapshotMeshtastic"] | null;
         };
         ConfigurationRevisionDto: {
             id: components["schemas"]["Uuid"];
@@ -3269,6 +3558,346 @@ export interface operations {
             };
         };
     };
+    ListFirmwareProfiles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Firmware profiles */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FirmwareProfileSummaryDto"][];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetFirmwareProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profileId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Firmware profile */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FirmwareProfileDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetMeshtasticConfiguration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Meshtastic configuration */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeshtasticConfigurationDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateMeshtasticSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateMeshtasticSettingsRequest"];
+            };
+        };
+        responses: {
+            /** @description Settings updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeshtasticConfigurationDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Version conflict or event archived */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    PreviewFirmwareChange: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreviewFirmwareChangeRequest"];
+            };
+        };
+        responses: {
+            /** @description Firmware change preview */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FirmwareChangePreviewDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Event archived */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unsupported firmware version */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ChangeFirmware: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeFirmwareRequest"];
+            };
+        };
+        responses: {
+            /** @description Firmware changed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeshtasticConfigurationDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Version conflict, unconfirmed change or event archived */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unsupported firmware version */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     ListMeshtasticChannels: {
         parameters: {
             query?: {
@@ -3738,6 +4367,56 @@ export interface operations {
             };
             /** @description Not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetMeshtasticDeviceProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+                memberId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Meshtastic device profile */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Meshtastic configuration not published */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
