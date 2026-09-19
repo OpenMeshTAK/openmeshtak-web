@@ -11,7 +11,7 @@ const profileMenu = inject<Component | null>("view-header-profile", null);
 </script>
 
 <template>
-  <div class="d-flex align-center ga-3 mb-6">
+  <div class="d-flex align-center ga-3 mb-4">
     <div class="flex-grow-1" style="min-width: 0">
       <h1 class="text-h5 text-truncate page-title">{{ title }}</h1>
       <div v-if="subtitle" class="text-body-2 text-medium-emphasis text-truncate">{{ subtitle }}</div>

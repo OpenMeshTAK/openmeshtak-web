@@ -119,9 +119,8 @@ onMounted(load);
 
 <template>
   <div>
-    <v-alert v-if="active" type="info" variant="tonal" class="mb-4">
-      Meshtastic changes stay in the event draft until you publish a new configuration revision from
-      the Overview tab.
+    <v-alert v-if="active" type="info" density="compact" class="mb-4">
+      Changes reach participants after you publish the configuration on the Overview tab.
     </v-alert>
 
     <v-skeleton-loader v-if="state === 'loading'" type="list-item@6" />

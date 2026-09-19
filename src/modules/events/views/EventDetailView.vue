@@ -100,7 +100,7 @@ onMounted(load);
         <template #actions><EventStatusBadge :status="event.status" /></template>
       </ViewHeader>
 
-      <v-tabs v-model="tab" class="mb-6" show-arrows>
+      <v-tabs v-model="tab" class="mb-4" density="compact" show-arrows>
         <v-tab value="overview">Overview</v-tab>
         <v-tab value="roles">Roles</v-tab>
         <v-tab value="groups">Groups</v-tab>
