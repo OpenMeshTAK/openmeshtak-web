@@ -239,6 +239,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/events/{eventId}/members/{memberId}/meshtastic/channels/{channelId}/handout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Delivers an audited Meshtastic channel URL to the signed-in member when the published event
+         *     configuration designates that member as a key holder. The URL contains secret key material.
+         */
+        get: operations["GetChannelHandout"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/principal": {
         parameters: {
             query?: never;
@@ -1243,6 +1263,19 @@ export interface components {
             timeZone: string;
             memberId: components["schemas"]["Uuid"];
             callsign: string;
+        };
+        /**
+         * @description A secret-bearing Meshtastic channel handout. It is returned only to the signed-in key holder,
+         *     must not be persisted by clients and becomes obsolete as soon as the channel key rotates.
+         */
+        ChannelHandoutDto: {
+            channelId: components["schemas"]["Uuid"];
+            channelName: string;
+            primary: boolean;
+            /** Format: double */
+            pskVersion: number;
+            /** @description Canonical Meshtastic ChannelSet URL; the fragment contains the channel key. */
+            url: string;
         };
         PrincipalDto: {
             /** @enum {string} */
@@ -3156,6 +3189,48 @@ export interface operations {
             };
             /** @description Authentication required */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetChannelHandout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+                memberId: components["schemas"]["Uuid"];
+                channelId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Channel handout */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelHandoutDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

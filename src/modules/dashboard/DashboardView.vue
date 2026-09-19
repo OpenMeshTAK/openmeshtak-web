@@ -8,6 +8,7 @@ import ViewHeader from "@/shared/components/layout/ViewHeader.vue";
 import { describeError } from "@/shared/errors/api-problem";
 import { useSession } from "@/modules/auth/session";
 import ProfileSummary from "@/shared/components/ProfileSummary.vue";
+import ChannelHandoutsCard from "./components/ChannelHandoutsCard.vue";
 import ProvisioningActions from "./components/ProvisioningActions.vue";
 import { fetchMyMemberships, fetchProfile } from "./dashboard.api";
 
@@ -101,6 +102,11 @@ onMounted(load);
       </v-col>
       <v-col cols="12" md="5" class="d-flex flex-column ga-4">
         <ProvisioningActions />
+        <ChannelHandoutsCard
+          :event-id="profile.eventId"
+          :member-id="profile.memberId"
+          :channels="profile.meshtastic.channels"
+        />
         <v-card class="pa-5">
           <div class="text-subtitle-1 font-weight-medium mb-1">Downloads</div>
           <p class="text-body-2 text-medium-emphasis mb-0">No data packages are published yet.</p>
