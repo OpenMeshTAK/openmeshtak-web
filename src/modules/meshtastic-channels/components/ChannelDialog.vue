@@ -10,7 +10,8 @@ import {
   type MeshtasticChannelDto,
 } from "../meshtastic-channels.api";
 import { positionPrecisionOptions } from "../position-precision";
-import AudiencePicker, { type AudienceOption } from "./AudiencePicker.vue";
+import AudiencePicker from "@/modules/event-audience/EventAudiencePicker.vue";
+import type { AudienceOption } from "@/modules/event-audience/audience-options";
 
 const open = defineModel<boolean>({ required: true });
 const props = defineProps<{

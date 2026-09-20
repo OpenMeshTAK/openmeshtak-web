@@ -43,6 +43,21 @@ export function createDataPackage(eventId: string, body: Schemas["CreateDataPack
   return unwrap(api.POST("/events/{eventId}/data-packages", { params: { path: { eventId } }, body }));
 }
 
+export type PackageAudience = Schemas["PackageAudience"];
+
+export function updatePackageAudience(
+  path: PackagePath,
+  version: number,
+  audience: PackageAudience,
+): Promise<DataPackageDto> {
+  return unwrap(
+    api.PUT("/events/{eventId}/data-packages/{packageId}/audience", {
+      params: { path },
+      body: { version, audience },
+    }),
+  );
+}
+
 export async function deleteDataPackage(path: PackagePath): Promise<void> {
   await unwrap(api.DELETE("/events/{eventId}/data-packages/{packageId}", { params: { path } }));
 }

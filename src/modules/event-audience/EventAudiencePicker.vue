@@ -1,13 +1,8 @@
 <script setup lang="ts">
-import type { ChannelAudience } from "../meshtastic-channels.api";
-
-export interface AudienceOption {
-  id: string;
-  title: string;
-}
+import type { AudienceOption, EventAudience } from "./audience-options";
 
 /** Selects any union of event groups, roles and individual members. */
-const audience = defineModel<ChannelAudience>({ required: true });
+const audience = defineModel<EventAudience>({ required: true });
 
 defineProps<{
   groups: AudienceOption[];

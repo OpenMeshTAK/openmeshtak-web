@@ -1,16 +1,24 @@
 <script setup lang="ts">
-import { mdiMapPlus } from "@mdi/js";
+import { mdiAccountGroup, mdiClockOutline, mdiDelete, mdiDotsVertical, mdiMapOutline, mdiMapPlus } from "@mdi/js";
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import type { Schemas } from "@/shared/api/types";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import EmptyState from "@/shared/components/EmptyState.vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
+import SectionHeader from "@/shared/components/layout/SectionHeader.vue";
 import { useAsyncData } from "@/shared/composables/useAsyncData";
 import { useSubmission } from "@/shared/composables/useSubmission";
 import { messagesFor } from "@/shared/errors/field-errors";
 import { useToast } from "@/shared/feedback/toast";
 import { useSession } from "@/modules/auth/session";
+import {
+  audienceMembers,
+  audienceNames,
+  loadAudienceOptions,
+  type AudienceOptions,
+} from "@/modules/event-audience/audience-options";
+import PackageAudienceDialog from "./components/PackageAudienceDialog.vue";
 import { createDataPackage, deleteDataPackage, listDataPackages, type DataPackageDto } from "./data-packages.api";
 
 const props = defineProps<{ event: Schemas["EventDto"] }>();
@@ -19,6 +27,12 @@ const session = useSession();
 const toast = useToast();
 
 const dataPackages = useAsyncData(() => listDataPackages(props.event.id), [] as DataPackageDto[]);
+const audienceOptions = ref<AudienceOptions>({ groups: [], roles: [], members: null });
+const audienceTarget = ref<DataPackageDto | null>(null);
+const audienceOpen = ref(false);
+const canPublish = computed(
+  () => props.event.status !== "archived" && session.can("data-packages.publish", props.event.id),
+);
 const canEdit = computed(() => props.event.status !== "archived" && session.can("data-packages.edit", props.event.id));
 
 const createOpen = ref(false);
@@ -55,51 +69,111 @@ async function confirmRemove(): Promise<void> {
   }
 }
 
-onMounted(dataPackages.load);
+function audienceSummary(dataPackage: DataPackageDto): string {
+  const { audience } = dataPackage;
+  const members = audienceOptions.value.members;
+  if (audience.allMembers) {
+    return members === null ? "Every member" : `Every member · ${String(members.length)}`;
+  }
+  const names = audienceNames(audience, audienceOptions.value);
+  const label = names.length === 0 ? "Nobody selected yet" : names.join(", ");
+  return members === null ? label : `${label} · ${String(audienceMembers(audience, members).length)} members`;
+}
+
+function editAudience(dataPackage: DataPackageDto): void {
+  audienceTarget.value = dataPackage;
+  audienceOpen.value = true;
+}
+
+async function audienceSaved(saved: DataPackageDto): Promise<void> {
+  toast.success(`${saved.name} now reaches its new audience.`);
+  await dataPackages.load();
+}
+
+async function loadOptions(): Promise<void> {
+  try {
+    audienceOptions.value = await loadAudienceOptions(props.event.id, session.can("members.read", props.event.id));
+  } catch {
+    // The list still works without names; summaries then fall back to "Unknown".
+  }
+}
+
+onMounted(() => {
+  void dataPackages.load();
+  void loadOptions();
+});
 </script>
 
 <template>
   <div>
-    <div class="d-flex align-center mb-4 ga-4 flex-wrap">
-      <p class="text-body-2 text-medium-emphasis flex-grow-1 mb-0">
-        Data packages hold the event's map content: markers, lines and areas in layers. Participants
-        receive published revisions, never the draft.
-      </p>
-      <v-btn v-if="canEdit" color="primary" :prepend-icon="mdiMapPlus" @click="(name = ''), creation.reset(), (createOpen = true)">
-        New data package
-      </v-btn>
-    </div>
+    <SectionHeader
+      title="Data packages"
+      description="Map content in layers. Members receive the newest published revision of the packages whose audience includes them, never the draft."
+    >
+      <template #actions>
+        <v-btn v-if="canEdit" color="primary" :prepend-icon="mdiMapPlus" @click="(name = ''), creation.reset(), (createOpen = true)">
+          New data package
+        </v-btn>
+      </template>
+    </SectionHeader>
 
-    <v-skeleton-loader v-if="dataPackages.state.value === 'loading'" type="table" />
+    <v-skeleton-loader v-if="dataPackages.state.value === 'loading'" type="list-item-avatar-two-line@3" />
     <ErrorState v-else-if="dataPackages.state.value === 'error'" :message="dataPackages.error.value" @retry="dataPackages.load" />
     <EmptyState v-else-if="dataPackages.data.value.length === 0" title="No data packages yet" text="Create a data package to draw the event's map content." />
 
     <v-card v-else>
-      <v-table hover>
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Published</th>
-            <th class="d-none d-md-table-cell">Last change</th>
-            <th class="text-right">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="dataPackage in dataPackages.data.value" :key="dataPackage.id" style="cursor: pointer" @click="openEditor(dataPackage)">
-            <td class="font-weight-medium">{{ dataPackage.name }}</td>
-            <td>
-              <span v-if="dataPackage.latestRevision">Revision {{ dataPackage.latestRevision }}</span>
+      <template v-for="(dataPackage, index) in dataPackages.data.value" :key="dataPackage.id">
+        <v-divider v-if="index > 0" />
+        <div class="package-row d-flex align-start ga-4 pa-4">
+          <v-avatar color="primary" variant="tonal" size="40" rounded="lg" class="flex-shrink-0">
+            <v-icon :icon="mdiMapOutline" />
+          </v-avatar>
+          <div class="flex-grow-1" style="min-width: 0">
+            <div class="d-flex align-center flex-wrap ga-2 mb-1">
+              <span class="text-subtitle-1 font-weight-medium text-break">{{ dataPackage.name }}</span>
+              <v-chip v-if="dataPackage.latestRevision" size="small" color="success" variant="tonal" label>
+                Revision {{ dataPackage.latestRevision }} published
+              </v-chip>
               <v-chip v-else size="small" variant="tonal" label>Draft only</v-chip>
-            </td>
-            <td class="d-none d-md-table-cell">{{ dateFormat.format(new Date(dataPackage.updatedAt)) }}</td>
-            <td class="text-right text-no-wrap">
-              <v-btn variant="text" size="small" @click.stop="openEditor(dataPackage)">{{ canEdit ? "Edit" : "View" }}</v-btn>
-              <v-btn v-if="canEdit" variant="text" size="small" color="error" @click.stop="removing = dataPackage">Delete</v-btn>
-            </td>
-          </tr>
-        </tbody>
-      </v-table>
+            </div>
+            <div class="facts text-body-2">
+              <span class="fact">
+                <v-icon :icon="mdiAccountGroup" size="16" />
+                <span class="text-truncate">{{ audienceSummary(dataPackage) }}</span>
+              </span>
+              <span class="fact text-medium-emphasis">
+                <v-icon :icon="mdiClockOutline" size="16" />
+                Changed {{ dateFormat.format(new Date(dataPackage.updatedAt)) }}
+              </span>
+            </div>
+          </div>
+          <div class="d-flex align-center ga-1 flex-shrink-0">
+            <v-btn variant="tonal" size="small" @click="openEditor(dataPackage)">{{ canEdit ? "Open editor" : "View" }}</v-btn>
+            <v-menu v-if="canPublish || canEdit" location="bottom end">
+              <template #activator="{ props: activator }">
+                <v-btn v-bind="activator" :icon="mdiDotsVertical" variant="text" size="small" :aria-label="`More actions for ${dataPackage.name}`" />
+              </template>
+              <v-list density="compact" min-width="220">
+                <v-list-item v-if="canPublish" :prepend-icon="mdiAccountGroup" title="Who receives it" @click="editAudience(dataPackage)" />
+                <template v-if="canEdit">
+                  <v-divider v-if="canPublish" class="my-1" />
+                  <v-list-item :prepend-icon="mdiDelete" title="Delete data package" base-color="error" @click="removing = dataPackage" />
+                </template>
+              </v-list>
+            </v-menu>
+          </div>
+        </div>
+      </template>
     </v-card>
+
+    <PackageAudienceDialog
+      v-if="audienceTarget"
+      v-model="audienceOpen"
+      :event-id="event.id"
+      :data-package="audienceTarget"
+      :options="audienceOptions"
+      @saved="audienceSaved"
+    />
 
     <v-dialog v-model="createOpen" max-width="480">
       <v-card class="pa-2">
@@ -137,3 +211,18 @@ onMounted(dataPackages.load);
     </ConfirmDialog>
   </div>
 </template>
+
+<style scoped>
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+}
+.fact {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+}
+</style>
