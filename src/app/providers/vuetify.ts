@@ -47,7 +47,7 @@ export const vuetify = createVuetify({
     VSelect: { variant: "outlined", density: "comfortable", color: "primary" },
     VTextarea: { variant: "outlined", density: "comfortable", color: "primary" },
     VAlert: { variant: "tonal", rounded: "lg" },
-    // Sliding tab panels are clipped at the window edge; a short fade avoids the hard edge.
-    VWindowItem: { transition: "fade-transition", reverseTransition: "fade-transition" },
+    // Short slide-and-fade tab panels, see src/app/styles/transitions.css.
+    VWindowItem: { transition: "tab-panel-forward", reverseTransition: "tab-panel-back" },
   },
 });
