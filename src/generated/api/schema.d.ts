@@ -209,7 +209,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * @description Resolves the member's callsign, TAK and Meshtastic identity and mission groups. Requires
+         * @description Resolves the member's callsign, TAK and Meshtastic identity. Requires
          *     `members.read`, or being that member in an active event. Draft events return an
          *     administrator preview of the unpublished configuration.
          */
@@ -487,6 +487,40 @@ export interface paths {
          *     name names the firmware line it is made for.
          */
         get: operations["GetMeshtasticDeviceProfile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{eventId}/members/{memberId}/data-packages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The signed-in member's packages; people with `members.read` may preview any member's list. */
+        get: operations["ListMemberDataPackages"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{eventId}/members/{memberId}/data-packages/{packageId}/atak": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Downloads the newest published revision as an ATAK Data Package. Only for the member. */
+        get: operations["DownloadMemberDataPackage"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1115,6 +1149,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/events/{eventId}/data-packages/{packageId}/audience": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * @description Sets who receives the package's published revisions: all members or selected groups, roles
+         *     and members. Requires `data-packages.publish` and the current `version`.
+         */
+        put: operations["UpdateDataPackageAudience"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1389,7 +1443,6 @@ export interface components {
                 shortName: string | null;
                 longName: string;
             };
-            missionGroups: string[];
         };
         MyEventMembershipDto: {
             eventId: components["schemas"]["Uuid"];
@@ -1579,10 +1632,10 @@ export interface components {
             rotatedAt: string | null;
         };
         /**
-         * @description Who receives a secondary channel: every member that matches any listed group, role or member.
-         *     The primary channel always reaches every member, so its audience is ignored.
+         * @description A selection of event members: everyone who matches any listed group, role or member. Used by
+         *     Meshtastic channels and Data Packages so both decide "who receives this" the same way.
          */
-        ChannelAudience: {
+        EventAudience: {
             groupIds: components["schemas"]["Uuid"][];
             roleIds: components["schemas"]["Uuid"][];
             memberIds: components["schemas"]["Uuid"][];
@@ -1605,7 +1658,7 @@ export interface components {
              * @description Upstream position precision: 0 sends no position, 32 sends the full position.
              */
             positionPrecision: number;
-            audience: components["schemas"]["ChannelAudience"];
+            audience: components["schemas"]["EventAudience"];
             /**
              * @description Secret channels withhold their key from every participant view and artifact except those of
              *     key holders until the channel is released.
@@ -1620,7 +1673,7 @@ export interface components {
              * @description Members of the audience who receive a secret channel ahead of the event to share it on site.
              *     Selected like the audience; only members who are also in the audience count.
              */
-            keyHolders: components["schemas"]["ChannelAudience"];
+            keyHolders: components["schemas"]["EventAudience"];
             /**
              * Format: double
              * @description Optimistic-concurrency version; send it back unchanged with updates.
@@ -1653,11 +1706,11 @@ export interface components {
             uplinkEnabled?: boolean;
             downlinkEnabled?: boolean;
             positionPrecision?: components["schemas"]["PositionPrecision"];
-            audience?: components["schemas"]["ChannelAudience"];
+            audience?: components["schemas"]["EventAudience"];
             /** @description Secret channels need an AES key. The primary channel may also be secret. */
             secret?: boolean;
             /** @description Only for secret channels. */
-            keyHolders?: components["schemas"]["ChannelAudience"];
+            keyHolders?: components["schemas"]["EventAudience"];
         };
         UpdateMeshtasticChannelRequest: {
             /**
@@ -1670,10 +1723,10 @@ export interface components {
             uplinkEnabled: boolean;
             downlinkEnabled: boolean;
             positionPrecision: components["schemas"]["PositionPrecision"];
-            audience: components["schemas"]["ChannelAudience"];
+            audience: components["schemas"]["EventAudience"];
             /** @description Turning a channel secret again withholds it until it is released anew. */
             secret: boolean;
-            keyHolders: components["schemas"]["ChannelAudience"];
+            keyHolders: components["schemas"]["EventAudience"];
         };
         RotateChannelPskRequest: {
             /**
@@ -1698,6 +1751,19 @@ export interface components {
             version: number;
             /** @description Base64 key exactly as Meshtastic clients expect it. */
             psk: string;
+        };
+        /** @description A published Data Package a member receives, at its newest revision. */
+        MemberDataPackageDto: {
+            id: components["schemas"]["Uuid"];
+            name: string;
+            description: string | null;
+            /**
+             * Format: double
+             * @description Newest published revision; downloads always deliver this one.
+             */
+            revision: number;
+            /** Format: date-time */
+            publishedAt: string;
         };
         /** @enum {string} */
         MemberClaimStatus: "open" | "consumed" | "revoked" | "expired";
@@ -1957,7 +2023,7 @@ export interface components {
             /** @description Callsign to use instead of the group format; `null` returns to the group format. */
             callsignOverride: string | null;
         };
-        /** @description Identifier used for TAK server groups and mission groups. */
+        /** @description Identifier used for TAK server groups. */
         ProvisioningName: string;
         GroupProvisioning: {
             /**
@@ -1975,7 +2041,6 @@ export interface components {
                 role: components["schemas"]["TakRole"];
                 team: components["schemas"]["TakTeam"];
             };
-            missionGroups: components["schemas"]["ProvisioningName"][];
         };
         EventGroupDto: {
             id: components["schemas"]["Uuid"];
@@ -2063,8 +2128,8 @@ export interface components {
             secret: boolean;
             /** Format: double */
             pskVersion: number;
-            audience: components["schemas"]["ChannelAudience"];
-            keyHolders: components["schemas"]["ChannelAudience"];
+            audience: components["schemas"]["EventAudience"];
+            keyHolders: components["schemas"]["EventAudience"];
         };
         /**
          * @description The event's Meshtastic firmware target and settings, with the profile file hash so an artifact
@@ -2350,6 +2415,16 @@ export interface components {
             type: "FeatureCollection";
             features: unknown[];
         };
+        /**
+         * @description Who receives the published Data Package: every event member, or only those matching any
+         *     selected group, role or member. The selection is ignored while `allMembers` is true.
+         */
+        PackageAudience: {
+            groupIds: components["schemas"]["Uuid"][];
+            roleIds: components["schemas"]["Uuid"][];
+            memberIds: components["schemas"]["Uuid"][];
+            allMembers: boolean;
+        };
         DataPackageDto: {
             id: components["schemas"]["Uuid"];
             eventId: components["schemas"]["Uuid"];
@@ -2360,6 +2435,7 @@ export interface components {
              * @description Number of the newest published revision, or `null` while nothing is published.
              */
             latestRevision: number | null;
+            audience: components["schemas"]["PackageAudience"];
             /**
              * Format: double
              * @description Optimistic-concurrency version; send it back unchanged with updates.
@@ -2386,6 +2462,14 @@ export interface components {
             version: number;
             name: string;
             description: string | null;
+        };
+        UpdatePackageAudienceRequest: {
+            /**
+             * Format: int32
+             * @description Version the client last read.
+             */
+            version: number;
+            audience: components["schemas"]["PackageAudience"];
         };
     };
     responses: never;
@@ -4412,6 +4496,89 @@ export interface operations {
             };
             /** @description Meshtastic configuration not published */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListMemberDataPackages: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+                memberId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Data packages the member receives */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberDataPackageDto"][];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DownloadMemberDataPackage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+                memberId: components["schemas"]["Uuid"];
+                packageId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ATAK Data Package */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7682,6 +7849,78 @@ export interface operations {
             };
             /** @description Event archived */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateDataPackageAudience: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+                packageId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePackageAudienceRequest"];
+            };
+        };
+        responses: {
+            /** @description Audience updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataPackageDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Version conflict or event archived */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

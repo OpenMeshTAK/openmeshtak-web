@@ -41,8 +41,6 @@ const channelNames = computed(() =>
       <dd>{{ profile.meshtastic.shortName ?? "—" }} · {{ profile.meshtastic.longName }}</dd>
       <dt>Channels</dt>
       <dd>{{ channelNames || "—" }}</dd>
-      <dt>Mission groups</dt>
-      <dd>{{ profile.missionGroups.join(", ") || "—" }}</dd>
     </dl>
   </v-card>
 </template>

@@ -909,12 +909,6 @@
 							"longName"
 						],
 						"type": "object"
-					},
-					"missionGroups": {
-						"items": {
-							"type": "string"
-						},
-						"type": "array"
 					}
 				},
 				"required": [
@@ -928,8 +922,7 @@
 					"eventRole",
 					"group",
 					"tak",
-					"meshtastic",
-					"missionGroups"
+					"meshtastic"
 				],
 				"type": "object",
 				"additionalProperties": false
@@ -1532,8 +1525,8 @@
 				"type": "object",
 				"additionalProperties": false
 			},
-			"ChannelAudience": {
-				"description": "Who receives a secondary channel: every member that matches any listed group, role or member.\nThe primary channel always reaches every member, so its audience is ignored.",
+			"EventAudience": {
+				"description": "A selection of event members: everyone who matches any listed group, role or member. Used by\nMeshtastic channels and Data Packages so both decide \"who receives this\" the same way.",
 				"properties": {
 					"groupIds": {
 						"items": {
@@ -1599,7 +1592,7 @@
 						"description": "Upstream position precision: 0 sends no position, 32 sends the full position."
 					},
 					"audience": {
-						"$ref": "#/components/schemas/ChannelAudience"
+						"$ref": "#/components/schemas/EventAudience"
 					},
 					"secret": {
 						"type": "boolean",
@@ -1612,7 +1605,7 @@
 						"format": "date-time"
 					},
 					"keyHolders": {
-						"$ref": "#/components/schemas/ChannelAudience",
+						"$ref": "#/components/schemas/EventAudience",
 						"description": "Members of the audience who receive a secret channel ahead of the event to share it on site.\nSelected like the audience; only members who are also in the audience count."
 					},
 					"version": {
@@ -1710,14 +1703,14 @@
 						"$ref": "#/components/schemas/PositionPrecision"
 					},
 					"audience": {
-						"$ref": "#/components/schemas/ChannelAudience"
+						"$ref": "#/components/schemas/EventAudience"
 					},
 					"secret": {
 						"type": "boolean",
 						"description": "Secret channels need an AES key. The primary channel may also be secret."
 					},
 					"keyHolders": {
-						"$ref": "#/components/schemas/ChannelAudience",
+						"$ref": "#/components/schemas/EventAudience",
 						"description": "Only for secret channels."
 					}
 				},
@@ -1751,14 +1744,14 @@
 						"$ref": "#/components/schemas/PositionPrecision"
 					},
 					"audience": {
-						"$ref": "#/components/schemas/ChannelAudience"
+						"$ref": "#/components/schemas/EventAudience"
 					},
 					"secret": {
 						"type": "boolean",
 						"description": "Turning a channel secret again withholds it until it is released anew."
 					},
 					"keyHolders": {
-						"$ref": "#/components/schemas/ChannelAudience"
+						"$ref": "#/components/schemas/EventAudience"
 					}
 				},
 				"required": [
@@ -1829,6 +1822,39 @@
 					"kind",
 					"version",
 					"psk"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"MemberDataPackageDto": {
+				"description": "A published Data Package a member receives, at its newest revision.",
+				"properties": {
+					"id": {
+						"$ref": "#/components/schemas/Uuid"
+					},
+					"name": {
+						"type": "string"
+					},
+					"description": {
+						"type": "string",
+						"nullable": true
+					},
+					"revision": {
+						"type": "number",
+						"format": "double",
+						"description": "Newest published revision; downloads always deliver this one."
+					},
+					"publishedAt": {
+						"type": "string",
+						"format": "date-time"
+					}
+				},
+				"required": [
+					"id",
+					"name",
+					"description",
+					"revision",
+					"publishedAt"
 				],
 				"type": "object",
 				"additionalProperties": false
@@ -2680,7 +2706,7 @@
 			},
 			"ProvisioningName": {
 				"type": "string",
-				"description": "Identifier used for TAK server groups and mission groups.",
+				"description": "Identifier used for TAK server groups.",
 				"pattern": "^[A-Za-z0-9_-]+$",
 				"minLength": 1,
 				"maxLength": 64
@@ -2721,20 +2747,12 @@
 							"team"
 						],
 						"type": "object"
-					},
-					"missionGroups": {
-						"items": {
-							"$ref": "#/components/schemas/ProvisioningName"
-						},
-						"type": "array",
-						"maxItems": 20
 					}
 				},
 				"required": [
 					"callsignFormat",
 					"shortNamePrefix",
-					"tak",
-					"missionGroups"
+					"tak"
 				],
 				"type": "object",
 				"additionalProperties": false
@@ -3001,10 +3019,10 @@
 						"format": "double"
 					},
 					"audience": {
-						"$ref": "#/components/schemas/ChannelAudience"
+						"$ref": "#/components/schemas/EventAudience"
 					},
 					"keyHolders": {
-						"$ref": "#/components/schemas/ChannelAudience"
+						"$ref": "#/components/schemas/EventAudience"
 					}
 				},
 				"required": [
@@ -3945,6 +3963,43 @@
 				"type": "object",
 				"additionalProperties": false
 			},
+			"PackageAudience": {
+				"description": "Who receives the published Data Package: every event member, or only those matching any\nselected group, role or member. The selection is ignored while `allMembers` is true.",
+				"properties": {
+					"groupIds": {
+						"items": {
+							"$ref": "#/components/schemas/Uuid"
+						},
+						"type": "array",
+						"maxItems": 100
+					},
+					"roleIds": {
+						"items": {
+							"$ref": "#/components/schemas/Uuid"
+						},
+						"type": "array",
+						"maxItems": 100
+					},
+					"memberIds": {
+						"items": {
+							"$ref": "#/components/schemas/Uuid"
+						},
+						"type": "array",
+						"maxItems": 500
+					},
+					"allMembers": {
+						"type": "boolean"
+					}
+				},
+				"required": [
+					"groupIds",
+					"roleIds",
+					"memberIds",
+					"allMembers"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
 			"DataPackageDto": {
 				"properties": {
 					"id": {
@@ -3966,6 +4021,9 @@
 						"nullable": true,
 						"description": "Number of the newest published revision, or `null` while nothing is published."
 					},
+					"audience": {
+						"$ref": "#/components/schemas/PackageAudience"
+					},
 					"version": {
 						"type": "number",
 						"format": "double",
@@ -3986,6 +4044,7 @@
 					"name",
 					"description",
 					"latestRevision",
+					"audience",
 					"version",
 					"createdAt",
 					"updatedAt"
@@ -4054,6 +4113,25 @@
 					"version",
 					"name",
 					"description"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"UpdatePackageAudienceRequest": {
+				"properties": {
+					"version": {
+						"type": "integer",
+						"format": "int32",
+						"description": "Version the client last read.",
+						"minimum": 1
+					},
+					"audience": {
+						"$ref": "#/components/schemas/PackageAudience"
+					}
+				},
+				"required": [
+					"version",
+					"audience"
 				],
 				"type": "object",
 				"additionalProperties": false
@@ -5518,7 +5596,7 @@
 						}
 					}
 				},
-				"description": "Resolves the member's callsign, TAK and Meshtastic identity and mission groups. Requires\n`members.read`, or being that member in an active event. Draft events return an\nadministrator preview of the unpublished configuration.",
+				"description": "Resolves the member's callsign, TAK and Meshtastic identity. Requires\n`members.read`, or being that member in an active event. Draft events return an\nadministrator preview of the unpublished configuration.",
 				"tags": [
 					"Profiles"
 				],
@@ -6960,6 +7038,146 @@
 					{
 						"in": "path",
 						"name": "memberId",
+						"required": true,
+						"schema": {
+							"$ref": "#/components/schemas/Uuid"
+						}
+					}
+				]
+			}
+		},
+		"/events/{eventId}/members/{memberId}/data-packages": {
+			"get": {
+				"operationId": "ListMemberDataPackages",
+				"responses": {
+					"200": {
+						"description": "Data packages the member receives",
+						"content": {
+							"application/json": {
+								"schema": {
+									"items": {
+										"$ref": "#/components/schemas/MemberDataPackageDto"
+									},
+									"type": "array"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Authentication required",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ProblemDetails"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ProblemDetails"
+								}
+							}
+						}
+					}
+				},
+				"description": "The signed-in member's packages; people with `members.read` may preview any member's list.",
+				"tags": [
+					"Profiles"
+				],
+				"security": [
+					{
+						"sessionCookie": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "eventId",
+						"required": true,
+						"schema": {
+							"$ref": "#/components/schemas/Uuid"
+						}
+					},
+					{
+						"in": "path",
+						"name": "memberId",
+						"required": true,
+						"schema": {
+							"$ref": "#/components/schemas/Uuid"
+						}
+					}
+				]
+			}
+		},
+		"/events/{eventId}/members/{memberId}/data-packages/{packageId}/atak": {
+			"get": {
+				"operationId": "DownloadMemberDataPackage",
+				"responses": {
+					"200": {
+						"description": "ATAK Data Package",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "string",
+									"format": "byte"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Authentication required",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ProblemDetails"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ProblemDetails"
+								}
+							}
+						}
+					}
+				},
+				"description": "Downloads the newest published revision as an ATAK Data Package. Only for the member.",
+				"tags": [
+					"Profiles"
+				],
+				"security": [
+					{
+						"sessionCookie": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "eventId",
+						"required": true,
+						"schema": {
+							"$ref": "#/components/schemas/Uuid"
+						}
+					},
+					{
+						"in": "path",
+						"name": "memberId",
+						"required": true,
+						"schema": {
+							"$ref": "#/components/schemas/Uuid"
+						}
+					},
+					{
+						"in": "path",
+						"name": "packageId",
 						"required": true,
 						"schema": {
 							"$ref": "#/components/schemas/Uuid"
@@ -11919,6 +12137,113 @@
 						}
 					}
 				]
+			}
+		},
+		"/events/{eventId}/data-packages/{packageId}/audience": {
+			"put": {
+				"operationId": "UpdateDataPackageAudience",
+				"responses": {
+					"200": {
+						"description": "Audience updated",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/DataPackageDto"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Authentication required",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ProblemDetails"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Access denied",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ProblemDetails"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ProblemDetails"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Version conflict or event archived",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ProblemDetails"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation failed",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ProblemDetails"
+								}
+							}
+						}
+					}
+				},
+				"description": "Sets who receives the package's published revisions: all members or selected groups, roles\nand members. Requires `data-packages.publish` and the current `version`.",
+				"tags": [
+					"Data packages"
+				],
+				"security": [
+					{
+						"sessionCookie": []
+					},
+					{
+						"serviceAccountBearer": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "eventId",
+						"required": true,
+						"schema": {
+							"$ref": "#/components/schemas/Uuid"
+						}
+					},
+					{
+						"in": "path",
+						"name": "packageId",
+						"required": true,
+						"schema": {
+							"$ref": "#/components/schemas/Uuid"
+						}
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/UpdatePackageAudienceRequest"
+							}
+						}
+					}
+				}
 			}
 		}
 	},

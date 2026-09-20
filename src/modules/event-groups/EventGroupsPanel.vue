@@ -40,7 +40,6 @@ function defaultProvisioning(slug: string): GroupProvisioning {
     callsignFormat: "{username}",
     shortNamePrefix: slug.charAt(0).toUpperCase() || null,
     tak: { team: "Cyan", role: "Team Member", serverGroups: [] },
-    missionGroups: [],
   };
 }
 

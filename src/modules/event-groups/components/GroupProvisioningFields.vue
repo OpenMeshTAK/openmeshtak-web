@@ -58,16 +58,4 @@ const provisioning = defineModel<GroupProvisioning>({ required: true });
     class="mb-4"
     :error-messages="messagesFor(errors, 'provisioning.tak.serverGroups')"
   />
-
-  <div class="text-subtitle-2 mb-2">Mission content</div>
-  <v-combobox
-    v-model="provisioning.missionGroups"
-    label="Mission groups"
-    multiple
-    chips
-    closable-chips
-    variant="outlined"
-    density="comfortable"
-    :error-messages="messagesFor(errors, 'provisioning.missionGroups')"
-  />
 </template>

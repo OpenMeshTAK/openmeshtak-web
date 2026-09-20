@@ -2,7 +2,7 @@ import { api, unwrap } from "@/shared/api/client";
 import type { Schemas } from "@/shared/api/types";
 
 export type MeshtasticChannelDto = Schemas["MeshtasticChannelDto"];
-export type ChannelAudience = Schemas["ChannelAudience"];
+export type ChannelAudience = Schemas["EventAudience"];
 export type UpdateChannelRequest = Schemas["UpdateMeshtasticChannelRequest"];
 
 /** Device order: Core treats the lowest `sortOrder` as primary, oldest first on ties. */
