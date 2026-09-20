@@ -6,6 +6,7 @@ export type FirmwareProfileDto = Schemas["FirmwareProfileDto"];
 export type FirmwareProfileSummaryDto = Schemas["FirmwareProfileSummaryDto"];
 export type FirmwareFieldDto = Schemas["FirmwareFieldDto"];
 export type FirmwareChangePreviewDto = Schemas["FirmwareChangePreviewDto"];
+export type FirmwareEnumValueDto = Schemas["FirmwareEnumValueDto"];
 export type SettingValue = string | number | boolean;
 
 export function getConfiguration(eventId: string): Promise<MeshtasticConfigurationDto> {

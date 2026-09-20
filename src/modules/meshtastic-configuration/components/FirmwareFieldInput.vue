@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import type { FirmwareFieldDto, SettingValue } from "../meshtastic-configuration.api";
+import type { FirmwareEnumValueDto, FirmwareFieldDto, SettingValue } from "../meshtastic-configuration.api";
 
 /**
  * One profile field rendered from its definition. Constraints mirror the profile for quick
@@ -8,15 +8,14 @@ import type { FirmwareFieldDto, SettingValue } from "../meshtastic-configuration
  */
 const props = defineProps<{
   field: FirmwareFieldDto;
-  enumValues: string[];
+  enumValues: FirmwareEnumValueDto[];
   disabled: boolean;
   error: string | undefined;
 }>();
 const value = defineModel<SettingValue | undefined>({ required: true });
 
-const hint = computed(() =>
-  [props.field.description, props.field.unit ? `Unit: ${props.field.unit}` : undefined].filter(Boolean).join(" · "),
-);
+// Number fields already show their unit as a suffix.
+const hint = computed(() => props.field.description ?? "");
 const errorMessages = computed(() => (props.error === undefined ? [] : [props.error]));
 
 const numberRules = computed(() => [
@@ -55,6 +54,8 @@ function updateNumber(input: string): void {
     v-else-if="field.type === 'enum'"
     :model-value="typeof value === 'string' ? value : null"
     :items="enumValues"
+    item-title="label"
+    item-value="value"
     :label="field.label"
     :hint="hint"
     :persistent-hint="Boolean(hint)"

@@ -1462,9 +1462,14 @@ export interface components {
             enum?: string;
             default?: string | number | boolean;
         };
+        FirmwareEnumValueDto: {
+            /** @description Upstream enum name stored in settings, e.g. `LONG_FAST`. */
+            value: string;
+            label: string;
+        };
         /** @description Construct a type with a set of properties K of type T */
-        "Record_string.string-Array_": {
-            [key: string]: string[];
+        "Record_string.FirmwareEnumValueDto-Array_": {
+            [key: string]: components["schemas"]["FirmwareEnumValueDto"][];
         };
         FirmwareProfileDto: {
             /** @description Stable profile id such as `meshtastic-2.8`. */
@@ -1484,7 +1489,8 @@ export interface components {
             sha256: string;
             sections: components["schemas"]["FirmwareSectionDto"][];
             fields: components["schemas"]["FirmwareFieldDto"][];
-            enums: components["schemas"]["Record_string.string-Array_"];
+            /** @description Allowed values per enum with English UI labels. */
+            enums: components["schemas"]["Record_string.FirmwareEnumValueDto-Array_"];
         };
         /** @description Values of a firmware profile's editable fields, keyed by field key. */
         FirmwareSettingsDocument: {

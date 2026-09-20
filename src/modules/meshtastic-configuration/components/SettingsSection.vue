@@ -2,7 +2,7 @@
 import { mdiLock } from "@mdi/js";
 import { computed } from "vue";
 import SectionHeader from "@/shared/components/layout/SectionHeader.vue";
-import type { FirmwareFieldDto, SettingValue } from "../meshtastic-configuration.api";
+import type { FirmwareEnumValueDto, FirmwareFieldDto, SettingValue } from "../meshtastic-configuration.api";
 import FirmwareFieldInput from "./FirmwareFieldInput.vue";
 
 /**
@@ -13,7 +13,7 @@ import FirmwareFieldInput from "./FirmwareFieldInput.vue";
 const props = defineProps<{
   label: string;
   fields: FirmwareFieldDto[];
-  enums: Record<string, string[]>;
+  enums: Record<string, FirmwareEnumValueDto[]>;
   editable: boolean;
   errors: Record<string, string>;
 }>();
