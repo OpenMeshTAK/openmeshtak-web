@@ -9,6 +9,7 @@ import { describeError } from "@/shared/errors/api-problem";
 import { useSession } from "@/modules/auth/session";
 import ProfileSummary from "@/shared/components/ProfileSummary.vue";
 import ChannelHandoutsCard from "./components/ChannelHandoutsCard.vue";
+import DataPackageDownloads from "./components/DataPackageDownloads.vue";
 import ProvisioningActions from "./components/ProvisioningActions.vue";
 import { fetchMyMemberships, fetchProfile } from "./dashboard.api";
 
@@ -107,10 +108,7 @@ onMounted(load);
           :member-id="profile.memberId"
           :channels="profile.meshtastic.channels"
         />
-        <v-card class="pa-5">
-          <div class="text-subtitle-1 font-weight-medium mb-1">Downloads</div>
-          <p class="text-body-2 text-medium-emphasis mb-0">No data packages are published yet.</p>
-        </v-card>
+        <DataPackageDownloads :event-id="profile.eventId" :member-id="profile.memberId" />
       </v-col>
     </v-row>
   </v-container>

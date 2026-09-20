@@ -23,3 +23,17 @@ export function fetchChannelHandout(
     }),
   );
 }
+
+export function fetchMemberDataPackages(eventId: string, memberId: string): Promise<Schemas["MemberDataPackageDto"][]> {
+  return unwrap(
+    api.GET("/events/{eventId}/members/{memberId}/data-packages", { params: { path: { eventId, memberId } } }),
+  );
+}
+
+/**
+ * Plain same-origin link so the browser downloads with the session cookie and the server's file
+ * name; Core authorizes and audits every download.
+ */
+export function memberDataPackageUrl(eventId: string, memberId: string, packageId: string): string {
+  return `/api/v1/events/${encodeURIComponent(eventId)}/members/${encodeURIComponent(memberId)}/data-packages/${encodeURIComponent(packageId)}/atak`;
+}
