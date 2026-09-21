@@ -8,6 +8,7 @@ describe("route table", () => {
     ["/sign-in", "sign-in"],
     ["/claim", "claim"],
     ["/admin/events", "events"],
+    ["/admin/events/00000000-0000-0000-0000-000000000000/data-packages", "event-editor"],
     ["/admin/user-groups", "user-groups"],
     ["/admin/service-accounts", "service-accounts"],
   ])("resolves %s to %s", (path, name) => {

@@ -214,7 +214,7 @@ function drop(event: DragEvent, layerId: string): void {
                 <v-list-item title="Export as GeoJSON" :prepend-icon="mdiDownload" @click="emit('exportLayer', layer, 'geojson')" />
                 <v-list-item
                   title="Create data package from layer…"
-                  :subtitle="canCopy ? false : 'Publish this data package first'"
+                  :subtitle="canCopy ? '' : 'Publish this data package first'"
                   :prepend-icon="mdiContentCopy"
                   :disabled="!canCopy"
                   @click="emit('copyLayer', layer)"

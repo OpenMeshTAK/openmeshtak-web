@@ -47,6 +47,10 @@ function openEditor(dataPackage: DataPackageDto): void {
   void router.push({ name: "package-editor", params: { eventId: props.event.id, packageId: dataPackage.id } });
 }
 
+function openEventEditor(): void {
+  void router.push({ name: "event-editor", params: { eventId: props.event.id } });
+}
+
 async function create(): Promise<void> {
   const created = await creation.run(() => createDataPackage(props.event.id, { name: name.value }));
   if (created !== null) {
@@ -118,6 +122,14 @@ onMounted(() => {
       description="Map content in layers. Members receive the newest published revision of the packages whose audience includes them, never the draft."
     >
       <template #actions>
+        <v-btn
+          v-if="dataPackages.data.value.length > 0"
+          variant="tonal"
+          :prepend-icon="mdiMapOutline"
+          @click="openEventEditor"
+        >
+          Open all data packages
+        </v-btn>
         <v-btn
           v-if="dataPackages.data.value.some(({ latestRevision }) => latestRevision !== null)"
           variant="tonal"
