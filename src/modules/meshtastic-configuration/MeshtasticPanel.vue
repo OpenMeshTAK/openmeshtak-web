@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { mdiAccessPointNetwork, mdiAlertCircle, mdiChip } from "@mdi/js";
+import { mdiAccessPointNetwork, mdiAlertCircle, mdiCellphoneLink, mdiChip } from "@mdi/js";
 import { computed, onMounted, ref } from "vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
 import { describeError } from "@/shared/errors/api-problem";
 import { fieldErrors } from "@/shared/errors/field-errors";
 import { useToast } from "@/shared/feedback/toast";
 import MeshtasticChannelsPanel from "@/modules/meshtastic-channels/MeshtasticChannelsPanel.vue";
+import TakConnectionSection from "@/modules/tak-configuration/TakConnectionSection.vue";
 import FirmwareSection from "./components/FirmwareSection.vue";
 import SettingsSection from "./components/SettingsSection.vue";
 import { sectionIcon } from "./section-icons";
@@ -142,6 +143,7 @@ onMounted(load);
             </template>
           </v-list-item>
           <v-list-item value="channels" :prepend-icon="mdiAccessPointNetwork" title="Channels" />
+          <v-list-item value="tak-connection" :prepend-icon="mdiCellphoneLink" title="TAK connection" />
           <v-list-subheader>Radio settings</v-list-subheader>
           <v-list-item
             v-for="section in sections"
@@ -168,6 +170,7 @@ onMounted(load);
           @changed="show"
         />
         <MeshtasticChannelsPanel v-else-if="selected === 'channels'" :event-id="eventId" :editable="editable" :active="false" />
+        <TakConnectionSection v-else-if="selected === 'tak-connection'" :event-id="eventId" :editable="editable" />
         <template v-else-if="currentSection">
           <SettingsSection
             v-model="draft"

@@ -10,6 +10,7 @@ import { useSession } from "@/modules/auth/session";
 import ProfileSummary from "@/shared/components/ProfileSummary.vue";
 import ChannelHandoutsCard from "./components/ChannelHandoutsCard.vue";
 import DataPackageDownloads from "./components/DataPackageDownloads.vue";
+import TakSetupGuide from "./components/TakSetupGuide.vue";
 import ProvisioningActions from "./components/ProvisioningActions.vue";
 import { fetchMyMemberships, fetchProfile } from "./dashboard.api";
 
@@ -108,6 +109,7 @@ onMounted(load);
           :member-id="profile.memberId"
           :channels="profile.meshtastic.channels"
         />
+        <TakSetupGuide v-if="profile.tak.connection" :profile="profile" />
         <DataPackageDownloads :event-id="profile.eventId" :member-id="profile.memberId" />
       </v-col>
     </v-row>

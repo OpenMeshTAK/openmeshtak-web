@@ -110,6 +110,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/events/{eventId}/tak/configuration": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["GetTakConfiguration"];
+        /** @description Replaces the TAK connection settings. Requires the current `version` (0 before the first save). */
+        put: operations["UpdateTakConfiguration"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/setup": {
         parameters: {
             query?: never;
@@ -1263,6 +1280,36 @@ export interface components {
             /** @description Complete replacement of the group's grants. */
             permissions: components["schemas"]["PermissionGrantDto"][];
         };
+        /**
+         * @description - `none`: OpenMeshTak gives no TAK connection guidance.
+         *     - `meshtastic-local-server`: each participant enables the Meshtastic app's local TAK server and
+         *       connects ATAK/iTAK on the same phone to it. The app creates its own certificates, so
+         *       OpenMeshTak provides guidance and settings, not a ready-made connection package.
+         * @enum {string}
+         */
+        TakConnectionMode: "none" | "meshtastic-local-server";
+        TakConfigurationDto: {
+            eventId: components["schemas"]["Uuid"];
+            mode: components["schemas"]["TakConnectionMode"];
+            /** @description Channel for the app's "TAK Mesh Channel"; `null` uses the primary channel. */
+            meshChannelId: components["schemas"]["Uuid"] | null;
+            /**
+             * Format: double
+             * @description Optimistic-concurrency version; 0 until first saved.
+             */
+            version: number;
+            /** Format: date-time */
+            updatedAt: string | null;
+        };
+        UpdateTakConfigurationRequest: {
+            /**
+             * Format: int32
+             * @description Version the client last read.
+             */
+            version: number;
+            mode: components["schemas"]["TakConnectionMode"];
+            meshChannelId: components["schemas"]["Uuid"] | null;
+        };
         SetupStatusResponse: {
             /** @description `false` until the first administrator exists; the Web app then opens the setup flow. */
             configured: boolean;
@@ -1375,6 +1422,20 @@ export interface components {
          */
         TakRole: "Team Member" | "Team Lead" | "HQ" | "Sniper" | "Medic" | "Forward Observer" | "RTO" | "K9";
         /**
+         * @description Connection through the Meshtastic app's local TAK server. `meshChannel` is the value for the
+         *     app's "TAK Mesh Channel": the channel's slot on this member's device, or `null` while that
+         *     channel has not reached the device yet (then the primary channel is used).
+         */
+        ProfileTakConnection: {
+            /** @enum {string} */
+            mode: "meshtastic-local-server";
+            meshChannel: {
+                /** Format: double */
+                slot: number;
+                name: string;
+            } | null;
+        };
+        /**
          * @description A channel the member receives. `included` channels come with the member's channel set;
          *     `on-site` channels are secret and handed out on site by a key holder before their release.
          */
@@ -1429,6 +1490,8 @@ export interface components {
             eventRole: components["schemas"]["ProfileAssignment"];
             group: components["schemas"]["ProfileAssignment"];
             tak: {
+                /** @description How this member connects ATAK/iTAK; `null` when the event gives no guidance. */
+                connection: components["schemas"]["ProfileTakConnection"] | null;
                 serverGroups: string[];
                 role: components["schemas"]["TakRole"];
                 team: components["schemas"]["TakTeam"];
@@ -2142,19 +2205,26 @@ export interface components {
             profileSha256: string;
             settings: components["schemas"]["FirmwareSettingsDocument"];
         };
+        CurrentTakConfiguration: {
+            mode: components["schemas"]["TakConnectionMode"];
+            meshChannelId: string | null;
+        };
+        /** @description How TAK clients connect; `null` in revisions created before version 4. */
+        SnapshotTak: components["schemas"]["CurrentTakConfiguration"];
         /**
          * @description Bump `schemaVersion` whenever the snapshot shape changes; old revisions are never rewritten.
          *     Version 2 added `channels` in device order, the first being the primary channel; version 3
-         *     added `meshtastic`.
+         *     added `meshtastic`; version 4 added `tak`.
          */
         ConfigurationSnapshot: {
             /** @enum {number} */
-            schemaVersion: 1 | 2 | 3;
+            schemaVersion: 1 | 2 | 3 | 4;
             roles: components["schemas"]["SnapshotRole"][];
             groups: components["schemas"]["SnapshotGroup"][];
             channels: components["schemas"]["SnapshotChannel"][];
             /** @description `null` in revisions created before version 3. */
             meshtastic: components["schemas"]["SnapshotMeshtastic"] | null;
+            tak: components["schemas"]["SnapshotTak"] | null;
         };
         ConfigurationRevisionDto: {
             id: components["schemas"]["Uuid"];
@@ -3022,6 +3092,117 @@ export interface operations {
             };
             /** @description Last member of a system group */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetTakConfiguration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description TAK configuration */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TakConfigurationDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateTakConfiguration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTakConfigurationRequest"];
+            };
+        };
+        responses: {
+            /** @description TAK configuration updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TakConfigurationDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Version conflict or event archived */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
