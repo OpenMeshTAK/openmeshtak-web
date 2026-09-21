@@ -54,7 +54,7 @@ function objectsOf(branch: EventPackageBranch, layerId: string): PackageObjectDt
   <div class="event-tree h-100 overflow-y-auto pa-2">
     <div class="text-subtitle-2 px-2 pt-1 pb-2">Data packages</div>
     <div v-for="branch in branches" :key="branch.dataPackage.id" class="mb-2">
-      <v-list-item rounded="lg" density="compact" class="package-row">
+      <v-list-item rounded="lg" density="compact" prepend-gap="8" class="package-row ps-1">
         <template #prepend>
           <v-btn
             :icon="collapsedPackages.has(branch.dataPackage.id) ? mdiChevronRight : mdiChevronDown"
@@ -63,7 +63,7 @@ function objectsOf(branch: EventPackageBranch, layerId: string): PackageObjectDt
             :aria-label="collapsedPackages.has(branch.dataPackage.id) ? `Expand ${branch.dataPackage.name}` : `Collapse ${branch.dataPackage.name}`"
             @click="collapsedPackages = toggle(collapsedPackages, branch.dataPackage.id)"
           />
-          <v-icon :icon="mdiFolderOutline" size="20" class="ml-1" />
+          <v-icon :icon="mdiFolderOutline" size="20" />
         </template>
         <v-list-item-title class="font-weight-bold">{{ branch.dataPackage.name }}</v-list-item-title>
         <v-list-item-subtitle>
@@ -83,7 +83,7 @@ function objectsOf(branch: EventPackageBranch, layerId: string): PackageObjectDt
 
       <div v-if="!collapsedPackages.has(branch.dataPackage.id)" class="ml-4">
         <div v-for="layer in branch.layers" :key="layer.id" class="layer-row">
-          <v-list-item rounded="lg" density="compact" class="ps-1">
+          <v-list-item rounded="lg" density="compact" prepend-gap="8" class="ps-1">
             <template #prepend>
               <v-btn
                 :icon="collapsedLayers.has(layer.id) ? mdiChevronRight : mdiChevronDown"
