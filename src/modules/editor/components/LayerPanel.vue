@@ -23,7 +23,7 @@ import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import { readCollapsedLayers, storeCollapsedLayers } from "../collapsed-layers";
 import type { PackageLayerDto, PackageObjectDto } from "@/modules/data-packages/data-packages.api";
 
-type LayerChanges = Partial<Pick<PackageLayerDto, "name" | "visible" | "locked">>;
+export type LayerChanges = Partial<Pick<PackageLayerDto, "name" | "visible" | "locked">>;
 export type LayerExportFormat = "atak" | "geojson";
 
 const props = defineProps<{
@@ -35,6 +35,8 @@ const props = defineProps<{
   selectedId: string | null;
   editable: boolean;
   canCopy: boolean;
+  /** Removes the full-height inner scroller when several panels live in the event tree. */
+  embedded?: boolean;
 }>();
 const emit = defineEmits<{
   activate: [layerId: string];
@@ -53,6 +55,10 @@ const emit = defineEmits<{
 const KIND_ICONS = { point: mdiMapMarker, line: mdiVectorPolyline, polygon: mdiShapePolygonPlus, circle: mdiCircleOutline } as const;
 const LAYER_DRAG = "application/x-openmeshtak-layer";
 const OBJECT_DRAG = "application/x-openmeshtak-object";
+
+function packageDragType(type: string): string {
+  return `${type}-${props.packageId}`;
+}
 
 /** The top of the list is drawn last, matching how map layers stack. */
 const displayed = computed(() => [...props.layers].reverse());
@@ -103,13 +109,16 @@ function startDrag(event: DragEvent, type: string, id: string): void {
   if (!props.editable || event.dataTransfer === null) {
     return;
   }
-  event.dataTransfer.setData(type, id);
+  event.dataTransfer.setData(packageDragType(type), id);
   event.dataTransfer.effectAllowed = "move";
 }
 
 function allowDrop(event: DragEvent, layerId: string): void {
   const types = event.dataTransfer?.types ?? [];
-  if (props.editable && (types.includes(LAYER_DRAG) || types.includes(OBJECT_DRAG))) {
+  if (
+    props.editable &&
+    (types.includes(packageDragType(LAYER_DRAG)) || types.includes(packageDragType(OBJECT_DRAG)))
+  ) {
     event.preventDefault();
     dropTarget.value = layerId;
   }
@@ -117,8 +126,8 @@ function allowDrop(event: DragEvent, layerId: string): void {
 
 function drop(event: DragEvent, layerId: string): void {
   dropTarget.value = null;
-  const draggedLayer = event.dataTransfer?.getData(LAYER_DRAG);
-  const draggedObject = event.dataTransfer?.getData(OBJECT_DRAG);
+  const draggedLayer = event.dataTransfer?.getData(packageDragType(LAYER_DRAG));
+  const draggedObject = event.dataTransfer?.getData(packageDragType(OBJECT_DRAG));
   if (draggedLayer && draggedLayer !== layerId) {
     emit("reorder", draggedLayer, layerId);
   } else if (draggedObject) {
@@ -128,13 +137,13 @@ function drop(event: DragEvent, layerId: string): void {
 </script>
 
 <template>
-  <div class="d-flex flex-column h-100">
+  <div class="d-flex flex-column" :class="{ 'h-100': !embedded }">
     <div class="d-flex align-center px-3 pt-2 pb-1">
       <div class="text-subtitle-2 flex-grow-1">Layers</div>
       <v-btn v-if="editable" size="small" variant="tonal" :prepend-icon="mdiPlus" @click="emit('add')">Layer</v-btn>
     </div>
 
-    <div class="flex-grow-1 overflow-y-auto pb-3">
+    <div class="flex-grow-1 pb-3" :class="{ 'overflow-y-auto': !embedded }">
       <div
         v-for="(layer, index) in displayed"
         :key="layer.id"
@@ -149,7 +158,7 @@ function drop(event: DragEvent, layerId: string): void {
           color="primary"
           rounded="lg"
           class="mx-1 ps-1"
-          prepend-gap="4"
+          prepend-gap="8"
           density="compact"
           :draggable="editable && renaming !== layer.id"
           @dragstart="startDrag($event, LAYER_DRAG, layer.id)"
