@@ -5,14 +5,23 @@ import {
   mdiFitToScreenOutline,
   mdiLayersOutline,
   mdiMapMarkerPlusOutline,
+  mdiRedo,
   mdiShapePolygonPlus,
+  mdiUndo,
   mdiVectorPolyline,
 } from "@mdi/js";
 import type { EditorTool } from "../map/package-map";
 
-defineProps<{ editable: boolean; layersOpen: boolean }>();
+defineProps<{
+  editable: boolean;
+  layersOpen: boolean;
+  canUndo: boolean;
+  canRedo: boolean;
+  undoLabel?: string | null;
+  redoLabel?: string | null;
+}>();
 const tool = defineModel<EditorTool>("tool", { required: true });
-defineEmits<{ fit: []; toggleLayers: [] }>();
+defineEmits<{ fit: []; toggleLayers: []; undo: []; redo: [] }>();
 
 const tools = [
   { value: "select", icon: mdiCursorDefault, label: "Select and move (S)" },
@@ -37,6 +46,35 @@ const tools = [
           :aria-label="layersOpen ? 'Hide layers' : 'Show layers'"
           :aria-pressed="layersOpen"
           @click="$emit('toggleLayers')"
+        />
+      </template>
+    </v-tooltip>
+    <v-divider class="align-self-stretch my-1" />
+    <v-tooltip :text="undoLabel ? `Undo ${undoLabel} (Ctrl+Z)` : 'Nothing to undo'" location="end">
+      <template #activator="{ props: tooltip }">
+        <v-btn
+          v-bind="tooltip"
+          :icon="mdiUndo"
+          variant="text"
+          size="small"
+          rounded="lg"
+          aria-label="Undo"
+          :disabled="!editable || !canUndo"
+          @click="$emit('undo')"
+        />
+      </template>
+    </v-tooltip>
+    <v-tooltip :text="redoLabel ? `Redo ${redoLabel} (Ctrl+Shift+Z)` : 'Nothing to redo'" location="end">
+      <template #activator="{ props: tooltip }">
+        <v-btn
+          v-bind="tooltip"
+          :icon="mdiRedo"
+          variant="text"
+          size="small"
+          rounded="lg"
+          aria-label="Redo"
+          :disabled="!editable || !canRedo"
+          @click="$emit('redo')"
         />
       </template>
     </v-tooltip>

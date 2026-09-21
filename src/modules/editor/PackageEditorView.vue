@@ -225,7 +225,14 @@ function onKeydown(keyEvent: KeyboardEvent): void {
     return;
   }
   if (keyEvent.ctrlKey || keyEvent.metaKey) {
-    if (onClipboardKey(keyEvent)) {
+    const key = keyEvent.key.toLowerCase();
+    if (key === "z" && editable.value) {
+      void (keyEvent.shiftKey ? editor.redo() : editor.undo());
+      keyEvent.preventDefault();
+    } else if (key === "y" && editable.value) {
+      void editor.redo();
+      keyEvent.preventDefault();
+    } else if (onClipboardKey(keyEvent)) {
       keyEvent.preventDefault();
     }
     return;
@@ -331,8 +338,14 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
         v-model:tool="tool"
         :editable="editable"
         :layers-open="layersOpen"
+        :can-undo="editor.canUndo.value"
+        :can-redo="editor.canRedo.value"
+        :undo-label="editor.undoLabel.value"
+        :redo-label="editor.redoLabel.value"
         class="editor-toolbar-position"
         :class="{ 'editor-toolbar-position--beside': layersOpen }"
+        @undo="editor.undo"
+        @redo="editor.redo"
         @fit="mapView?.fitToContent()"
         @toggle-layers="toggleLayers"
       />

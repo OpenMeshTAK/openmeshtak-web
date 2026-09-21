@@ -18,6 +18,7 @@ import {
   type PackageObjectStyle,
   type TakMarker,
 } from "@/modules/data-packages/data-packages.api";
+import { useEditorHistory } from "./editor-history";
 import { moveGeometry } from "./map/move-geometry";
 
 /** What the editor shows next to the data package name (EDITOR.md: saved, saving, conflicted, invalid). */
@@ -36,6 +37,33 @@ const MAX_CIRCLE_RADIUS_METRES = 100_000;
 
 const KIND_NAMES = { Point: "Point", LineString: "Line", Polygon: "Area", Circle: "Circle" } as const;
 
+/** API DTOs contain JSON values; copying them detaches history snapshots from Vue's reactive proxies. */
+function cloneDto<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
+interface EntityHandle {
+  id: string;
+}
+
+interface LayerState {
+  handle: EntityHandle;
+  name: string;
+  sortOrder: number;
+  visible: boolean;
+  locked: boolean;
+}
+
+interface ObjectState {
+  handle: EntityHandle;
+  layer: EntityHandle;
+  name: string;
+  description: string | null;
+  geometry: PackageGeometry;
+  style: PackageObjectStyle;
+  tak: TakMarker | null;
+}
+
 /**
  * Editor state for one data package draft. Every change is saved immediately through the API with the
  * object's version, so a concurrent edit surfaces as a conflict instead of being overwritten.
@@ -51,10 +79,38 @@ export function usePackageEditor(eventId: string, packageId: string) {
   const saveState = ref<SaveState>("saved");
   const selectedId = ref<string | null>(null);
   const activeLayerId = ref<string | null>(null);
+  const history = useEditorHistory();
+  const layerHandles = new Map<string, EntityHandle>();
+  const objectHandles = new Map<string, EntityHandle>();
 
   const sortedLayers = computed(() => [...layers.value].sort((a, b) => a.sortOrder - b.sortOrder));
   const selected = computed(() => objects.value.find(({ id }) => id === selectedId.value) ?? null);
   const activeLayer = computed(() => layers.value.find(({ id }) => id === activeLayerId.value) ?? null);
+
+  function handleFor(store: Map<string, EntityHandle>, id: string): EntityHandle {
+    let handle = store.get(id);
+    if (handle === undefined) {
+      handle = { id };
+      store.set(id, handle);
+    }
+    return handle;
+  }
+
+  function replaceHandleId(store: Map<string, EntityHandle>, handle: EntityHandle, id: string): void {
+    store.delete(handle.id);
+    handle.id = id;
+    store.set(id, handle);
+  }
+
+  function resetHistory(): void {
+    history.clear();
+    layerHandles.clear();
+    objectHandles.clear();
+  }
+
+  function recordHistory(label: string, undo: () => Promise<boolean>, redo: () => Promise<boolean>): void {
+    history.record({ label, undo, redo });
+  }
 
   async function load(): Promise<void> {
     loadState.value = "loading";
@@ -64,6 +120,13 @@ export function usePackageEditor(eventId: string, packageId: string) {
         listLayers(path),
         listObjects(path),
       ]);
+      resetHistory();
+      for (const layer of layers.value) {
+        handleFor(layerHandles, layer.id);
+      }
+      for (const object of objects.value) {
+        handleFor(objectHandles, object.id);
+      }
       activeLayerId.value ??= sortedLayers.value.at(-1)?.id ?? null;
       loadState.value = "ready";
     } catch {
@@ -100,6 +163,141 @@ export function usePackageEditor(eventId: string, packageId: string) {
     layers.value = layers.value.map((existing) => (existing.id === layer.id ? layer : existing));
   }
 
+  function layerStateOf(layer: PackageLayerDto): LayerState {
+    return {
+      handle: handleFor(layerHandles, layer.id),
+      name: layer.name,
+      sortOrder: layer.sortOrder,
+      visible: layer.visible,
+      locked: layer.locked,
+    };
+  }
+
+  function objectStateOf(object: PackageObjectDto): ObjectState {
+    return {
+      handle: handleFor(objectHandles, object.id),
+      layer: handleFor(layerHandles, object.layerId),
+      name: object.name,
+      description: object.description,
+      geometry: cloneDto(object.geometry),
+      style: cloneDto(object.style),
+      tak: cloneDto(object.tak),
+    };
+  }
+
+  async function applyLayerState(state: LayerState): Promise<boolean> {
+    const layer = layers.value.find(({ id }) => id === state.handle.id);
+    if (layer === undefined) {
+      return false;
+    }
+    const updated = await save(() =>
+      updateLayer(path, layer.id, {
+        version: layer.version,
+        name: state.name,
+        sortOrder: state.sortOrder,
+        visible: state.visible,
+        locked: state.locked,
+      }),
+    );
+    if (updated === null) {
+      return false;
+    }
+    replaceLayer(updated);
+    return true;
+  }
+
+  async function applyLayerStates(states: LayerState[]): Promise<boolean> {
+    for (const state of states) {
+      if (!(await applyLayerState(state))) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  async function createLayerFromState(state: LayerState): Promise<boolean> {
+    const created = await save(() => createLayer(path, state.name));
+    if (created === null) {
+      return false;
+    }
+    layers.value = [...layers.value, created];
+    replaceHandleId(layerHandles, state.handle, created.id);
+    activeLayerId.value = created.id;
+    return applyLayerState(state);
+  }
+
+  async function removeLayerByHandle(handle: EntityHandle): Promise<boolean> {
+    const removed = await save(() => deleteLayer(path, handle.id));
+    if (removed === null) {
+      return false;
+    }
+    layers.value = layers.value.filter(({ id }) => id !== handle.id);
+    const removedObjectIds = new Set(objects.value.filter(({ layerId }) => layerId === handle.id).map(({ id }) => id));
+    objects.value = objects.value.filter(({ layerId }) => layerId !== handle.id);
+    if (selectedId.value !== null && removedObjectIds.has(selectedId.value)) {
+      selectedId.value = null;
+    }
+    if (activeLayerId.value === handle.id) {
+      activeLayerId.value = sortedLayers.value.at(-1)?.id ?? null;
+    }
+    return true;
+  }
+
+  async function applyObjectState(state: ObjectState): Promise<boolean> {
+    const object = objects.value.find(({ id }) => id === state.handle.id);
+    if (object === undefined) {
+      return false;
+    }
+    const updated = await save(() =>
+      updateObject(path, object.id, {
+        version: object.version,
+        layerId: state.layer.id,
+        name: state.name,
+        description: state.description,
+        geometry: state.geometry,
+        style: state.style,
+        tak: state.tak,
+      }),
+    );
+    if (updated === null) {
+      return false;
+    }
+    replaceObject(updated);
+    return true;
+  }
+
+  async function createObjectFromState(state: ObjectState): Promise<boolean> {
+    const created = await save(() =>
+      createObject(path, {
+        layerId: state.layer.id,
+        name: state.name,
+        description: state.description,
+        geometry: state.geometry,
+        style: state.style,
+        tak: state.tak,
+      }),
+    );
+    if (created === null) {
+      return false;
+    }
+    objects.value = [...objects.value, created];
+    replaceHandleId(objectHandles, state.handle, created.id);
+    selectedId.value = created.id;
+    return true;
+  }
+
+  async function removeObjectByHandle(handle: EntityHandle): Promise<boolean> {
+    const removed = await save(() => deleteObject(path, handle.id));
+    if (removed === null) {
+      return false;
+    }
+    objects.value = objects.value.filter(({ id }) => id !== handle.id);
+    if (selectedId.value === handle.id) {
+      selectedId.value = null;
+    }
+    return true;
+  }
+
   // ---- Objects --------------------------------------------------------------------------------
 
   async function addObject(geometry: PackageGeometry): Promise<void> {
@@ -119,6 +317,8 @@ export function usePackageEditor(eventId: string, packageId: string) {
     if (created !== null) {
       objects.value = [...objects.value, created];
       selectedId.value = created.id;
+      const state = objectStateOf(created);
+      recordHistory("Add object", () => removeObjectByHandle(state.handle), () => createObjectFromState(state));
     }
   }
 
@@ -142,9 +342,12 @@ export function usePackageEditor(eventId: string, packageId: string) {
     if (object === undefined) {
       return;
     }
+    const before = objectStateOf(object);
     const updated = await save(() => fullUpdate(object, changes));
     if (updated !== null) {
       replaceObject(updated);
+      const after = objectStateOf(updated);
+      recordHistory("Edit object", () => applyObjectState(before), () => applyObjectState(after));
     } else {
       // Put the map back to the saved geometry, e.g. after an invalid edit.
       objects.value = [...objects.value];
@@ -169,6 +372,8 @@ export function usePackageEditor(eventId: string, packageId: string) {
     if (copy !== null) {
       objects.value = [...objects.value, copy];
       selectedId.value = copy.id;
+      const state = objectStateOf(copy);
+      recordHistory("Duplicate object", () => removeObjectByHandle(state.handle), () => createObjectFromState(state));
     }
   }
 
@@ -208,16 +413,19 @@ export function usePackageEditor(eventId: string, packageId: string) {
     if (created !== null) {
       objects.value = [...objects.value, created];
       selectedId.value = created.id;
+      const state = objectStateOf(created);
+      recordHistory("Paste object", () => removeObjectByHandle(state.handle), () => createObjectFromState(state));
     }
   }
 
   async function removeObject(objectId: string): Promise<void> {
-    const removed = await save(() => deleteObject(path, objectId));
-    if (removed !== null) {
-      objects.value = objects.value.filter(({ id }) => id !== objectId);
-      if (selectedId.value === objectId) {
-        selectedId.value = null;
-      }
+    const object = objects.value.find(({ id }) => id === objectId);
+    if (object === undefined) {
+      return;
+    }
+    const state = objectStateOf(object);
+    if (await removeObjectByHandle(state.handle)) {
+      recordHistory("Delete object", () => createObjectFromState(state), () => removeObjectByHandle(state.handle));
     }
   }
 
@@ -238,6 +446,8 @@ export function usePackageEditor(eventId: string, packageId: string) {
     if (created !== null) {
       layers.value = [...layers.value, created];
       activeLayerId.value = created.id;
+      const state = layerStateOf(created);
+      recordHistory("Add layer", () => removeLayerByHandle(state.handle), () => createLayerFromState(state));
     }
   }
 
@@ -245,17 +455,20 @@ export function usePackageEditor(eventId: string, packageId: string) {
     layer: PackageLayerDto,
     changes: Partial<Pick<PackageLayerDto, "name" | "visible" | "locked" | "sortOrder">>,
   ): Promise<void> {
-    const updated = await save(() =>
-      updateLayer(path, layer.id, {
-        version: layer.version,
-        name: changes.name ?? layer.name,
-        sortOrder: changes.sortOrder ?? layer.sortOrder,
-        visible: changes.visible ?? layer.visible,
-        locked: changes.locked ?? layer.locked,
-      }),
-    );
-    if (updated !== null) {
-      replaceLayer(updated);
+    const current = layers.value.find(({ id }) => id === layer.id);
+    if (current === undefined) {
+      return;
+    }
+    const before = layerStateOf(current);
+    const after: LayerState = {
+      ...before,
+      name: changes.name ?? current.name,
+      sortOrder: changes.sortOrder ?? current.sortOrder,
+      visible: changes.visible ?? current.visible,
+      locked: changes.locked ?? current.locked,
+    };
+    if (await applyLayerState(after)) {
+      recordHistory("Edit layer", () => applyLayerState(before), () => applyLayerState(after));
     }
   }
 
@@ -266,8 +479,14 @@ export function usePackageEditor(eventId: string, packageId: string) {
     if (neighbour === undefined) {
       return;
     }
-    await changeLayer(layer, { sortOrder: neighbour.sortOrder });
-    await changeLayer(neighbour, { sortOrder: layer.sortOrder });
+    const before = [layerStateOf(layer), layerStateOf(neighbour)];
+    const after = [
+      { ...before[0]!, sortOrder: neighbour.sortOrder },
+      { ...before[1]!, sortOrder: layer.sortOrder },
+    ];
+    if (await applyLayerStates(after)) {
+      recordHistory("Move layer", () => applyLayerStates([...before].reverse()), () => applyLayerStates(after));
+    }
   }
 
   /**
@@ -284,11 +503,13 @@ export function usePackageEditor(eventId: string, packageId: string) {
     // Dropping onto a layer below the dragged one places it under that layer, and vice versa.
     const insertAt = dragged.sortOrder > (ordered[targetIndex]?.sortOrder ?? 0) ? targetIndex : targetIndex + 1;
     ordered.splice(insertAt, 0, dragged);
-    for (const [sortOrder, layer] of ordered.entries()) {
-      const current = layers.value.find(({ id }) => id === layer.id);
-      if (current !== undefined && current.sortOrder !== sortOrder) {
-        await changeLayer(current, { sortOrder });
-      }
+    const changed = ordered
+      .map((layer, sortOrder) => ({ layer, sortOrder }))
+      .filter(({ layer, sortOrder }) => layer.sortOrder !== sortOrder);
+    const before = changed.map(({ layer }) => layerStateOf(layer));
+    const after = changed.map(({ layer, sortOrder }) => ({ ...layerStateOf(layer), sortOrder }));
+    if (after.length > 0 && (await applyLayerStates(after))) {
+      recordHistory("Reorder layers", () => applyLayerStates([...before].reverse()), () => applyLayerStates(after));
     }
   }
 
@@ -300,13 +521,38 @@ export function usePackageEditor(eventId: string, packageId: string) {
   }
 
   async function removeLayer(layer: PackageLayerDto): Promise<void> {
-    const removed = await save(() => deleteLayer(path, layer.id));
-    if (removed !== null) {
-      layers.value = layers.value.filter(({ id }) => id !== layer.id);
-      objects.value = objects.value.filter(({ layerId }) => layerId !== layer.id);
-      if (activeLayerId.value === layer.id) {
-        activeLayerId.value = sortedLayers.value.at(-1)?.id ?? null;
-      }
+    const current = layers.value.find(({ id }) => id === layer.id);
+    if (current === undefined) {
+      return;
+    }
+    const layerState = layerStateOf(current);
+    const objectStates = objects.value.filter(({ layerId }) => layerId === layer.id).map(objectStateOf);
+    if (await removeLayerByHandle(layerState.handle)) {
+      recordHistory(
+        "Delete layer",
+        async () => {
+          if (!(await createLayerFromState(layerState))) {
+            return false;
+          }
+          for (const state of objectStates) {
+            if (!(await createObjectFromState(state))) {
+              return false;
+            }
+          }
+          return true;
+        },
+        () => removeLayerByHandle(layerState.handle),
+      );
+    }
+  }
+
+  function clearHistory(): void {
+    resetHistory();
+    for (const layer of layers.value) {
+      handleFor(layerHandles, layer.id);
+    }
+    for (const object of objects.value) {
+      handleFor(objectHandles, object.id);
     }
   }
 
@@ -322,6 +568,15 @@ export function usePackageEditor(eventId: string, packageId: string) {
     selected,
     activeLayerId,
     activeLayer,
+    canUndo: history.canUndo,
+    canRedo: history.canRedo,
+    undoLabel: history.undoLabel,
+    redoLabel: history.redoLabel,
+    undoSequence: history.undoSequence,
+    redoSequence: history.redoSequence,
+    undo: history.undo,
+    redo: history.redo,
+    clearHistory,
     load,
     addObject,
     changeObject,

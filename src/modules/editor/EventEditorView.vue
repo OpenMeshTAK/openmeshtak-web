@@ -74,6 +74,7 @@ const copyOpen = ref(false);
 const createOpen = ref(false);
 const packageName = ref("");
 const creation = useSubmission();
+const eventHistoryBusy = ref(false);
 
 const branches = computed<EventPackageBranch[]>(() =>
   editors.value.flatMap((editor) => {
@@ -110,6 +111,12 @@ const editable = computed(
 );
 const canPublish = computed(
   () => event.value !== null && event.value.status !== "archived" && session.can("data-packages.publish", eventId),
+);
+const undoEditor = computed(() =>
+  [...editors.value].sort((a, b) => b.undoSequence.value - a.undoSequence.value).find(({ canUndo }) => canUndo.value) ?? null,
+);
+const redoEditor = computed(() =>
+  [...editors.value].sort((a, b) => b.redoSequence.value - a.redoSequence.value).find(({ canRedo }) => canRedo.value) ?? null,
 );
 
 function combinedSaveState(): SaveState {
@@ -189,6 +196,9 @@ async function addLayer(branch: EventPackageBranch): Promise<void> {
 
 function selectObject(objectId: string | null): void {
   selectedId.value = objectId;
+  for (const editor of editors.value) {
+    editor.selectedId.value = null;
+  }
   if (objectId === null) {
     return;
   }
@@ -197,6 +207,37 @@ function selectObject(objectId: string | null): void {
   if (editor !== null && editor !== undefined && object !== undefined) {
     activePackageId.value = editor.path.packageId;
     editor.activeLayerId.value = object.layerId;
+    editor.selectedId.value = objectId;
+  }
+}
+
+async function undoLast(): Promise<void> {
+  const editor = undoEditor.value;
+  if (editor === null || eventHistoryBusy.value) {
+    return;
+  }
+  eventHistoryBusy.value = true;
+  try {
+    activePackageId.value = editor.path.packageId;
+    await editor.undo();
+    selectedId.value = editor.selectedId.value;
+  } finally {
+    eventHistoryBusy.value = false;
+  }
+}
+
+async function redoLast(): Promise<void> {
+  const editor = redoEditor.value;
+  if (editor === null || eventHistoryBusy.value) {
+    return;
+  }
+  eventHistoryBusy.value = true;
+  try {
+    activePackageId.value = editor.path.packageId;
+    await editor.redo();
+    selectedId.value = editor.selectedId.value;
+  } finally {
+    eventHistoryBusy.value = false;
   }
 }
 
@@ -438,7 +479,13 @@ function onKeydown(keyEvent: KeyboardEvent): void {
   }
   const key = keyEvent.key.toLowerCase();
   if (keyEvent.ctrlKey || keyEvent.metaKey) {
-    if (key === "c" && selectedId.value !== null) {
+    if (key === "z" && editable.value) {
+      void (keyEvent.shiftKey ? redoLast() : undoLast());
+      keyEvent.preventDefault();
+    } else if (key === "y" && editable.value) {
+      void redoLast();
+      keyEvent.preventDefault();
+    } else if (key === "c" && selectedId.value !== null) {
       copySelected();
       keyEvent.preventDefault();
     } else if (key === "v" && editable.value && clipboard.value !== null) {
@@ -569,8 +616,14 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
         v-model:tool="tool"
         :editable="editable && activeEditor !== null"
         :layers-open="layersOpen"
+        :can-undo="undoEditor !== null && !eventHistoryBusy"
+        :can-redo="redoEditor !== null && !eventHistoryBusy"
+        :undo-label="undoEditor?.undoLabel.value ?? null"
+        :redo-label="redoEditor?.redoLabel.value ?? null"
         class="event-editor-toolbar"
         :class="{ 'event-editor-toolbar--beside': layersOpen }"
+        @undo="undoLast"
+        @redo="redoLast"
         @fit="mapView?.fitToContent()"
         @toggle-layers="toggleLayers"
       />
