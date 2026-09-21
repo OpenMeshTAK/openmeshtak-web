@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { mdiAccountGroup, mdiClockOutline, mdiDelete, mdiDotsVertical, mdiMapOutline, mdiMapPlus } from "@mdi/js";
+import { mdiAccountGroup, mdiClockOutline, mdiDelete, mdiDotsVertical, mdiExport, mdiMapOutline, mdiMapPlus } from "@mdi/js";
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import type { Schemas } from "@/shared/api/types";
@@ -18,6 +18,7 @@ import {
   loadAudienceOptions,
   type AudienceOptions,
 } from "@/modules/event-audience/audience-options";
+import CombinedExportDialog from "./components/CombinedExportDialog.vue";
 import PackageAudienceDialog from "./components/PackageAudienceDialog.vue";
 import { createDataPackage, deleteDataPackage, listDataPackages, type DataPackageDto } from "./data-packages.api";
 
@@ -30,6 +31,7 @@ const dataPackages = useAsyncData(() => listDataPackages(props.event.id), [] as 
 const audienceOptions = ref<AudienceOptions>({ groups: [], roles: [], members: null });
 const audienceTarget = ref<DataPackageDto | null>(null);
 const audienceOpen = ref(false);
+const exportOpen = ref(false);
 const canPublish = computed(
   () => props.event.status !== "archived" && session.can("data-packages.publish", props.event.id),
 );
@@ -111,6 +113,14 @@ onMounted(() => {
       description="Map content in layers. Members receive the newest published revision of the packages whose audience includes them, never the draft."
     >
       <template #actions>
+        <v-btn
+          v-if="dataPackages.data.value.some(({ latestRevision }) => latestRevision !== null)"
+          variant="tonal"
+          :prepend-icon="mdiExport"
+          @click="exportOpen = true"
+        >
+          Export
+        </v-btn>
         <v-btn v-if="canEdit" color="primary" :prepend-icon="mdiMapPlus" @click="(name = ''), creation.reset(), (createOpen = true)">
           New data package
         </v-btn>
@@ -166,6 +176,12 @@ onMounted(() => {
       </template>
     </v-card>
 
+    <CombinedExportDialog
+      v-model="exportOpen"
+      :event-id="event.id"
+      :event-name="event.name"
+      :packages="dataPackages.data.value"
+    />
     <PackageAudienceDialog
       v-if="audienceTarget"
       v-model="audienceOpen"

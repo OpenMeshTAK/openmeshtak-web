@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { saveFile } from "@/shared/files/save-file";
 import { mdiArrowLeft, mdiCloudCheckOutline, mdiCloudUploadOutline, mdiDownload, mdiPublish, mdiUpload } from "@mdi/js";
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRoute } from "vue-router";
@@ -138,15 +139,6 @@ function onFileChosen(changeEvent: Event): void {
   if (file !== undefined) {
     void importFile(file);
   }
-}
-
-function saveFile(blob: Blob, fileName: string): void {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = fileName;
-  link.click();
-  URL.revokeObjectURL(url);
 }
 
 function fileNameOf(name: string): string {

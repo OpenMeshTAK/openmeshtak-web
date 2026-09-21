@@ -179,3 +179,26 @@ export async function downloadAtak(
   const fileName = /filename="([^"]+)"/.exec(response.headers.get("Content-Disposition") ?? "")?.[1] ?? "data-package.zip";
   return { blob: await response.blob(), fileName };
 }
+
+export type CombinedExportRequest = Schemas["CombinedExportRequest"];
+export type CombinedExportReport = Schemas["CombinedExportReport"];
+
+export function previewCombinedExport(eventId: string, body: CombinedExportRequest): Promise<CombinedExportReport> {
+  return unwrap(api.POST("/events/{eventId}/data-package-exports/atak/preview", { params: { path: { eventId } }, body }));
+}
+
+/** The typed client parses JSON only, so the ZIP download uses fetch with the same-origin session. */
+export async function downloadCombinedExport(
+  eventId: string,
+  body: CombinedExportRequest,
+): Promise<{ blob: Blob; fileName: string }> {
+  const response = await fetch(
+    new URL(`/api/v1/events/${encodeURIComponent(eventId)}/data-package-exports/atak`, window.location.origin).href,
+    { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
+  );
+  if (!response.ok) {
+    throw await failure(response);
+  }
+  const fileName = /filename="([^"]+)"/.exec(response.headers.get("Content-Disposition") ?? "")?.[1] ?? "data-packages.zip";
+  return { blob: await response.blob(), fileName };
+}
