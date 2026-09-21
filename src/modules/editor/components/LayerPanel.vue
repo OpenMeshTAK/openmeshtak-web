@@ -5,6 +5,7 @@ import {
   mdiChevronDown,
   mdiChevronRight,
   mdiCircleOutline,
+  mdiContentCopy,
   mdiDotsVertical,
   mdiDownload,
   mdiEye,
@@ -33,6 +34,7 @@ const props = defineProps<{
   activeLayerId: string | null;
   selectedId: string | null;
   editable: boolean;
+  canCopy: boolean;
 }>();
 const emit = defineEmits<{
   activate: [layerId: string];
@@ -44,6 +46,7 @@ const emit = defineEmits<{
   moveObject: [objectId: string, layerId: string];
   importInto: [layer: PackageLayerDto];
   exportLayer: [layer: PackageLayerDto, format: LayerExportFormat];
+  copyLayer: [layer: PackageLayerDto];
   remove: [layer: PackageLayerDto];
 }>();
 
@@ -209,6 +212,13 @@ function drop(event: DragEvent, layerId: string): void {
                 />
                 <v-list-item title="Export as ATAK package" :prepend-icon="mdiDownload" @click="emit('exportLayer', layer, 'atak')" />
                 <v-list-item title="Export as GeoJSON" :prepend-icon="mdiDownload" @click="emit('exportLayer', layer, 'geojson')" />
+                <v-list-item
+                  title="Create data package from layer…"
+                  :subtitle="canCopy ? false : 'Publish this data package first'"
+                  :prepend-icon="mdiContentCopy"
+                  :disabled="!canCopy"
+                  @click="emit('copyLayer', layer)"
+                />
                 <template v-if="editable">
                   <v-divider />
                   <v-list-item title="Move up" :prepend-icon="mdiArrowUp" :disabled="index === 0" @click="emit('move', layer, 1)" />

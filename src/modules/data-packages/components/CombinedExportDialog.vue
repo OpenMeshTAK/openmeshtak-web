@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { mdiDownload } from "@mdi/js";
+import { mdiContentCopy, mdiDownload } from "@mdi/js";
 import { computed, ref, watch } from "vue";
 import { describeError } from "@/shared/errors/api-problem";
 import { useToast } from "@/shared/feedback/toast";
 import { saveFile } from "@/shared/files/save-file";
 import {
   downloadCombinedExport,
+  createDataPackageCopy,
   previewCombinedExport,
   type CombinedExportReport,
   type DataPackageDto,
@@ -16,7 +17,8 @@ import {
  * one combined ATAK Data Package built from the newest published revisions.
  */
 const open = defineModel<boolean>({ required: true });
-const props = defineProps<{ eventId: string; eventName: string; packages: DataPackageDto[] }>();
+const props = defineProps<{ eventId: string; eventName: string; packages: DataPackageDto[]; canCreateDraft: boolean }>();
+const emit = defineEmits<{ created: [dataPackage: DataPackageDto] }>();
 const toast = useToast();
 
 const selectedIds = ref<string[]>([]);
@@ -71,6 +73,23 @@ async function download(): Promise<void> {
     busy.value = false;
   }
 }
+
+async function createDraft(): Promise<void> {
+  busy.value = true;
+  error.value = null;
+  try {
+    const created = await createDataPackageCopy(props.eventId, {
+      name: name.value.trim() || props.eventName,
+      packages: request.value.packages,
+    });
+    open.value = false;
+    emit("created", created);
+  } catch (caught: unknown) {
+    error.value = describeError(caught);
+  } finally {
+    busy.value = false;
+  }
+}
 </script>
 
 <template>
@@ -119,7 +138,18 @@ async function download(): Promise<void> {
         <v-btn v-if="report === null" color="primary" :disabled="selectedIds.length === 0" :loading="busy" @click="check">
           Check
         </v-btn>
-        <v-btn v-else color="primary" :prepend-icon="mdiDownload" :loading="busy" @click="download">Download .zip</v-btn>
+        <template v-else>
+          <v-btn
+            v-if="canCreateDraft"
+            variant="tonal"
+            :prepend-icon="mdiContentCopy"
+            :disabled="busy"
+            @click="createDraft"
+          >
+            Create editable package
+          </v-btn>
+          <v-btn color="primary" :prepend-icon="mdiDownload" :loading="busy" @click="download">Download .zip</v-btn>
+        </template>
       </v-card-actions>
     </v-card>
   </v-dialog>

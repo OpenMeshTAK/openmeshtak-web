@@ -2,7 +2,7 @@
 import { saveFile } from "@/shared/files/save-file";
 import { mdiArrowLeft, mdiCloudCheckOutline, mdiCloudUploadOutline, mdiDownload, mdiPublish, mdiUpload } from "@mdi/js";
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import ErrorState from "@/shared/components/ErrorState.vue";
 import { useToast } from "@/shared/feedback/toast";
 import { useSession } from "@/modules/auth/session";
@@ -16,7 +16,9 @@ import {
   type ImportReport,
   type PackageGeometry,
   type PackageLayerDto,
+  type DataPackageDto,
 } from "@/modules/data-packages/data-packages.api";
+import CreatePackageCopyDialog from "@/modules/data-packages/components/CreatePackageCopyDialog.vue";
 import { isApiProblem } from "@/shared/errors/api-problem";
 import EditorContextMenu, { type ContextTarget } from "./components/EditorContextMenu.vue";
 import EditorToolbar from "./components/EditorToolbar.vue";
@@ -29,6 +31,7 @@ import { readLayersOpen, storeLayersOpen } from "./editor-preferences";
 import { usePackageEditor } from "./usePackageEditor";
 
 const route = useRoute();
+const router = useRouter();
 const session = useSession();
 const toast = useToast();
 const eventId = String(route.params.eventId);
@@ -44,6 +47,8 @@ const report = ref<ImportReport | null>(null);
 const reportOpen = ref(false);
 const contextTarget = ref<ContextTarget | null>(null);
 const layersOpen = ref(readLayersOpen());
+const copyLayerTarget = ref<PackageLayerDto | null>(null);
+const copyLayerOpen = ref(false);
 
 function toggleLayers(): void {
   layersOpen.value = !layersOpen.value;
@@ -181,6 +186,16 @@ function importInto(layer: PackageLayerDto): void {
   fileInput.value?.click();
 }
 
+function copyLayer(layer: PackageLayerDto): void {
+  copyLayerTarget.value = layer;
+  copyLayerOpen.value = true;
+}
+
+function openCopiedPackage(created: DataPackageDto): void {
+  toast.success(`Editable data package ${created.name} was created.`);
+  void router.push({ name: "package-editor", params: { eventId, packageId: created.id } });
+}
+
 /** After a finished drawing the editor returns to selecting, so the new object can be adjusted. */
 async function onDrawn(geometry: PackageGeometry): Promise<void> {
   tool.value = "select";
@@ -297,6 +312,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
           :active-layer-id="editor.activeLayerId.value"
           :selected-id="editor.selectedId.value"
           :editable="editable"
+          :can-copy="editable && typeof editor.dataPackage.value?.latestRevision === 'number'"
           @activate="editor.activeLayerId.value = $event"
           @select="editor.selectedId.value = $event"
           @add="editor.addLayer"
@@ -306,6 +322,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
           @move-object="editor.moveObjectToLayer"
           @import-into="importInto"
           @export-layer="exportLayer"
+          @copy-layer="copyLayer"
           @remove="editor.removeLayer"
         />
       </v-sheet>
@@ -333,6 +350,16 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
     </main>
 
     <ImportReportDialog v-model="reportOpen" :report="report" />
+
+    <CreatePackageCopyDialog
+      v-if="copyLayerTarget"
+      v-model="copyLayerOpen"
+      :event-id="eventId"
+      :default-name="`${editor.dataPackage.value?.name ?? 'Data package'} - ${copyLayerTarget.name}`"
+      :source-label="`layer ${copyLayerTarget.name}`"
+      :selection="[{ packageId: editor.path.packageId, layerIds: [copyLayerTarget.id] }]"
+      @created="openCopiedPackage"
+    />
 
     <EditorContextMenu
       :target="contextTarget"

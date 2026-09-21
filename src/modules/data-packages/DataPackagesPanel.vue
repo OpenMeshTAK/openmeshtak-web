@@ -92,6 +92,11 @@ async function audienceSaved(saved: DataPackageDto): Promise<void> {
   await dataPackages.load();
 }
 
+function copiedPackage(created: DataPackageDto): void {
+  toast.success(`Editable data package ${created.name} was created.`);
+  openEditor(created);
+}
+
 async function loadOptions(): Promise<void> {
   try {
     audienceOptions.value = await loadAudienceOptions(props.event.id, session.can("members.read", props.event.id));
@@ -181,6 +186,8 @@ onMounted(() => {
       :event-id="event.id"
       :event-name="event.name"
       :packages="dataPackages.data.value"
+      :can-create-draft="canEdit"
+      @created="copiedPackage"
     />
     <PackageAudienceDialog
       v-if="audienceTarget"

@@ -1089,6 +1089,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/events/{eventId}/data-package-copies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Copies selected published layers with new UUIDs and records their source revisions. */
+        post: operations["CreateDataPackageCopy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/events/{eventId}/data-packages/{packageId}/layers/{layerId}/import/atak": {
         parameters: {
             query?: never;
@@ -2519,6 +2536,17 @@ export interface components {
             type: "FeatureCollection";
             features: unknown[];
         };
+        DataPackageSourceDto: {
+            id: components["schemas"]["Uuid"];
+            sourcePackageId: components["schemas"]["Uuid"];
+            sourcePackageName: string;
+            /** Format: double */
+            sourceRevision: number;
+            sourceSnapshotHash: string;
+            sourceLayerIds: components["schemas"]["Uuid"][];
+            /** Format: date-time */
+            createdAt: string;
+        };
         /**
          * @description Who receives the published Data Package: every event member, or only those matching any
          *     selected group, role or member. The selection is ignored while `allMembers` is true.
@@ -2539,6 +2567,8 @@ export interface components {
              * @description Number of the newest published revision, or `null` while nothing is published.
              */
             latestRevision: number | null;
+            /** @description Published package revisions whose content was copied into this package's initial draft. */
+            sources: components["schemas"]["DataPackageSourceDto"][];
             audience: components["schemas"]["PackageAudience"];
             /**
              * Format: double
@@ -2549,6 +2579,22 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
+        };
+        CombinedExportSelection: {
+            packageId: components["schemas"]["Uuid"];
+            /**
+             * Format: int32
+             * @description Published revision to use; omit for the newest one.
+             */
+            revision?: number;
+            /** @description Only these layers of the package; omit for all layers. */
+            layerIds?: components["schemas"]["Uuid"][];
+        };
+        CreateDataPackageCopyRequest: {
+            name: string;
+            description?: string | null;
+            /** @description Published package revisions and optional layer selections to copy. */
+            packages: components["schemas"]["CombinedExportSelection"][];
         };
         DataPackagePage: {
             items: components["schemas"]["DataPackageDto"][];
@@ -2601,16 +2647,6 @@ export interface components {
             included: components["schemas"]["CombinedExportIncluded"][];
             skipped: components["schemas"]["CombinedExportSkipped"][];
             nameClashes: components["schemas"]["CombinedExportNameClash"][];
-        };
-        CombinedExportSelection: {
-            packageId: components["schemas"]["Uuid"];
-            /**
-             * Format: int32
-             * @description Published revision to use; omit for the newest one.
-             */
-            revision?: number;
-            /** @description Only these layers of the package; omit for all layers. */
-            layerIds?: components["schemas"]["Uuid"][];
         };
         CombinedExportRequest: {
             /** @description Name of the combined Data Package; defaults to the event name. */
@@ -7655,6 +7691,77 @@ export interface operations {
             };
             /** @description Not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateDataPackageCopy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateDataPackageCopyRequest"];
+            };
+        };
+        responses: {
+            /** @description Data package draft created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataPackageDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Event archived, nothing published or package limits exceeded */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

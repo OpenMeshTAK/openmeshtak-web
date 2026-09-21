@@ -182,9 +182,18 @@ export async function downloadAtak(
 
 export type CombinedExportRequest = Schemas["CombinedExportRequest"];
 export type CombinedExportReport = Schemas["CombinedExportReport"];
+export type CombinedExportSelection = Schemas["CombinedExportSelection"];
 
 export function previewCombinedExport(eventId: string, body: CombinedExportRequest): Promise<CombinedExportReport> {
   return unwrap(api.POST("/events/{eventId}/data-package-exports/atak/preview", { params: { path: { eventId } }, body }));
+}
+
+/** Copies published packages or layers into a new editable package with new object UUIDs. */
+export function createDataPackageCopy(
+  eventId: string,
+  body: Schemas["CreateDataPackageCopyRequest"],
+): Promise<DataPackageDto> {
+  return unwrap(api.POST("/events/{eventId}/data-package-copies", { params: { path: { eventId } }, body }));
 }
 
 /** The typed client parses JSON only, so the ZIP download uses fetch with the same-origin session. */
