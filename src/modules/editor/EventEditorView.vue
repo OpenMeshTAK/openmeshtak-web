@@ -84,6 +84,13 @@ const branches = computed<EventPackageBranch[]>(() =>
   }),
 );
 const layers = computed(() => branches.value.flatMap(({ layers }) => layers));
+/** Normalizes package-local layer numbers to the exact top-to-bottom order shown in the tree. */
+const mapLayers = computed(() =>
+  [...branches.value]
+    .reverse()
+    .flatMap(({ layers }) => layers)
+    .map((layer, sortOrder) => ({ ...layer, sortOrder })),
+);
 const objects = computed(() => branches.value.flatMap(({ objects }) => objects));
 const activeEditor = computed(() => editors.value.find(({ path }) => path.packageId === activePackageId.value) ?? null);
 const activeLayerId = computed(() => activeEditor.value?.activeLayerId.value ?? null);
@@ -522,7 +529,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
     <main v-else class="event-editor-body">
       <PackageMapView
         ref="mapView"
-        :layers="layers"
+        :layers="mapLayers"
         :objects="objects"
         :selected-id="selectedId"
         :tool="tool"

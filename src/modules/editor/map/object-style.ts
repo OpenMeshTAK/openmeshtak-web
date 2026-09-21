@@ -55,7 +55,8 @@ const LAYER_STEP = 2_000_000;
  * markers on top, then smaller shapes above larger ones. The selection and decluttering follow
  * the same order, so a building inside an operation area keeps its name and can be clicked.
  */
-function priority(feature: FeatureLike, kind: string): number {
+export function objectPriority(feature: FeatureLike): number {
+  const kind = String(feature.get("kind"));
   const layerBase = Number(feature.get("layerRank") ?? 0) * LAYER_STEP;
   return layerBase + withinLayerPriority(feature, kind);
 }
@@ -80,7 +81,7 @@ export function objectStyle(feature: FeatureLike, resolution: number, selected: 
   const symbol = kind === "point" && cotType !== null ? symbolIcon(cotType, selected) : null;
 
   const main = new Style({
-    zIndex: priority(feature, kind),
+    zIndex: objectPriority(feature),
     stroke: new Stroke({ color: style.color, width }),
     fill: new Fill({ color: withOpacity(style.color, style.fillOpacity) }),
     ...(kind === "point" ? { image: symbol ?? dot(style.color, selected) } : {}),

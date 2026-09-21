@@ -13,7 +13,7 @@ import OSM from "ol/source/OSM";
 import VectorSource from "ol/source/Vector";
 import type { PackageGeometry, PackageLayerDto, PackageObjectDto } from "@/modules/data-packages/data-packages.api";
 import { fromMapGeometry, toMapGeometry } from "./geometry-codec";
-import { objectStyle } from "./object-style";
+import { objectPriority, objectStyle } from "./object-style";
 
 export type EditorTool = "select" | "point" | "line" | "polygon" | "circle";
 
@@ -62,8 +62,8 @@ export class PackageMap {
     });
 
     this.select = new Select({ layers: [vectorLayer], style: null });
-    this.select.on("select", () => {
-      const feature = this.select.getFeatures().item(0) as Feature<Geometry> | undefined;
+    this.select.on("select", (event) => {
+      const feature = this.topFeatureAtPixel(event.mapBrowserEvent.pixel, vectorLayer);
       this.highlight(feature === undefined ? null : String(feature.getId()));
       this.callbacks.onSelected(this.selectedId);
     });
@@ -105,8 +105,7 @@ export class PackageMap {
 
   private openContextMenu(event: MouseEvent, vectorLayer: VectorLayer): void {
     const pixel = this.map.getEventPixel(event);
-    // The topmost object under the cursor, in the same order as drawing and selection.
-    const feature = this.map.forEachFeatureAtPixel(pixel, (hit) => hit, { layerFilter: (layer) => layer === vectorLayer });
+    const feature = this.topFeatureAtPixel(pixel, vectorLayer);
     const objectId = feature === undefined ? null : String(feature.getId());
     if (objectId !== null) {
       this.highlight(objectId);
@@ -118,6 +117,26 @@ export class PackageMap {
       clientY: event.clientY,
       position: toLonLat(this.map.getCoordinateFromPixel(pixel)),
     });
+  }
+
+  /** Uses the same explicit priority for hit testing as for drawing. */
+  private topFeatureAtPixel(pixel: number[], vectorLayer: VectorLayer): Feature<Geometry> | undefined {
+    let top: Feature<Geometry> | undefined;
+    let topPriority = Number.NEGATIVE_INFINITY;
+    this.map.forEachFeatureAtPixel(
+      pixel,
+      (hit) => {
+        const feature = hit as Feature<Geometry>;
+        const priority = objectPriority(feature);
+        if (priority > topPriority) {
+          top = feature;
+          topPriority = priority;
+        }
+        return undefined;
+      },
+      { layerFilter: (layer) => layer === vectorLayer },
+    );
+    return top;
   }
 
   /** WGS84 position of the pointer while it is over the map, otherwise `null`. */
