@@ -2,14 +2,17 @@
 import "ol/ol.css";
 import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type { PackageGeometry, PackageLayerDto, PackageObjectDto } from "@/modules/data-packages/data-packages.api";
+import type { MapContentItem } from "../map/map-content";
 import { PackageMap, type EditorTool } from "../map/package-map";
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   layers: PackageLayerDto[];
   objects: PackageObjectDto[];
+  /** Read-only offline maps and rubber sheets. */
+  contents?: MapContentItem[];
   selectedId: string | null;
   tool: EditorTool;
-}>();
+}>(), { contents: () => [] });
 const emit = defineEmits<{
   drawn: [geometry: PackageGeometry];
   modified: [objectId: string, geometry: PackageGeometry];
@@ -32,6 +35,7 @@ onMounted(() => {
     onContextMenu: (target) => emit("contextmenu", target),
   });
   map.setContent(props.layers, props.objects);
+  map.setMapContent(props.contents, props.layers);
   map.setTool(props.tool);
   map.highlight(props.selectedId);
   map.fitToContent();
@@ -43,6 +47,10 @@ onMounted(() => {
 watch(
   () => [props.layers, props.objects] as const,
   ([layers, objects]) => map?.setContent(layers, objects),
+);
+watch(
+  () => [props.contents, props.layers] as const,
+  ([contents, layers]) => map?.setMapContent(contents, layers),
 );
 watch(() => props.tool, (tool) => map?.setTool(tool));
 watch(() => props.selectedId, (objectId) => map?.highlight(objectId));

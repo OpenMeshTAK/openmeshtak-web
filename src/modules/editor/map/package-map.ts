@@ -3,9 +3,11 @@ import Feature from "ol/Feature";
 import OlMap from "ol/Map";
 import View from "ol/View";
 import { defaults as defaultControls, ScaleLine } from "ol/control";
-import { isEmpty } from "ol/extent";
+import { extend, isEmpty } from "ol/extent";
 import type Geometry from "ol/geom/Geometry";
 import { Draw, Modify, Select, Snap, Translate } from "ol/interaction";
+import type BaseLayer from "ol/layer/Base";
+import LayerGroup from "ol/layer/Group";
 import TileLayer from "ol/layer/Tile";
 import VectorLayer from "ol/layer/Vector";
 import { fromLonLat, toLonLat } from "ol/proj";
@@ -13,6 +15,7 @@ import OSM from "ol/source/OSM";
 import VectorSource from "ol/source/Vector";
 import type { PackageGeometry, PackageLayerDto, PackageObjectDto } from "@/modules/data-packages/data-packages.api";
 import { fromMapGeometry, toMapGeometry } from "./geometry-codec";
+import { mapContentExtent, mapContentLayer, type MapContentItem } from "./map-content";
 import { objectPriority, objectStyle } from "./object-style";
 
 export type EditorTool = "select" | "point" | "line" | "polygon" | "circle";
@@ -36,6 +39,10 @@ const DEFAULT_CENTER = fromLonLat([10.45, 51.16]);
 export class PackageMap {
   private readonly source = new VectorSource<Feature<Geometry>>();
   private readonly map: OlMap;
+  /** Offline maps and rubber sheets, between the base map and the editable objects. */
+  private readonly contentGroup = new LayerGroup();
+  private readonly contentLayers = new Map<string, BaseLayer>();
+  private contentExtents: number[][] = [];
   private readonly select: Select;
   private readonly editable = new Collection<Feature<Geometry>>();
   private readonly modify: Modify;
@@ -56,7 +63,7 @@ export class PackageMap {
     });
     this.map = new OlMap({
       target,
-      layers: [new TileLayer({ source: new OSM() }), vectorLayer],
+      layers: [new TileLayer({ source: new OSM() }), this.contentGroup, vectorLayer],
       view: new View({ center: DEFAULT_CENTER, zoom: 6 }),
       controls: defaultControls().extend([new ScaleLine()]),
     });
@@ -169,6 +176,31 @@ export class PackageMap {
     this.highlight(this.selectedId);
   }
 
+  /**
+   * Shows map content of visible layers in layer order. Layers are kept per content ID so tiles
+   * and images are not reloaded when only visibility or order changes.
+   */
+  setMapContent(items: readonly MapContentItem[], layers: readonly PackageLayerDto[]): void {
+    const byId = new Map(layers.map((layer) => [layer.id, layer]));
+    const wanted = new Set(items.map(({ id }) => id));
+    for (const id of [...this.contentLayers.keys()].filter((id) => !wanted.has(id))) {
+      this.contentLayers.delete(id);
+    }
+    this.contentExtents = items.map(mapContentExtent);
+    const ordered = [...items].sort((a, b) => (byId.get(a.layerId)?.sortOrder ?? 0) - (byId.get(b.layerId)?.sortOrder ?? 0));
+    const shown = ordered.map((item) => {
+      let layer = this.contentLayers.get(item.id);
+      if (layer === undefined) {
+        layer = mapContentLayer(item);
+        this.contentLayers.set(item.id, layer);
+      }
+      layer.setVisible(byId.get(item.layerId)?.visible === true);
+      return layer;
+    });
+    this.contentGroup.getLayers().clear();
+    this.contentGroup.getLayers().extend(shown);
+  }
+
   setTool(tool: EditorTool): void {
     if (this.draw !== null) {
       this.map.removeInteraction(this.draw);
@@ -208,8 +240,14 @@ export class PackageMap {
   }
 
   fitToContent(): void {
-    const extent = this.source.getExtent();
-    if (extent !== null && !isEmpty(extent)) {
+    const candidates = [...this.contentExtents, this.source.getExtent()].filter(
+      (candidate): candidate is number[] => candidate !== null && !isEmpty(candidate),
+    );
+    const extent = candidates.reduce<number[] | null>(
+      (combined, candidate) => (combined === null ? [...candidate] : extend(combined, candidate)),
+      null,
+    );
+    if (extent !== null) {
       this.map.getView().fit(extent, { padding: [48, 48, 48, 48], maxZoom: 16, duration: 250 });
     }
   }

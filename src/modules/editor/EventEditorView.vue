@@ -41,6 +41,7 @@ import ImportReportDialog from "./components/ImportReportDialog.vue";
 import type { LayerExportFormat } from "./components/LayerPanel.vue";
 import ObjectInspector from "./components/ObjectInspector.vue";
 import PackageMapView from "./components/PackageMapView.vue";
+import { mapContentItems } from "./map/map-content";
 import { readLayersOpen, storeLayersOpen } from "./editor-preferences";
 import type { EventPackageBranch } from "./event-editor.types";
 import type { EditorTool } from "./map/package-map";
@@ -93,6 +94,7 @@ const mapLayers = computed(() =>
     .map((layer, sortOrder) => ({ ...layer, sortOrder })),
 );
 const objects = computed(() => branches.value.flatMap(({ objects }) => objects));
+const mapContents = computed(() => editors.value.flatMap((editor) => mapContentItems(editor.path, editor.contents.value)));
 const activeEditor = computed(() => editors.value.find(({ path }) => path.packageId === activePackageId.value) ?? null);
 const activeLayerId = computed(() => activeEditor.value?.activeLayerId.value ?? null);
 const selected = computed(() => objects.value.find(({ id }) => id === selectedId.value) ?? null);
@@ -578,6 +580,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
         ref="mapView"
         :layers="mapLayers"
         :objects="objects"
+        :contents="mapContents"
         :selected-id="selectedId"
         :tool="tool"
         @drawn="onDrawn"

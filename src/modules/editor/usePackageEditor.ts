@@ -7,6 +7,7 @@ import {
   deleteLayer,
   deleteObject,
   getDataPackage,
+  listContents,
   listLayers,
   listObjects,
   updateLayer,
@@ -14,6 +15,7 @@ import {
   type DataPackageDto,
   type PackageGeometry,
   type PackageLayerDto,
+  type PackageContentDto,
   type PackageObjectDto,
   type PackageObjectStyle,
   type TakMarker,
@@ -75,6 +77,8 @@ export function usePackageEditor(eventId: string, packageId: string) {
   const dataPackage = ref<DataPackageDto | null>(null);
   const layers = ref<PackageLayerDto[]>([]);
   const objects = ref<PackageObjectDto[]>([]);
+  /** Read-only map content (offline maps, rubber sheets) kept from imports. */
+  const contents = ref<PackageContentDto[]>([]);
   const loadState = ref<"loading" | "ready" | "error">("loading");
   const saveState = ref<SaveState>("saved");
   const selectedId = ref<string | null>(null);
@@ -115,10 +119,11 @@ export function usePackageEditor(eventId: string, packageId: string) {
   async function load(): Promise<void> {
     loadState.value = "loading";
     try {
-      [dataPackage.value, layers.value, objects.value] = await Promise.all([
+      [dataPackage.value, layers.value, objects.value, contents.value] = await Promise.all([
         getDataPackage(path),
         listLayers(path),
         listObjects(path),
+        listContents(path),
       ]);
       resetHistory();
       for (const layer of layers.value) {
@@ -562,6 +567,7 @@ export function usePackageEditor(eventId: string, packageId: string) {
     layers,
     sortedLayers,
     objects,
+    contents,
     loadState,
     saveState,
     selectedId,

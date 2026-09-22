@@ -1127,6 +1127,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/events/{eventId}/data-packages/{packageId}/contents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Offline maps, nested map packages and rubber sheets kept from imports. */
+        get: operations["ListPackageContents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{eventId}/data-packages/{packageId}/contents/{contentId}/tiles/{z}/{x}/{y}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description One XYZ tile of an offline map for display on the map; `404` where the cache has no tile. */
+        get: operations["GetOfflineMapTile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{eventId}/data-packages/{packageId}/contents/{contentId}/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The image of a rubber sheet for display on the map. */
+        get: operations["GetRubberSheetImage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/events/{eventId}/data-packages/{packageId}/layers/{layerId}/import/atak": {
         parameters: {
             query?: never;
@@ -2429,6 +2480,8 @@ export interface components {
             /** Format: double */
             size: number;
             mediaType: string;
+            /** @description Rubber-sheet placement and similar display data; absent for plain files. */
+            metadata?: unknown;
         };
         /** @description Everything a package generator needs; timestamps and versions are left out on purpose. */
         PackageSnapshot: {
@@ -2636,6 +2689,42 @@ export interface components {
             description?: string | null;
             /** @description Published package revisions and optional layer selections to copy. */
             packages: components["schemas"]["CombinedExportSelection"][];
+        };
+        RubberSheetDto: {
+            /**
+             * @description Lower left, lower right, upper right and upper left corner as [longitude, latitude] in
+             *     WGS84, as ATAK placed the image.
+             */
+            corners: number[][];
+            /** @enum {string} */
+            imageMediaType: "image/png" | "image/jpeg";
+        };
+        OfflineMapDto: {
+            /** Format: double */
+            minZoom: number;
+            /** Format: double */
+            maxZoom: number;
+            /** @description West, south, east, north in WGS84 degrees. */
+            bounds: number[];
+            /** Format: double */
+            tiles: number;
+        };
+        /** @description Map content kept from an imported ATAK Data Package; exported unchanged with its layer. */
+        PackageContentDto: {
+            id: components["schemas"]["Uuid"];
+            layerId: components["schemas"]["Uuid"];
+            /** @enum {string} */
+            kind: "offline-map" | "nested-data-package" | "rubber-sheet";
+            name: string;
+            /**
+             * Format: double
+             * @description Size of the stored file in bytes.
+             */
+            size: number;
+            /** @description Placement for display; only for rubber sheets. */
+            rubberSheet: components["schemas"]["RubberSheetDto"] | null;
+            /** @description Tile range for display; only for offline maps that could be read. */
+            offlineMap: components["schemas"]["OfflineMapDto"] | null;
         };
         DataPackagePage: {
             items: components["schemas"]["DataPackageDto"][];
@@ -7890,6 +7979,161 @@ export interface operations {
             };
             /** @description Validation failed */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListPackageContents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+                packageId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Map content */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PackageContentDto"][];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetOfflineMapTile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+                packageId: components["schemas"]["Uuid"];
+                contentId: components["schemas"]["Uuid"];
+                z: number;
+                x: number;
+                y: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tile image */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetRubberSheetImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+                packageId: components["schemas"]["Uuid"];
+                contentId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Rubber-sheet image */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

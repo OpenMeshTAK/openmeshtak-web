@@ -229,3 +229,18 @@ export async function importAsNewPackage(eventId: string, file: File): Promise<I
   }
   return (await response.json()) as ImportedDataPackage;
 }
+
+export type PackageContentDto = Schemas["PackageContentDto"];
+
+export function listContents(path: PackagePath): Promise<PackageContentDto[]> {
+  return unwrap(api.GET("/events/{eventId}/data-packages/{packageId}/contents", { params: { path } }));
+}
+
+/** Same-origin URLs, so the browser sends the session cookie with every tile and image request. */
+export function contentTileUrl(path: PackagePath, contentId: string): string {
+  return `${packageUrl(path, `contents/${encodeURIComponent(contentId)}/tiles`)}/{z}/{x}/{y}`;
+}
+
+export function contentImageUrl(path: PackagePath, contentId: string): string {
+  return packageUrl(path, `contents/${encodeURIComponent(contentId)}/image`);
+}

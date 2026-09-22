@@ -25,6 +25,7 @@ import EditorToolbar from "./components/EditorToolbar.vue";
 import ImportReportDialog from "./components/ImportReportDialog.vue";
 import LayerPanel, { type LayerExportFormat } from "./components/LayerPanel.vue";
 import PackageMapView from "./components/PackageMapView.vue";
+import { mapContentItems } from "./map/map-content";
 import ObjectInspector from "./components/ObjectInspector.vue";
 import type { EditorTool } from "./map/package-map";
 import { readLayersOpen, storeLayersOpen } from "./editor-preferences";
@@ -303,6 +304,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
         ref="mapView"
         :layers="editor.layers.value"
         :objects="editor.objects.value"
+        :contents="mapContentItems(editor.path, editor.contents.value)"
         :selected-id="editor.selectedId.value"
         :tool="tool"
         @drawn="onDrawn"
