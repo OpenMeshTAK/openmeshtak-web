@@ -211,3 +211,21 @@ export async function downloadCombinedExport(
   const fileName = /filename="([^"]+)"/.exec(response.headers.get("Content-Disposition") ?? "")?.[1] ?? "data-packages.zip";
   return { blob: await response.blob(), fileName };
 }
+
+export type ImportedDataPackage = Schemas["ImportedDataPackage"];
+
+/** Creates a new data package from an ATAK Data Package or CoT file; Core names it after the manifest. */
+export async function importAsNewPackage(eventId: string, file: File): Promise<ImportedDataPackage> {
+  const url = new URL(`/api/v1/events/${encodeURIComponent(eventId)}/data-package-imports/atak`, window.location.origin);
+  url.searchParams.set("fileName", file.name);
+  const response = await fetch(url.href, {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": (await isZipFile(file)) ? "application/zip" : "application/xml" },
+    body: file,
+  });
+  if (!response.ok) {
+    throw await failure(response);
+  }
+  return (await response.json()) as ImportedDataPackage;
+}

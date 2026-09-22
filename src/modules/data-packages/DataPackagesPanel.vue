@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { mdiAccountGroup, mdiClockOutline, mdiDelete, mdiDotsVertical, mdiExport, mdiMapOutline, mdiMapPlus } from "@mdi/js";
+import { mdiAccountGroup, mdiClockOutline, mdiDelete, mdiDotsVertical, mdiExport, mdiFileImport, mdiMapOutline, mdiMapPlus } from "@mdi/js";
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import type { Schemas } from "@/shared/api/types";
@@ -19,8 +19,16 @@ import {
   type AudienceOptions,
 } from "@/modules/event-audience/audience-options";
 import CombinedExportDialog from "./components/CombinedExportDialog.vue";
+import ImportReportDialog from "@/modules/editor/components/ImportReportDialog.vue";
 import PackageAudienceDialog from "./components/PackageAudienceDialog.vue";
-import { createDataPackage, deleteDataPackage, listDataPackages, type DataPackageDto } from "./data-packages.api";
+import {
+  createDataPackage,
+  deleteDataPackage,
+  importAsNewPackage,
+  listDataPackages,
+  type DataPackageDto,
+  type ImportReport,
+} from "./data-packages.api";
 
 const props = defineProps<{ event: Schemas["EventDto"] }>();
 const router = useRouter();
@@ -32,6 +40,31 @@ const audienceOptions = ref<AudienceOptions>({ groups: [], roles: [], members: n
 const audienceTarget = ref<DataPackageDto | null>(null);
 const audienceOpen = ref(false);
 const exportOpen = ref(false);
+const fileInput = ref<HTMLInputElement | null>(null);
+const importing = ref(false);
+const importReport = ref<ImportReport | null>(null);
+const reportOpen = ref(false);
+
+async function importFile(changeEvent: Event): Promise<void> {
+  const input = changeEvent.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = "";
+  if (file === undefined) {
+    return;
+  }
+  importing.value = true;
+  try {
+    const imported = await importAsNewPackage(props.event.id, file);
+    importReport.value = imported.report;
+    reportOpen.value = true;
+    toast.success(`Data package ${imported.dataPackage.name} was imported as a draft.`);
+    await dataPackages.load();
+  } catch (caught: unknown) {
+    toast.error(caught);
+  } finally {
+    importing.value = false;
+  }
+}
 const canPublish = computed(
   () => props.event.status !== "archived" && session.can("data-packages.publish", props.event.id),
 );
@@ -138,6 +171,16 @@ onMounted(() => {
         >
           Export
         </v-btn>
+        <v-btn v-if="canEdit" variant="tonal" :prepend-icon="mdiFileImport" :loading="importing" @click="fileInput?.click()">
+          Import
+        </v-btn>
+        <input
+          ref="fileInput"
+          type="file"
+          accept=".zip,.dpk,.cot,.xml,application/zip,application/xml"
+          hidden
+          @change="importFile"
+        >
         <v-btn v-if="canEdit" color="primary" :prepend-icon="mdiMapPlus" @click="(name = ''), creation.reset(), (createOpen = true)">
           New data package
         </v-btn>
@@ -193,6 +236,7 @@ onMounted(() => {
       </template>
     </v-card>
 
+    <ImportReportDialog v-model="reportOpen" :report="importReport" />
     <CombinedExportDialog
       v-model="exportOpen"
       :event-id="event.id"

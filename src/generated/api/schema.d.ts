@@ -995,6 +995,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/events/{eventId}/data-package-imports/atak": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Creates a data package from an ATAK Data Package (`application/zip`) or a CoT file
+         *     (`application/xml`) and imports it into the first layer. The name comes from the package
+         *     manifest, otherwise from `fileName`. A failed import leaves no package behind.
+         */
+        post: operations["ImportAtakAsNewPackage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/events/{eventId}/data-packages/{packageId}/layers": {
         parameters: {
             query?: never;
@@ -2483,75 +2504,6 @@ export interface components {
             /** @description Markers only; send `null` for a plain spot marker. */
             tak: components["schemas"]["TakMarker"] | null;
         };
-        PackageLayerDto: {
-            id: components["schemas"]["Uuid"];
-            packageId: components["schemas"]["Uuid"];
-            name: string;
-            /**
-             * Format: double
-             * @description Drawing and export order; lower values are drawn first.
-             */
-            sortOrder: number;
-            /** @description Editor display only; hidden layers are still published. */
-            visible: boolean;
-            /** @description Locked layers reject object changes until they are unlocked. */
-            locked: boolean;
-            /** Format: double */
-            version: number;
-            /** Format: date-time */
-            createdAt: string;
-            /** Format: date-time */
-            updatedAt: string;
-        };
-        PackageLayerPage: {
-            items: components["schemas"]["PackageLayerDto"][];
-            page: components["schemas"]["PageInfo"];
-        };
-        CreatePackageLayerRequest: {
-            name: string;
-        };
-        UpdatePackageLayerRequest: {
-            /** Format: int32 */
-            version: number;
-            name: string;
-            /** Format: int32 */
-            sortOrder: number;
-            visible: boolean;
-            locked: boolean;
-        };
-        ImportReportEntry: {
-            /** @description Which input feature this is about, e.g. `Feature 3 (Rally point)`. */
-            feature: string;
-            message: string;
-        };
-        /** @description Outcome of a GeoJSON or ATAK import; every input item appears somewhere in it. */
-        ImportReport: {
-            /**
-             * Format: double
-             * @description Number of objects created.
-             */
-            accepted: number;
-            /** @description Imported, but adjusted: split multi-geometries, clamped styles. */
-            changed: components["schemas"]["ImportReportEntry"][];
-            /** @description Opaque package files retained byte-for-byte, such as offline map caches. */
-            retained: components["schemas"]["ImportReportEntry"][];
-            /** @description Not imported because the content type is not supported, e.g. GeometryCollection. */
-            skipped: components["schemas"]["ImportReportEntry"][];
-            /** @description Not imported because the content is invalid, e.g. a self-intersecting polygon. */
-            rejected: components["schemas"]["ImportReportEntry"][];
-        };
-        /** @description Untrusted GeoJSON document: a FeatureCollection, a Feature or a bare geometry. */
-        GeoJsonDocument: {
-            type: string;
-        } & {
-            [key: string]: unknown;
-        };
-        /** @description GeoJSON FeatureCollection exported from a data package draft or revision. */
-        GeoJsonFeatureCollection: {
-            /** @enum {string} */
-            type: "FeatureCollection";
-            features: unknown[];
-        };
         DataPackageSourceDto: {
             id: components["schemas"]["Uuid"];
             sourcePackageId: components["schemas"]["Uuid"];
@@ -2595,6 +2547,79 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
+        };
+        ImportReportEntry: {
+            /** @description Which input feature this is about, e.g. `Feature 3 (Rally point)`. */
+            feature: string;
+            message: string;
+        };
+        /** @description Outcome of a GeoJSON or ATAK import; every input item appears somewhere in it. */
+        ImportReport: {
+            /**
+             * Format: double
+             * @description Number of objects created.
+             */
+            accepted: number;
+            /** @description Imported, but adjusted: split multi-geometries, clamped styles. */
+            changed: components["schemas"]["ImportReportEntry"][];
+            /** @description Opaque package files retained byte-for-byte, such as offline map caches. */
+            retained: components["schemas"]["ImportReportEntry"][];
+            /** @description Not imported because the content type is not supported, e.g. GeometryCollection. */
+            skipped: components["schemas"]["ImportReportEntry"][];
+            /** @description Not imported because the content is invalid, e.g. a self-intersecting polygon. */
+            rejected: components["schemas"]["ImportReportEntry"][];
+        };
+        ImportedDataPackage: {
+            dataPackage: components["schemas"]["DataPackageDto"];
+            report: components["schemas"]["ImportReport"];
+        };
+        PackageLayerDto: {
+            id: components["schemas"]["Uuid"];
+            packageId: components["schemas"]["Uuid"];
+            name: string;
+            /**
+             * Format: double
+             * @description Drawing and export order; lower values are drawn first.
+             */
+            sortOrder: number;
+            /** @description Editor display only; hidden layers are still published. */
+            visible: boolean;
+            /** @description Locked layers reject object changes until they are unlocked. */
+            locked: boolean;
+            /** Format: double */
+            version: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        PackageLayerPage: {
+            items: components["schemas"]["PackageLayerDto"][];
+            page: components["schemas"]["PageInfo"];
+        };
+        CreatePackageLayerRequest: {
+            name: string;
+        };
+        UpdatePackageLayerRequest: {
+            /** Format: int32 */
+            version: number;
+            name: string;
+            /** Format: int32 */
+            sortOrder: number;
+            visible: boolean;
+            locked: boolean;
+        };
+        /** @description Untrusted GeoJSON document: a FeatureCollection, a Feature or a bare geometry. */
+        GeoJsonDocument: {
+            type: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** @description GeoJSON FeatureCollection exported from a data package draft or revision. */
+        GeoJsonFeatureCollection: {
+            /** @enum {string} */
+            type: "FeatureCollection";
+            features: unknown[];
         };
         CombinedExportSelection: {
             packageId: components["schemas"]["Uuid"];
@@ -7273,6 +7298,93 @@ export interface operations {
             };
             /** @description Layer locked or event archived */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ImportAtakAsNewPackage: {
+        parameters: {
+            query?: {
+                fileName?: string;
+            };
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Data package created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportedDataPackage"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too many objects or event archived */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Upload too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unsupported upload */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unreadable archive */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
