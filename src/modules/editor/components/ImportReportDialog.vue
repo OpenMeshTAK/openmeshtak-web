@@ -2,7 +2,7 @@
 import { computed } from "vue";
 import type { ImportReport } from "@/modules/data-packages/data-packages.api";
 
-/** Shows every changed, skipped and rejected feature so nothing disappears silently (EDITOR.md). */
+/** Shows every changed, retained, skipped and rejected feature so nothing disappears silently (EDITOR.md). */
 const props = defineProps<{ report: ImportReport | null }>();
 const open = defineModel<boolean>({ required: true });
 
@@ -11,6 +11,7 @@ const sections = computed(() =>
     ? []
     : [
         { title: "Changed", color: "info", entries: props.report.changed },
+        { title: "Map content kept unchanged", color: "success", entries: props.report.retained },
         { title: "Skipped (not supported)", color: "warning", entries: props.report.skipped },
         { title: "Rejected (invalid)", color: "error", entries: props.report.rejected },
       ].filter(({ entries }) => entries.length > 0),

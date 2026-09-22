@@ -2397,6 +2397,18 @@ export interface components {
             style: components["schemas"]["PackageObjectStyle"];
             tak: components["schemas"]["TakMarker"] | null;
         };
+        PackageSnapshotContent: {
+            id: string;
+            layerId: string;
+            blobId: string;
+            kind: string;
+            name: string;
+            archivePath: string;
+            sha256: string;
+            /** Format: double */
+            size: number;
+            mediaType: string;
+        };
         /** @description Everything a package generator needs; timestamps and versions are left out on purpose. */
         PackageSnapshot: {
             /** Format: double */
@@ -2405,6 +2417,8 @@ export interface components {
             description: string | null;
             layers: components["schemas"]["PackageSnapshotLayer"][];
             objects: components["schemas"]["PackageSnapshotObject"][];
+            /** @description Missing only on schema-1 revisions created before package content existed. */
+            contents?: components["schemas"]["PackageSnapshotContent"][];
         };
         PackageRevisionDto: {
             id: components["schemas"]["Uuid"];
@@ -2519,6 +2533,8 @@ export interface components {
             accepted: number;
             /** @description Imported, but adjusted: split multi-geometries, clamped styles. */
             changed: components["schemas"]["ImportReportEntry"][];
+            /** @description Opaque package files retained byte-for-byte, such as offline map caches. */
+            retained: components["schemas"]["ImportReportEntry"][];
             /** @description Not imported because the content type is not supported, e.g. GeometryCollection. */
             skipped: components["schemas"]["ImportReportEntry"][];
             /** @description Not imported because the content is invalid, e.g. a self-intersecting polygon. */
