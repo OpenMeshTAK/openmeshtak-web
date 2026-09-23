@@ -227,8 +227,9 @@ export interface paths {
         };
         /**
          * @description Resolves the member's callsign, TAK and Meshtastic identity. Requires
-         *     `members.read`, or being that member in an active event. Draft events return an
-         *     administrator preview of the unpublished configuration.
+         *     `members.read`, being that member in an active event, or `member-artifacts.download` in an
+         *     active event, which is audited as an on-behalf view. Draft events return an administrator
+         *     preview of the unpublished configuration.
          */
         get: operations["GetMemberProfile"];
         put?: never;
@@ -500,7 +501,8 @@ export interface paths {
         /**
          * @description Generates the signed-in member's Meshtastic device profile (`.cfg`) from the published event
          *     configuration: owner names, device role, the event's radio settings and the channels the
-         *     member receives now. The file contains channel keys; every download is audited. The file
+         *     member receives now. An operator with `member-artifacts.download` receives exactly the
+         *     member's file on their behalf. The file contains channel keys; every download is audited. The file
          *     name names the firmware line it is made for.
          */
         get: operations["GetMeshtasticDeviceProfile"];
@@ -519,7 +521,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description The signed-in member's packages; people with `members.read` may preview any member's list. */
+        /** @description The member's packages; `members.read` previews and `member-artifacts.download` acts on their behalf. */
         get: operations["ListMemberDataPackages"];
         put?: never;
         post?: never;
@@ -536,7 +538,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Downloads the newest published revision as an ATAK Data Package. Only for the member. */
+        /** @description Downloads the newest published revision as an ATAK Data Package, for the member or on their behalf. */
         get: operations["DownloadMemberDataPackage"];
         put?: never;
         post?: never;
@@ -1391,7 +1393,7 @@ export interface components {
             page: components["schemas"]["PageInfo"];
         };
         /** @enum {string} */
-        Permission: "users.read" | "users.manage" | "user-groups.read" | "user-groups.manage" | "events.read" | "events.manage" | "events.reactivate" | "members.read" | "members.manage" | "members.sync" | "member-claims.create" | "channel-keys.reveal" | "data-packages.read" | "data-packages.edit" | "data-packages.publish" | "artifacts.generate" | "artifacts.download" | "service-accounts.manage" | "audit.read";
+        Permission: "users.read" | "users.manage" | "user-groups.read" | "user-groups.manage" | "events.read" | "events.manage" | "events.reactivate" | "members.read" | "members.manage" | "members.sync" | "member-claims.create" | "channel-keys.reveal" | "data-packages.read" | "data-packages.edit" | "data-packages.publish" | "artifacts.generate" | "artifacts.download" | "member-artifacts.download" | "service-accounts.manage" | "audit.read";
         PermissionGrantDto: {
             permission: components["schemas"]["Permission"];
             /** @description Event the grant is limited to, or `null` for an instance-wide grant. */

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { mdiAccountPlus } from "@mdi/js";
+import { mdiAccountPlus, mdiClose } from "@mdi/js";
 import { computed, onMounted, ref } from "vue";
 import type { Schemas } from "@/shared/api/types";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
@@ -12,6 +12,8 @@ import { useSession } from "@/modules/auth/session";
 import { listGroups } from "@/modules/event-groups/event-groups.api";
 import { listRoles } from "@/modules/event-roles/event-roles.api";
 import ClaimLinkDialog from "@/modules/member-claims/ClaimLinkDialog.vue";
+import DataPackageDownloads from "@/modules/dashboard/components/DataPackageDownloads.vue";
+import MeshtasticProfileCard from "@/modules/dashboard/components/MeshtasticProfileCard.vue";
 import AddMemberDialog from "./AddMemberDialog.vue";
 import EditMemberDialog from "./EditMemberDialog.vue";
 import { fetchProfile, listMembers, removeMember, type EventMemberDto } from "./members.api";
@@ -41,6 +43,10 @@ const canSync = computed(() => mutable.value && session.can("members.sync", prop
 const canAdd = computed(() => canSync.value || (mutable.value && session.can("members.manage", props.event.id) && session.can("users.read")));
 const memberUserIds = computed(() => members.value.map(({ userId }) => userId));
 const canManage = computed(() => mutable.value && session.can("members.manage", props.event.id));
+/** On-behalf provisioning: the operator downloads the member's own artifacts, audited by Core. */
+const canProvision = computed(
+  () => props.event.status === "active" && session.can("member-artifacts.download", props.event.id),
+);
 const canClaim = computed(
   () => props.event.status === "active" && session.can("member-claims.create", props.event.id),
 );
@@ -196,14 +202,40 @@ onMounted(load);
       @update:model-value="claimFor = null"
     />
 
-    <v-dialog :model-value="profileFor !== null" max-width="560" @update:model-value="profileFor = null">
+    <v-dialog
+      :model-value="profileFor !== null"
+      :max-width="canProvision ? 960 : 560"
+      @update:model-value="profileFor = null"
+    >
       <v-alert v-if="profileError" type="error">{{ profileError }}</v-alert>
       <v-skeleton-loader v-else-if="profile === null" type="article" />
       <div v-else>
         <v-alert v-if="profile.source === 'preview'" type="info" class="mb-2">
           Preview of the unpublished draft configuration. Participants cannot see draft events.
         </v-alert>
-        <ProfileSummary :event-name="event.name" :profile="profile" />
+        <v-card v-if="canProvision && profile.source === 'published'" class="provision-sheet">
+          <div class="d-flex align-center pa-4 pb-0">
+            <div class="flex-grow-1">
+              <div class="text-h6">Set up devices for {{ profile.callsign }}</div>
+              <div class="text-body-2 text-medium-emphasis">
+                You download exactly what this member receives. Every view and download is audited.
+              </div>
+            </div>
+            <v-btn :icon="mdiClose" variant="text" aria-label="Close" @click="profileFor = null" />
+          </div>
+          <v-card-text class="provision-body">
+            <v-row dense>
+              <v-col cols="12" md="6">
+                <ProfileSummary :event-name="event.name" :profile="profile" />
+              </v-col>
+              <v-col cols="12" md="6" class="d-flex flex-column ga-2">
+                <MeshtasticProfileCard :profile="profile" on-behalf />
+                <DataPackageDownloads :event-id="profile.eventId" :member-id="profile.memberId" />
+              </v-col>
+            </v-row>
+          </v-card-text>
+        </v-card>
+        <ProfileSummary v-else :event-name="event.name" :profile="profile" />
       </div>
     </v-dialog>
 
@@ -220,3 +252,24 @@ onMounted(load);
     </ConfirmDialog>
   </div>
 </template>
+
+<style scoped>
+.provision-sheet {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 48px);
+}
+
+.provision-body {
+  overflow-y: auto;
+}
+
+.provision-body :deep(.v-card) {
+  background: rgb(var(--v-theme-surface-light));
+  box-shadow: none;
+}
+
+.provision-body :deep(.v-list) {
+  background: transparent;
+}
+</style>

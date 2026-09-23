@@ -74,6 +74,7 @@ export const permissionAreas: PermissionArea[] = [
     permissions: [
       { permission: "artifacts.generate", label: "Generate setup files" },
       { permission: "artifacts.download", label: "Download setup files" },
+      { permission: "member-artifacts.download", label: "Set up devices for members" },
     ],
   },
   {

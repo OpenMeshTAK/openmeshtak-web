@@ -1,4 +1,5 @@
 import { api, unwrap } from "@/shared/api/client";
+import { ApiProblem } from "@/shared/errors/api-problem";
 import type { Schemas } from "@/shared/api/types";
 
 export function fetchMyMemberships(): Promise<Schemas["MyEventMembershipDto"][]> {
@@ -36,4 +37,19 @@ export function fetchMemberDataPackages(eventId: string, memberId: string): Prom
  */
 export function memberDataPackageUrl(eventId: string, memberId: string, packageId: string): string {
   return `/api/v1/events/${encodeURIComponent(eventId)}/members/${encodeURIComponent(memberId)}/data-packages/${encodeURIComponent(packageId)}/atak`;
+}
+
+/**
+ * Fetches the member's Meshtastic device profile (`.cfg`). Core audits every download, also when
+ * an operator downloads it on the member's behalf. The file contains channel keys, so it is
+ * handed straight to the save dialog and never kept in application state.
+ */
+export async function downloadDeviceProfile(eventId: string, memberId: string): Promise<{ blob: Blob; fileName: string }> {
+  const path = `/api/v1/events/${encodeURIComponent(eventId)}/members/${encodeURIComponent(memberId)}/meshtastic/device-profile`;
+  const response = await fetch(new URL(path, window.location.origin).href, { credentials: "same-origin" });
+  if (!response.ok) {
+    throw new ApiProblem(response.status, await response.json().catch(() => ({})));
+  }
+  const fileName = /filename="([^"]+)"/.exec(response.headers.get("Content-Disposition") ?? "")?.[1] ?? "meshtastic.cfg";
+  return { blob: await response.blob(), fileName };
 }

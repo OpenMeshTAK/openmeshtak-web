@@ -11,6 +11,7 @@ import ProfileSummary from "@/shared/components/ProfileSummary.vue";
 import ChannelHandoutsCard from "./components/ChannelHandoutsCard.vue";
 import DataPackageDownloads from "./components/DataPackageDownloads.vue";
 import TakSetupGuide from "./components/TakSetupGuide.vue";
+import MeshtasticProfileCard from "./components/MeshtasticProfileCard.vue";
 import ProvisioningActions from "./components/ProvisioningActions.vue";
 import { fetchMyMemberships, fetchProfile } from "./dashboard.api";
 
@@ -103,7 +104,8 @@ onMounted(load);
         <ProfileSummary :event-name="selected.eventName" :profile="profile" />
       </v-col>
       <v-col cols="12" md="5" class="d-flex flex-column ga-4">
-        <ProvisioningActions />
+        <MeshtasticProfileCard :profile="profile" />
+        <ProvisioningActions v-if="!profile.tak.connection" />
         <ChannelHandoutsCard
           :event-id="profile.eventId"
           :member-id="profile.memberId"
