@@ -961,6 +961,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/events/{eventId}/data-package-order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** @description Replaces the order with the complete list of package IDs, bottom first. */
+        put: operations["ReorderDataPackages"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/events/{eventId}/data-packages/{packageId}/objects": {
         parameters: {
             query?: never;
@@ -2513,6 +2530,59 @@ export interface components {
             created: boolean;
             revision: components["schemas"]["PackageRevisionDto"];
         };
+        DataPackageSourceDto: {
+            id: components["schemas"]["Uuid"];
+            sourcePackageId: components["schemas"]["Uuid"];
+            sourcePackageName: string;
+            /** Format: double */
+            sourceRevision: number;
+            sourceSnapshotHash: string;
+            sourceLayerIds: components["schemas"]["Uuid"][];
+            /** Format: date-time */
+            createdAt: string;
+        };
+        /**
+         * @description Who receives the published Data Package: every event member, or only those matching any
+         *     selected group, role or member. The selection is ignored while `allMembers` is true.
+         */
+        PackageAudience: {
+            groupIds: components["schemas"]["Uuid"][];
+            roleIds: components["schemas"]["Uuid"][];
+            memberIds: components["schemas"]["Uuid"][];
+            allMembers: boolean;
+        };
+        DataPackageDto: {
+            id: components["schemas"]["Uuid"];
+            eventId: components["schemas"]["Uuid"];
+            name: string;
+            description: string | null;
+            /**
+             * Format: double
+             * @description Number of the newest published revision, or `null` while nothing is published.
+             */
+            latestRevision: number | null;
+            /** @description Published package revisions whose content was copied into this package's initial draft. */
+            sources: components["schemas"]["DataPackageSourceDto"][];
+            audience: components["schemas"]["PackageAudience"];
+            /**
+             * Format: double
+             * @description Drawing order within the event; lower values are drawn first, below higher ones.
+             */
+            sortOrder: number;
+            /**
+             * Format: double
+             * @description Optimistic-concurrency version; send it back unchanged with updates.
+             */
+            version: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        ReorderDataPackagesRequest: {
+            /** @description Every data package of the event, bottom first; the last one is drawn on top. */
+            packageIds: string[];
+        };
         PackageObjectDto: {
             id: components["schemas"]["Uuid"];
             packageId: components["schemas"]["Uuid"];
@@ -2556,50 +2626,6 @@ export interface components {
             style: components["schemas"]["PackageObjectStyle"];
             /** @description Markers only; send `null` for a plain spot marker. */
             tak: components["schemas"]["TakMarker"] | null;
-        };
-        DataPackageSourceDto: {
-            id: components["schemas"]["Uuid"];
-            sourcePackageId: components["schemas"]["Uuid"];
-            sourcePackageName: string;
-            /** Format: double */
-            sourceRevision: number;
-            sourceSnapshotHash: string;
-            sourceLayerIds: components["schemas"]["Uuid"][];
-            /** Format: date-time */
-            createdAt: string;
-        };
-        /**
-         * @description Who receives the published Data Package: every event member, or only those matching any
-         *     selected group, role or member. The selection is ignored while `allMembers` is true.
-         */
-        PackageAudience: {
-            groupIds: components["schemas"]["Uuid"][];
-            roleIds: components["schemas"]["Uuid"][];
-            memberIds: components["schemas"]["Uuid"][];
-            allMembers: boolean;
-        };
-        DataPackageDto: {
-            id: components["schemas"]["Uuid"];
-            eventId: components["schemas"]["Uuid"];
-            name: string;
-            description: string | null;
-            /**
-             * Format: double
-             * @description Number of the newest published revision, or `null` while nothing is published.
-             */
-            latestRevision: number | null;
-            /** @description Published package revisions whose content was copied into this package's initial draft. */
-            sources: components["schemas"]["DataPackageSourceDto"][];
-            audience: components["schemas"]["PackageAudience"];
-            /**
-             * Format: double
-             * @description Optimistic-concurrency version; send it back unchanged with updates.
-             */
-            version: number;
-            /** Format: date-time */
-            createdAt: string;
-            /** Format: date-time */
-            updatedAt: string;
         };
         ImportReportEntry: {
             /** @description Which input feature this is about, e.g. `Feature 3 (Rally point)`. */
@@ -7070,6 +7096,77 @@ export interface operations {
             };
             /** @description Not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ReorderDataPackages: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReorderDataPackagesRequest"];
+            };
+        };
+        responses: {
+            /** @description Data packages in their new order */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataPackageDto"][];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Packages changed meanwhile or event archived */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

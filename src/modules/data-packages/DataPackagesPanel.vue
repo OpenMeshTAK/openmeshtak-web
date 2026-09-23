@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { mdiAccountGroup, mdiClockOutline, mdiDelete, mdiDotsVertical, mdiExport, mdiFileImport, mdiMapOutline, mdiMapPlus } from "@mdi/js";
+import { mdiAccountGroup, mdiClockOutline, mdiDelete, mdiDotsVertical, mdiDragVertical, mdiExport, mdiFileImport, mdiMapOutline, mdiMapPlus } from "@mdi/js";
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import type { Schemas } from "@/shared/api/types";
@@ -19,6 +19,7 @@ import {
   type AudienceOptions,
 } from "@/modules/event-audience/audience-options";
 import CombinedExportDialog from "./components/CombinedExportDialog.vue";
+import { PACKAGE_DRAG_TYPE, reorderedBottomFirst, topFirst } from "./package-order";
 import ImportReportDialog from "@/modules/editor/components/ImportReportDialog.vue";
 import PackageAudienceDialog from "./components/PackageAudienceDialog.vue";
 import {
@@ -26,6 +27,7 @@ import {
   deleteDataPackage,
   importAsNewPackage,
   listDataPackages,
+  reorderDataPackages,
   type DataPackageDto,
   type ImportReport,
 } from "./data-packages.api";
@@ -40,6 +42,38 @@ const audienceOptions = ref<AudienceOptions>({ groups: [], roles: [], members: n
 const audienceTarget = ref<DataPackageDto | null>(null);
 const audienceOpen = ref(false);
 const exportOpen = ref(false);
+/** Top first: the first package is drawn above the others on the map. */
+const orderedPackages = computed(() => topFirst(dataPackages.data.value));
+const dropTarget = ref<string | null>(null);
+
+function startDrag(event: DragEvent, packageId: string): void {
+  if (canEdit.value && event.dataTransfer !== null) {
+    event.dataTransfer.setData(PACKAGE_DRAG_TYPE, packageId);
+    event.dataTransfer.effectAllowed = "move";
+  }
+}
+
+function allowDrop(event: DragEvent, packageId: string): void {
+  if (canEdit.value && (event.dataTransfer?.types ?? []).includes(PACKAGE_DRAG_TYPE)) {
+    event.preventDefault();
+    dropTarget.value = packageId;
+  }
+}
+
+async function drop(event: DragEvent, packageId: string): Promise<void> {
+  dropTarget.value = null;
+  const dragged = event.dataTransfer?.getData(PACKAGE_DRAG_TYPE);
+  const order = dragged ? reorderedBottomFirst(orderedPackages.value.map(({ id }) => id), dragged, packageId) : null;
+  if (order === null) {
+    return;
+  }
+  try {
+    await reorderDataPackages(props.event.id, order);
+  } catch (caught: unknown) {
+    toast.error(caught);
+  }
+  await dataPackages.load();
+}
 const fileInput = ref<HTMLInputElement | null>(null);
 const importing = ref(false);
 const importReport = ref<ImportReport | null>(null);
@@ -192,9 +226,23 @@ onMounted(() => {
     <EmptyState v-else-if="dataPackages.data.value.length === 0" title="No data packages yet" text="Create a data package to draw the event's map content." />
 
     <v-card v-else>
-      <template v-for="(dataPackage, index) in dataPackages.data.value" :key="dataPackage.id">
+      <template v-for="(dataPackage, index) in orderedPackages" :key="dataPackage.id">
         <v-divider v-if="index > 0" />
-        <div class="package-row d-flex align-start ga-4 pa-4">
+        <div
+          class="package-row d-flex align-start ga-4 pa-4"
+          :class="{ 'package-drop-target': dropTarget === dataPackage.id }"
+          :draggable="canEdit"
+          @dragstart="startDrag($event, dataPackage.id)"
+          @dragover="allowDrop($event, dataPackage.id)"
+          @dragleave="dropTarget = null"
+          @drop="drop($event, dataPackage.id)"
+        >
+          <v-icon
+            v-if="canEdit && orderedPackages.length > 1"
+            :icon="mdiDragVertical"
+            class="drag-handle mt-2"
+            aria-hidden="true"
+          />
           <v-avatar color="primary" variant="tonal" size="40" rounded="lg" class="flex-shrink-0">
             <v-icon :icon="mdiMapOutline" />
           </v-avatar>
@@ -292,6 +340,14 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.package-drop-target {
+  outline: 2px dashed rgb(var(--v-theme-primary));
+  outline-offset: -4px;
+}
+.drag-handle {
+  cursor: grab;
+  opacity: 0.6;
+}
 .facts {
   display: flex;
   flex-wrap: wrap;

@@ -26,6 +26,7 @@ import {
   importAtak,
   importGeoJson,
   listDataPackages,
+  reorderDataPackages,
   publishDataPackage,
   type DataPackageDto,
   type ImportReport,
@@ -41,6 +42,7 @@ import ImportReportDialog from "./components/ImportReportDialog.vue";
 import type { LayerExportFormat } from "./components/LayerPanel.vue";
 import ObjectInspector from "./components/ObjectInspector.vue";
 import PackageMapView from "./components/PackageMapView.vue";
+import { reorderedBottomFirst, topFirst } from "@/modules/data-packages/package-order";
 import { mapContentItems } from "./map/map-content";
 import { readLayersOpen, storeLayersOpen } from "./editor-preferences";
 import type { EventPackageBranch } from "./event-editor.types";
@@ -77,13 +79,17 @@ const packageName = ref("");
 const creation = useSubmission();
 const eventHistoryBusy = ref(false);
 
-const branches = computed<EventPackageBranch[]>(() =>
-  editors.value.flatMap((editor) => {
+/** Top-first like the layer lists: the first package is drawn above the others. */
+const branches = computed<EventPackageBranch[]>(() => {
+  const loaded = editors.value.flatMap((editor) => {
     const dataPackage = editor.dataPackage.value;
     return dataPackage === null
       ? []
       : [{ dataPackage, layers: editor.sortedLayers.value, objects: editor.objects.value }];
-  }),
+  });
+  const order = topFirst(loaded.map(({ dataPackage }) => dataPackage)).map(({ id }) => id);
+  return loaded.sort((a, b) => order.indexOf(a.dataPackage.id) - order.indexOf(b.dataPackage.id));
+}
 );
 const layers = computed(() => branches.value.flatMap(({ layers }) => layers));
 /** Normalizes package-local layer numbers to the exact top-to-bottom order shown in the tree. */
@@ -157,6 +163,25 @@ async function makeEditor(packageId: string): Promise<PackageEditor> {
   const editor = usePackageEditor(eventId, packageId);
   await editor.load();
   return editor;
+}
+
+/** Saves a dragged package order and applies the stored positions to the open editors. */
+async function reorderPackage(packageId: string, targetPackageId: string): Promise<void> {
+  const order = reorderedBottomFirst(branches.value.map(({ dataPackage }) => dataPackage.id), packageId, targetPackageId);
+  if (order === null) {
+    return;
+  }
+  try {
+    const stored = await reorderDataPackages(eventId, order);
+    for (const editor of editors.value) {
+      const fresh = stored.find(({ id }) => id === editor.path.packageId);
+      if (fresh !== undefined && editor.dataPackage.value !== null) {
+        editor.dataPackage.value = { ...editor.dataPackage.value, sortOrder: fresh.sortOrder };
+      }
+    }
+  } catch (caught: unknown) {
+    toast.error(caught);
+  }
 }
 
 async function load(): Promise<void> {
@@ -612,6 +637,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
           @export-layer="exportLayer"
           @copy-layer="copyLayer"
           @remove-layer="(branch, layer) => editorFor(branch.dataPackage.id)?.removeLayer(layer)"
+          @reorder-package="reorderPackage"
         />
       </v-sheet>
 

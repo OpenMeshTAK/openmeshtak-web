@@ -244,3 +244,8 @@ export function contentTileUrl(path: PackagePath, contentId: string): string {
 export function contentImageUrl(path: PackagePath, contentId: string): string {
   return packageUrl(path, `contents/${encodeURIComponent(contentId)}/image`);
 }
+
+/** Replaces the drawing order of all packages of an event; IDs bottom first. */
+export function reorderDataPackages(eventId: string, packageIds: string[]): Promise<DataPackageDto[]> {
+  return unwrap(api.PUT("/events/{eventId}/data-package-order", { params: { path: { eventId } }, body: { packageIds } }));
+}

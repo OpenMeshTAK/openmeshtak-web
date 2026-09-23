@@ -10,10 +10,11 @@ import {
 } from "@mdi/js";
 import { ref } from "vue";
 import type { PackageLayerDto } from "@/modules/data-packages/data-packages.api";
+import { PACKAGE_DRAG_TYPE } from "@/modules/data-packages/package-order";
 import type { EventPackageBranch } from "../event-editor.types";
 import LayerPanel, { type LayerChanges, type LayerExportFormat } from "./LayerPanel.vue";
 
-defineProps<{
+const props = defineProps<{
   branches: EventPackageBranch[];
   activePackageId: string | null;
   activeLayerId: string | null;
@@ -37,7 +38,33 @@ const emit = defineEmits<{
   exportLayer: [branch: EventPackageBranch, layer: PackageLayerDto, format: LayerExportFormat];
   copyLayer: [branch: EventPackageBranch, layer: PackageLayerDto];
   removeLayer: [branch: EventPackageBranch, layer: PackageLayerDto];
+  /** A package was dropped onto another one; the parent saves the new order. */
+  reorderPackage: [packageId: string, targetPackageId: string];
 }>();
+
+const dropTarget = ref<string | null>(null);
+
+function startPackageDrag(event: DragEvent, packageId: string): void {
+  if (props.editable && event.dataTransfer !== null) {
+    event.dataTransfer.setData(PACKAGE_DRAG_TYPE, packageId);
+    event.dataTransfer.effectAllowed = "move";
+  }
+}
+
+function allowPackageDrop(event: DragEvent, packageId: string): void {
+  if (props.editable && (event.dataTransfer?.types ?? []).includes(PACKAGE_DRAG_TYPE)) {
+    event.preventDefault();
+    dropTarget.value = packageId;
+  }
+}
+
+function dropPackage(event: DragEvent, packageId: string): void {
+  dropTarget.value = null;
+  const dragged = event.dataTransfer?.getData(PACKAGE_DRAG_TYPE);
+  if (dragged && dragged !== packageId) {
+    emit("reorderPackage", dragged, packageId);
+  }
+}
 
 const collapsedPackages = ref(new Set<string>());
 
@@ -53,14 +80,24 @@ function togglePackage(packageId: string): void {
 <template>
   <div class="event-tree h-100 overflow-y-auto pa-2">
     <div class="text-subtitle-2 px-2 pt-1 pb-2">Data packages</div>
-    <div v-for="branch in branches" :key="branch.dataPackage.id" class="mb-2">
+    <div
+      v-for="branch in branches"
+      :key="branch.dataPackage.id"
+      class="mb-2"
+      :class="{ 'package-drop-target': dropTarget === branch.dataPackage.id }"
+      @dragover="allowPackageDrop($event, branch.dataPackage.id)"
+      @dragleave="dropTarget = null"
+      @drop="dropPackage($event, branch.dataPackage.id)"
+    >
       <v-list-item
+        :draggable="editable"
         :active="branch.dataPackage.id === activePackageId"
         color="primary"
         rounded="lg"
         density="compact"
         prepend-gap="8"
         class="package-row ps-1"
+        @dragstart="startPackageDrag($event, branch.dataPackage.id)"
         @click="emit('activatePackage', branch)"
       >
         <template #prepend>
@@ -141,6 +178,10 @@ function togglePackage(packageId: string): void {
 </template>
 
 <style scoped>
+.package-drop-target > .package-row {
+  outline: 2px dashed rgb(var(--v-theme-primary));
+  outline-offset: -2px;
+}
 .package-row {
   background: rgba(var(--v-theme-on-surface), 0.04);
 }
