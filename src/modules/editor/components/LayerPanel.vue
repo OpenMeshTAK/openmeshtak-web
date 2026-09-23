@@ -22,7 +22,13 @@ import { ref, watch } from "vue";
 import { VueDraggable, type SortableEvent } from "vue-draggable-plus";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import { readCollapsedLayers, storeCollapsedLayers } from "../collapsed-layers";
-import type { PackageLayerDto, PackageObjectDto } from "@/modules/data-packages/data-packages.api";
+import type {
+  ContentChanges,
+  PackageContentDto,
+  PackageLayerDto,
+  PackageObjectDto,
+} from "@/modules/data-packages/data-packages.api";
+import LayerContentRow from "./LayerContentRow.vue";
 
 export type LayerChanges = Partial<Pick<PackageLayerDto, "name" | "visible" | "locked">>;
 export type LayerExportFormat = "atak" | "geojson";
@@ -38,6 +44,8 @@ const props = defineProps<{
   canCopy: boolean;
   /** Removes the full-height inner scroller when several panels live in the event tree. */
   embedded?: boolean;
+  /** Offline maps and rubber sheets of this package's draft. */
+  contents?: PackageContentDto[];
 }>();
 const emit = defineEmits<{
   activate: [layerId: string];
@@ -51,6 +59,9 @@ const emit = defineEmits<{
   exportLayer: [layer: PackageLayerDto, format: LayerExportFormat];
   copyLayer: [layer: PackageLayerDto];
   remove: [layer: PackageLayerDto];
+  changeContent: [contentId: string, changes: ContentChanges];
+  removeContent: [contentId: string];
+  zoomToContent: [contentId: string];
 }>();
 
 const KIND_ICONS = { point: mdiMapMarker, line: mdiVectorPolyline, polygon: mdiShapePolygonPlus, circle: mdiCircleOutline } as const;
@@ -61,17 +72,39 @@ const KIND_ICONS = { point: mdiMapMarker, line: mdiVectorPolyline, polygon: mdiS
  */
 const displayed = ref<PackageLayerDto[]>([]);
 const objectsByLayer = ref<Record<string, PackageObjectDto[]>>({});
+const contentsByLayer = ref<Record<string, PackageContentDto[]>>({});
 
 watch(
-  () => [props.layers, props.objects] as const,
-  ([layers, objects]) => {
+  () => [props.layers, props.objects, props.contents] as const,
+  ([layers, objects, contents]) => {
     displayed.value = [...layers].reverse();
     objectsByLayer.value = Object.fromEntries(
       layers.map((layer) => [layer.id, objects.filter((object) => object.layerId === layer.id)]),
     );
+    contentsByLayer.value = Object.fromEntries(
+      layers.map((layer) => [layer.id, (contents ?? []).filter((content) => content.layerId === layer.id)]),
+    );
   },
   { immediate: true },
 );
+
+function layerSummary(layerId: string): string {
+  const objects = objectsOf(layerId).length;
+  const maps = contentsByLayer.value[layerId]?.length ?? 0;
+  const objectText = `${String(objects)} ${objects === 1 ? "object" : "objects"}`;
+  return maps === 0 ? objectText : `${objectText} · ${String(maps)} ${maps === 1 ? "map" : "maps"}`;
+}
+
+function contentDropped(event: SortableEvent, layerId: string): void {
+  const contentId = (event.item as HTMLElement).querySelector<HTMLElement>("[data-content-id]")?.dataset.contentId;
+  if (contentId !== undefined) {
+    emit("changeContent", contentId, { layerId });
+  }
+}
+
+function contentGroup(layer: PackageLayerDto) {
+  return { name: `contents-${props.packageId}`, pull: !layer.locked, put: !layer.locked };
+}
 const collapsed = ref(readCollapsedLayers(props.packageId));
 const renaming = ref<string | null>(null);
 const newName = ref("");
@@ -196,7 +229,7 @@ function objectGroup(layer: PackageLayerDto) {
               @click.stop
             />
             <v-list-item-title v-else class="font-weight-medium" @dblclick.stop="startRename(layer)">{{ layer.name }}</v-list-item-title>
-            <v-list-item-subtitle>{{ objectsOf(layer.id).length }} objects</v-list-item-subtitle>
+            <v-list-item-subtitle>{{ layerSummary(layer.id) }}</v-list-item-subtitle>
             <template #append>
               <v-btn
                 :icon="layer.visible ? mdiEye : mdiEyeOff"
@@ -280,6 +313,31 @@ function objectGroup(layer: PackageLayerDto) {
                 @click="emit('select', object.id)"
               />
             </template>
+          </VueDraggable>
+          <VueDraggable
+            v-if="!collapsed.has(layer.id) && (contentsByLayer[layer.id]?.length ?? 0) > 0"
+            :model-value="contentsByLayer[layer.id] ?? []"
+            :animation="180"
+            :sort="false"
+            :group="contentGroup(layer)"
+            :disabled="!editable"
+            ghost-class="drag-ghost"
+            chosen-class="drag-chosen"
+            class="ml-6 mr-1"
+            @update:model-value="contentsByLayer[layer.id] = $event"
+            @add="contentDropped($event, layer.id)"
+          >
+            <LayerContentRow
+              v-for="content in contentsByLayer[layer.id] ?? []"
+              :key="content.id"
+              :content="content"
+              :editable="editable"
+              :locked="layer.locked"
+              :layer-visible="layer.visible"
+              @change="emit('changeContent', content.id, $event)"
+              @remove="emit('removeContent', content.id)"
+              @zoom="emit('zoomToContent', content.id)"
+            />
           </VueDraggable>
         </div>
       </VueDraggable>

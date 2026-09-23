@@ -1195,6 +1195,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/events/{eventId}/data-packages/{packageId}/contents/{contentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * @description Renames, moves to another layer, shows/hides or changes the opacity of map content in the
+         *     draft. Requires `data-packages.edit` and the current `version`.
+         */
+        put: operations["UpdatePackageContent"];
+        post?: never;
+        /** @description Removes map content from the draft; published revisions keep it. Requires `data-packages.edit`. */
+        delete: operations["DeletePackageContent"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/events/{eventId}/data-packages/{packageId}/layers/{layerId}/import/atak": {
         parameters: {
             query?: never;
@@ -2751,6 +2772,28 @@ export interface components {
             rubberSheet: components["schemas"]["RubberSheetDto"] | null;
             /** @description Tile range for display; only for offline maps that could be read. */
             offlineMap: components["schemas"]["OfflineMapDto"] | null;
+            /** @description Editor display only; the exported file is always unchanged. */
+            visible: boolean;
+            /**
+             * Format: double
+             * @description Editor display opacity from 0 to 1.
+             */
+            opacity: number;
+            /**
+             * Format: double
+             * @description Optimistic-concurrency version; send it back unchanged with updates.
+             */
+            version: number;
+        };
+        UpdatePackageContentRequest: {
+            /** Format: int32 */
+            version: number;
+            name: string;
+            /** @description Moves the content to another layer of the same package. */
+            layerId: string;
+            visible: boolean;
+            /** Format: double */
+            opacity: number;
         };
         DataPackagePage: {
             items: components["schemas"]["DataPackageDto"][];
@@ -8231,6 +8274,137 @@ export interface operations {
             };
             /** @description Not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdatePackageContent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+                packageId: components["schemas"]["Uuid"];
+                contentId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePackageContentRequest"];
+            };
+        };
+        responses: {
+            /** @description Map content updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PackageContentDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Version conflict, layer locked or event archived */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeletePackageContent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+                packageId: components["schemas"]["Uuid"];
+                contentId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Map content removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Layer locked or event archived */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

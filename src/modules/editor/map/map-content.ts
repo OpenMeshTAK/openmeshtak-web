@@ -11,7 +11,12 @@ import {
 } from "@/modules/data-packages/data-packages.api";
 
 /** Read-only ATAK map content drawn below the editable objects (EDITOR.md). */
-export type MapContentItem =
+interface MapContentDisplay {
+  visible: boolean;
+  opacity: number;
+}
+
+export type MapContentItem = MapContentDisplay & (
   | {
       id: string;
       layerId: string;
@@ -27,7 +32,8 @@ export type MapContentItem =
       kind: "image";
       imageUrl: string;
       corners: number[][];
-    };
+    }
+);
 
 /** Turns a package's content list into map items; content that cannot be displayed is left out. */
 export function mapContentItems(
@@ -41,6 +47,8 @@ export function mapContentItems(
           id: content.id,
           layerId: content.layerId,
           kind: "tiles",
+          visible: content.visible,
+          opacity: content.opacity,
           tileUrl: contentTileUrl(path, content.id),
           minZoom: content.offlineMap.minZoom,
           maxZoom: content.offlineMap.maxZoom,
@@ -54,6 +62,8 @@ export function mapContentItems(
           id: content.id,
           layerId: content.layerId,
           kind: "image",
+          visible: content.visible,
+          opacity: content.opacity,
           imageUrl: contentImageUrl(path, content.id),
           corners: content.rubberSheet.corners,
         },

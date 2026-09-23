@@ -8,6 +8,9 @@ import {
   deleteObject,
   getDataPackage,
   listContents,
+  deleteContent,
+  updateContent,
+  type ContentChanges,
   listLayers,
   listObjects,
   updateLayer,
@@ -525,6 +528,28 @@ export function usePackageEditor(eventId: string, packageId: string) {
     }
   }
 
+  /**
+   * Map content edits save at once. They are not part of undo/redo: they never change drawn
+   * objects, and removed content can be imported again.
+   */
+  async function changeContent(contentId: string, changes: ContentChanges): Promise<void> {
+    const content = contents.value.find(({ id }) => id === contentId);
+    if (content === undefined) {
+      return;
+    }
+    const saved = await save(() => updateContent(path, content, changes));
+    if (saved !== null) {
+      contents.value = contents.value.map((current) => (current.id === contentId ? saved : current));
+    }
+  }
+
+  async function removeContent(contentId: string): Promise<void> {
+    const removed = await save(() => deleteContent(path, contentId));
+    if (removed !== null) {
+      contents.value = contents.value.filter(({ id }) => id !== contentId);
+    }
+  }
+
   async function removeLayer(layer: PackageLayerDto): Promise<void> {
     const current = layers.value.find(({ id }) => id === layer.id);
     if (current === undefined) {
@@ -597,6 +622,8 @@ export function usePackageEditor(eventId: string, packageId: string) {
     reorderLayer,
     moveObjectToLayer,
     removeLayer,
+    changeContent,
+    removeContent,
   };
 }
 

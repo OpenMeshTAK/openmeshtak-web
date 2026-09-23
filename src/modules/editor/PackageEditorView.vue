@@ -318,6 +318,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
           :package-id="editor.path.packageId"
           :layers="editor.sortedLayers.value"
           :objects="editor.objects.value"
+          :contents="editor.contents.value"
           :active-layer-id="editor.activeLayerId.value"
           :selected-id="editor.selectedId.value"
           :editable="editable"
@@ -333,6 +334,9 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
           @export-layer="exportLayer"
           @copy-layer="copyLayer"
           @remove="editor.removeLayer"
+          @change-content="editor.changeContent"
+          @remove-content="editor.removeContent"
+          @zoom-to-content="mapView?.zoomToContent($event)"
         />
       </v-sheet>
 

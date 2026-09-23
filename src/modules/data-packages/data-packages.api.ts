@@ -249,3 +249,28 @@ export function contentImageUrl(path: PackagePath, contentId: string): string {
 export function reorderDataPackages(eventId: string, packageIds: string[]): Promise<DataPackageDto[]> {
   return unwrap(api.PUT("/events/{eventId}/data-package-order", { params: { path: { eventId } }, body: { packageIds } }));
 }
+
+export type ContentChanges = Partial<Pick<PackageContentDto, "name" | "layerId" | "visible" | "opacity">>;
+
+export function updateContent(path: PackagePath, content: PackageContentDto, changes: ContentChanges): Promise<PackageContentDto> {
+  return unwrap(
+    api.PUT("/events/{eventId}/data-packages/{packageId}/contents/{contentId}", {
+      params: { path: { ...path, contentId: content.id } },
+      body: {
+        version: content.version,
+        name: changes.name ?? content.name,
+        layerId: changes.layerId ?? content.layerId,
+        visible: changes.visible ?? content.visible,
+        opacity: changes.opacity ?? content.opacity,
+      },
+    }),
+  );
+}
+
+export async function deleteContent(path: PackagePath, contentId: string): Promise<void> {
+  await unwrap(
+    api.DELETE("/events/{eventId}/data-packages/{packageId}/contents/{contentId}", {
+      params: { path: { ...path, contentId } },
+    }),
+  );
+}

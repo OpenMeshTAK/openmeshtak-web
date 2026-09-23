@@ -42,7 +42,7 @@ export class PackageMap {
   /** Offline maps and rubber sheets, between the base map and the editable objects. */
   private readonly contentGroup = new LayerGroup();
   private readonly contentLayers = new Map<string, BaseLayer>();
-  private contentExtents: number[][] = [];
+  private contentExtents = new Map<string, number[]>();
   private readonly select: Select;
   private readonly editable = new Collection<Feature<Geometry>>();
   private readonly modify: Modify;
@@ -186,7 +186,7 @@ export class PackageMap {
     for (const id of [...this.contentLayers.keys()].filter((id) => !wanted.has(id))) {
       this.contentLayers.delete(id);
     }
-    this.contentExtents = items.map(mapContentExtent);
+    this.contentExtents = new Map(items.map((item) => [item.id, mapContentExtent(item)]));
     const ordered = [...items].sort((a, b) => (byId.get(a.layerId)?.sortOrder ?? 0) - (byId.get(b.layerId)?.sortOrder ?? 0));
     const shown = ordered.map((item) => {
       let layer = this.contentLayers.get(item.id);
@@ -194,7 +194,8 @@ export class PackageMap {
         layer = mapContentLayer(item);
         this.contentLayers.set(item.id, layer);
       }
-      layer.setVisible(byId.get(item.layerId)?.visible === true);
+      layer.setVisible(byId.get(item.layerId)?.visible === true && item.visible);
+      layer.setOpacity(item.opacity);
       return layer;
     });
     this.contentGroup.getLayers().clear();
@@ -240,7 +241,7 @@ export class PackageMap {
   }
 
   fitToContent(): void {
-    const candidates = [...this.contentExtents, this.source.getExtent()].filter(
+    const candidates = [...this.contentExtents.values(), this.source.getExtent()].filter(
       (candidate): candidate is number[] => candidate !== null && !isEmpty(candidate),
     );
     const extent = candidates.reduce<number[] | null>(
@@ -249,6 +250,14 @@ export class PackageMap {
     );
     if (extent !== null) {
       this.map.getView().fit(extent, { padding: [48, 48, 48, 48], maxZoom: 16, duration: 250 });
+    }
+  }
+
+  /** Zooms to one offline map or rubber sheet. */
+  zoomToContent(contentId: string): void {
+    const extent = this.contentExtents.get(contentId);
+    if (extent !== undefined && !isEmpty(extent)) {
+      this.map.getView().fit(extent, { padding: [48, 48, 48, 48], duration: 250 });
     }
   }
 

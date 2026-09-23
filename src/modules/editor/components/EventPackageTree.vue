@@ -10,7 +10,7 @@ import {
 } from "@mdi/js";
 import { ref, watch } from "vue";
 import { VueDraggable } from "vue-draggable-plus";
-import type { PackageLayerDto } from "@/modules/data-packages/data-packages.api";
+import type { ContentChanges, PackageLayerDto } from "@/modules/data-packages/data-packages.api";
 import type { EventPackageBranch } from "../event-editor.types";
 import LayerPanel, { type LayerChanges, type LayerExportFormat } from "./LayerPanel.vue";
 
@@ -38,6 +38,9 @@ const emit = defineEmits<{
   exportLayer: [branch: EventPackageBranch, layer: PackageLayerDto, format: LayerExportFormat];
   copyLayer: [branch: EventPackageBranch, layer: PackageLayerDto];
   removeLayer: [branch: EventPackageBranch, layer: PackageLayerDto];
+  changeContent: [branch: EventPackageBranch, contentId: string, changes: ContentChanges];
+  removeContent: [branch: EventPackageBranch, contentId: string];
+  zoomToContent: [contentId: string];
   /** Packages were reordered by drag and drop; IDs top first. */
   reorderPackages: [topFirstIds: string[]];
 }>();
@@ -153,6 +156,7 @@ function togglePackage(packageId: string): void {
             :package-id="branch.dataPackage.id"
             :layers="branch.layers"
             :objects="branch.objects"
+            :contents="branch.contents"
             :active-layer-id="branch.dataPackage.id === activePackageId ? activeLayerId : null"
             :selected-id="selectedId"
             :editable="editable"
@@ -168,6 +172,9 @@ function togglePackage(packageId: string): void {
             @export-layer="(layer, format) => emit('exportLayer', branch, layer, format)"
             @copy-layer="(layer) => emit('copyLayer', branch, layer)"
             @remove="(layer) => emit('removeLayer', branch, layer)"
+            @change-content="(contentId, changes) => emit('changeContent', branch, contentId, changes)"
+            @remove-content="(contentId) => emit('removeContent', branch, contentId)"
+            @zoom-to-content="emit('zoomToContent', $event)"
           />
         </div>
       </div>

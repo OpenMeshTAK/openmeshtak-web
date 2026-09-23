@@ -61,7 +61,11 @@ onBeforeUnmount(() => {
   map = null;
 });
 
-defineExpose({ fitToContent: () => map?.fitToContent(), pointerPosition: () => map?.pointerPosition() ?? null });
+defineExpose({
+  fitToContent: () => map?.fitToContent(),
+  zoomToContent: (contentId: string) => map?.zoomToContent(contentId),
+  pointerPosition: () => map?.pointerPosition() ?? null,
+});
 </script>
 
 <template>

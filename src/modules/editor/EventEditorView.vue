@@ -85,7 +85,7 @@ const branches = computed<EventPackageBranch[]>(() => {
     const dataPackage = editor.dataPackage.value;
     return dataPackage === null
       ? []
-      : [{ dataPackage, layers: editor.sortedLayers.value, objects: editor.objects.value }];
+      : [{ dataPackage, layers: editor.sortedLayers.value, objects: editor.objects.value, contents: editor.contents.value }];
   });
   const order = topFirst(loaded.map(({ dataPackage }) => dataPackage)).map(({ id }) => id);
   return loaded.sort((a, b) => order.indexOf(a.dataPackage.id) - order.indexOf(b.dataPackage.id));
@@ -427,7 +427,7 @@ function publishActive(): void {
   const editor = activeEditor.value;
   const dataPackage = editor?.dataPackage.value;
   if (editor !== null && editor !== undefined && dataPackage !== null && dataPackage !== undefined) {
-    void publish({ dataPackage, layers: editor.sortedLayers.value, objects: editor.objects.value });
+    void publish({ dataPackage, layers: editor.sortedLayers.value, objects: editor.objects.value, contents: editor.contents.value });
   }
 }
 
@@ -634,6 +634,9 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
           @copy-layer="copyLayer"
           @remove-layer="(branch, layer) => editorFor(branch.dataPackage.id)?.removeLayer(layer)"
           @reorder-packages="reorderPackages"
+          @change-content="(branch, contentId, changes) => editorFor(branch.dataPackage.id)?.changeContent(contentId, changes)"
+          @remove-content="(branch, contentId) => editorFor(branch.dataPackage.id)?.removeContent(contentId)"
+          @zoom-to-content="mapView?.zoomToContent($event)"
         />
       </v-sheet>
 
