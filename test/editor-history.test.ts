@@ -13,6 +13,7 @@ const dataPackageApi = vi.hoisted(() => ({
   getDataPackage: vi.fn(),
   listLayers: vi.fn(),
   listObjects: vi.fn(),
+  listContents: vi.fn(),
   updateLayer: vi.fn(),
   updateObject: vi.fn(),
 }));
@@ -71,6 +72,7 @@ describe("package editor history", () => {
     dataPackageApi.getDataPackage.mockResolvedValue(dataPackage);
     dataPackageApi.listLayers.mockResolvedValue([layer]);
     dataPackageApi.listObjects.mockResolvedValue([]);
+    dataPackageApi.listContents.mockResolvedValue([]);
     dataPackageApi.deleteObject.mockResolvedValue(undefined);
     dataPackageApi.deleteLayer.mockResolvedValue(undefined);
     dataPackageApi.createLayer.mockImplementation((_path: unknown, name: string) =>
