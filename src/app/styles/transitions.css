@@ -46,3 +46,14 @@
   overflow: clip;
   overflow-clip-margin: 24px;
 }
+
+/* Drag and drop with vue-draggable-plus (SortableJS): the ghost marks where the item lands, the
+ * chosen item is the one being dragged. */
+.drag-ghost {
+  opacity: 0.35;
+  background: rgba(var(--v-theme-primary), 0.12);
+  border-radius: 8px;
+}
+.drag-chosen {
+  cursor: grabbing;
+}

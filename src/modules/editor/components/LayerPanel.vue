@@ -18,7 +18,8 @@ import {
   mdiUpload,
   mdiVectorPolyline,
 } from "@mdi/js";
-import { computed, ref } from "vue";
+import { ref, watch } from "vue";
+import { VueDraggable, type SortableEvent } from "vue-draggable-plus";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import { readCollapsedLayers, storeCollapsedLayers } from "../collapsed-layers";
 import type { PackageLayerDto, PackageObjectDto } from "@/modules/data-packages/data-packages.api";
@@ -53,21 +54,28 @@ const emit = defineEmits<{
 }>();
 
 const KIND_ICONS = { point: mdiMapMarker, line: mdiVectorPolyline, polygon: mdiShapePolygonPlus, circle: mdiCircleOutline } as const;
-const LAYER_DRAG = "application/x-openmeshtak-layer";
-const OBJECT_DRAG = "application/x-openmeshtak-object";
+/**
+ * Local copies for vue-draggable-plus (SortableJS), which reorders its model during a drag. The
+ * editor stays authoritative: drops are reported as events and the copies follow the props again.
+ * The top of the list is drawn last, matching how map layers stack.
+ */
+const displayed = ref<PackageLayerDto[]>([]);
+const objectsByLayer = ref<Record<string, PackageObjectDto[]>>({});
 
-function packageDragType(type: string): string {
-  return `${type}-${props.packageId}`;
-}
-
-/** The top of the list is drawn last, matching how map layers stack. */
-const displayed = computed(() => [...props.layers].reverse());
+watch(
+  () => [props.layers, props.objects] as const,
+  ([layers, objects]) => {
+    displayed.value = [...layers].reverse();
+    objectsByLayer.value = Object.fromEntries(
+      layers.map((layer) => [layer.id, objects.filter((object) => object.layerId === layer.id)]),
+    );
+  },
+  { immediate: true },
+);
 const collapsed = ref(readCollapsedLayers(props.packageId));
 const renaming = ref<string | null>(null);
 const newName = ref("");
 const removing = ref<PackageLayerDto | null>(null);
-const dropTarget = ref<string | null>(null);
-
 function objectsOf(layerId: string): PackageObjectDto[] {
   return props.objects.filter((object) => object.layerId === layerId);
 }
@@ -105,34 +113,28 @@ function confirmRemove(): void {
 
 // ---- Drag and drop: layers reorder, objects move to another layer ------------------------------
 
-function startDrag(event: DragEvent, type: string, id: string): void {
-  if (!props.editable || event.dataTransfer === null) {
-    return;
-  }
-  event.dataTransfer.setData(packageDragType(type), id);
-  event.dataTransfer.effectAllowed = "move";
-}
-
-function allowDrop(event: DragEvent, layerId: string): void {
-  const types = event.dataTransfer?.types ?? [];
-  if (
-    props.editable &&
-    (types.includes(packageDragType(LAYER_DRAG)) || types.includes(packageDragType(OBJECT_DRAG)))
-  ) {
-    event.preventDefault();
-    dropTarget.value = layerId;
+/** Sortable reports positions in the list before the drop; the dragged layer takes the target's slot. */
+function layerDropped(event: SortableEvent): void {
+  const before = [...props.layers].reverse();
+  const dragged = before[event.oldIndex ?? -1];
+  const target = before[event.newIndex ?? -1];
+  if (dragged !== undefined && target !== undefined && dragged.id !== target.id) {
+    emit("reorder", dragged.id, target.id);
+  } else {
+    displayed.value = before;
   }
 }
 
-function drop(event: DragEvent, layerId: string): void {
-  dropTarget.value = null;
-  const draggedLayer = event.dataTransfer?.getData(packageDragType(LAYER_DRAG));
-  const draggedObject = event.dataTransfer?.getData(packageDragType(OBJECT_DRAG));
-  if (draggedLayer && draggedLayer !== layerId) {
-    emit("reorder", draggedLayer, layerId);
-  } else if (draggedObject) {
-    emit("moveObject", draggedObject, layerId);
+function objectDropped(event: SortableEvent, layerId: string): void {
+  const objectId = (event.item as HTMLElement).dataset.objectId;
+  if (objectId !== undefined) {
+    emit("moveObject", objectId, layerId);
   }
+}
+
+/** Objects move between the layers of one package; locked layers neither give nor take. */
+function objectGroup(layer: PackageLayerDto) {
+  return { name: `objects-${props.packageId}`, pull: !layer.locked, put: !layer.locked };
 }
 </script>
 
@@ -144,124 +146,143 @@ function drop(event: DragEvent, layerId: string): void {
     </div>
 
     <div class="flex-grow-1 pb-3" :class="{ 'overflow-y-auto': !embedded }">
-      <div
-        v-for="(layer, index) in displayed"
-        :key="layer.id"
-        class="mb-1 layer-block"
-        :class="{ 'layer-block--drop': dropTarget === layer.id }"
-        @dragover="allowDrop($event, layer.id)"
-        @dragleave="dropTarget = null"
-        @drop="drop($event, layer.id)"
+      <VueDraggable
+        v-model="displayed"
+        :animation="180"
+        handle=".layer-handle"
+        ghost-class="drag-ghost"
+        chosen-class="drag-chosen"
+        :group="`layers-${packageId}`"
+        :disabled="!editable || renaming !== null"
+        @end="layerDropped"
       >
-        <v-list-item
-          :active="layer.id === activeLayerId"
-          color="primary"
-          rounded="lg"
-          class="mx-1 ps-1"
-          prepend-gap="8"
-          density="compact"
-          :draggable="editable && renaming !== layer.id"
-          @dragstart="startDrag($event, LAYER_DRAG, layer.id)"
-          @click="emit('activate', layer.id)"
+        <div
+          v-for="(layer, index) in displayed"
+          :key="layer.id"
+          class="mb-1 layer-block"
         >
-          <template #prepend>
-            <v-btn
-              :icon="collapsed.has(layer.id) ? mdiChevronRight : mdiChevronDown"
-              size="x-small"
-              variant="text"
-              :aria-label="collapsed.has(layer.id) ? `Expand ${layer.name}` : `Collapse ${layer.name}`"
-              :aria-expanded="!collapsed.has(layer.id)"
-              @click.stop="toggleCollapsed(layer.id)"
-            />
-          </template>
-          <v-text-field
-            v-if="renaming === layer.id"
-            v-model="newName"
-            density="compact"
-            variant="outlined"
-            hide-details
-            autofocus
-            maxlength="100"
-            aria-label="Layer name"
-            @keydown.enter="finishRename(layer)"
-            @keydown.esc="renaming = null"
-            @blur="finishRename(layer)"
-            @click.stop
-          />
-          <v-list-item-title v-else class="font-weight-medium" @dblclick.stop="startRename(layer)">{{ layer.name }}</v-list-item-title>
-          <v-list-item-subtitle>{{ objectsOf(layer.id).length }} objects</v-list-item-subtitle>
-          <template #append>
-            <v-btn
-              :icon="layer.visible ? mdiEye : mdiEyeOff"
-              size="x-small"
-              variant="text"
-              :aria-label="layer.visible ? `Hide ${layer.name}` : `Show ${layer.name}`"
-              @click.stop="emit('change', layer, { visible: !layer.visible })"
-            />
-            <v-btn
-              :icon="layer.locked ? mdiLock : mdiLockOpenVariant"
-              size="x-small"
-              variant="text"
-              :disabled="!editable"
-              :aria-label="layer.locked ? `Unlock ${layer.name}` : `Lock ${layer.name}`"
-              @click.stop="emit('change', layer, { locked: !layer.locked })"
-            />
-            <v-menu>
-              <template #activator="{ props: menu }">
-                <v-btn v-bind="menu" :icon="mdiDotsVertical" size="x-small" variant="text" :aria-label="`More for ${layer.name}`" @click.stop />
-              </template>
-              <v-list density="compact">
-                <v-list-item v-if="editable" title="Rename" @click="startRename(layer)" />
-                <v-list-item
-                  v-if="editable"
-                  title="Import into this layer…"
-                  :prepend-icon="mdiUpload"
-                  :disabled="layer.locked"
-                  @click="emit('importInto', layer)"
-                />
-                <v-list-item title="Export as ATAK package" :prepend-icon="mdiDownload" @click="emit('exportLayer', layer, 'atak')" />
-                <v-list-item title="Export as GeoJSON" :prepend-icon="mdiDownload" @click="emit('exportLayer', layer, 'geojson')" />
-                <v-list-item
-                  title="Create data package from layer…"
-                  :subtitle="canCopy ? '' : 'Publish this data package first'"
-                  :prepend-icon="mdiContentCopy"
-                  :disabled="!canCopy"
-                  @click="emit('copyLayer', layer)"
-                />
-                <template v-if="editable">
-                  <v-divider />
-                  <v-list-item title="Move up" :prepend-icon="mdiArrowUp" :disabled="index === 0" @click="emit('move', layer, 1)" />
-                  <v-list-item
-                    title="Move down"
-                    :prepend-icon="mdiArrowDown"
-                    :disabled="index === layers.length - 1"
-                    @click="emit('move', layer, -1)"
-                  />
-                  <v-list-item title="Delete layer…" base-color="error" :disabled="layers.length === 1" @click="removing = layer" />
-                </template>
-              </v-list>
-            </v-menu>
-          </template>
-        </v-list-item>
-
-        <v-list v-if="!collapsed.has(layer.id)" density="compact" class="py-0 ml-6 mr-1" bg-color="transparent">
           <v-list-item
-            v-for="object in objectsOf(layer.id)"
-            :key="object.id"
-            :active="object.id === selectedId"
-            :prepend-icon="KIND_ICONS[object.kind]"
-            prepend-gap="10"
-            class="ps-2"
-            :title="object.name"
+            :active="layer.id === activeLayerId"
+            color="primary"
             rounded="lg"
+            class="mx-1 ps-1"
+            :class="{ 'layer-handle': editable }"
+            prepend-gap="8"
             density="compact"
-            :draggable="editable && !layer.locked"
-            :class="{ 'text-disabled': !layer.visible }"
-            @dragstart="startDrag($event, OBJECT_DRAG, object.id)"
-            @click="emit('select', object.id)"
-          />
-        </v-list>
-      </div>
+            @click="emit('activate', layer.id)"
+          >
+            <template #prepend>
+              <v-btn
+                :icon="collapsed.has(layer.id) ? mdiChevronRight : mdiChevronDown"
+                size="x-small"
+                variant="text"
+                :aria-label="collapsed.has(layer.id) ? `Expand ${layer.name}` : `Collapse ${layer.name}`"
+                :aria-expanded="!collapsed.has(layer.id)"
+                @click.stop="toggleCollapsed(layer.id)"
+              />
+            </template>
+            <v-text-field
+              v-if="renaming === layer.id"
+              v-model="newName"
+              density="compact"
+              variant="outlined"
+              hide-details
+              autofocus
+              maxlength="100"
+              aria-label="Layer name"
+              @keydown.enter="finishRename(layer)"
+              @keydown.esc="renaming = null"
+              @blur="finishRename(layer)"
+              @click.stop
+            />
+            <v-list-item-title v-else class="font-weight-medium" @dblclick.stop="startRename(layer)">{{ layer.name }}</v-list-item-title>
+            <v-list-item-subtitle>{{ objectsOf(layer.id).length }} objects</v-list-item-subtitle>
+            <template #append>
+              <v-btn
+                :icon="layer.visible ? mdiEye : mdiEyeOff"
+                size="x-small"
+                variant="text"
+                :aria-label="layer.visible ? `Hide ${layer.name}` : `Show ${layer.name}`"
+                @click.stop="emit('change', layer, { visible: !layer.visible })"
+              />
+              <v-btn
+                :icon="layer.locked ? mdiLock : mdiLockOpenVariant"
+                size="x-small"
+                variant="text"
+                :disabled="!editable"
+                :aria-label="layer.locked ? `Unlock ${layer.name}` : `Lock ${layer.name}`"
+                @click.stop="emit('change', layer, { locked: !layer.locked })"
+              />
+              <v-menu>
+                <template #activator="{ props: menu }">
+                  <v-btn v-bind="menu" :icon="mdiDotsVertical" size="x-small" variant="text" :aria-label="`More for ${layer.name}`" @click.stop />
+                </template>
+                <v-list density="compact">
+                  <v-list-item v-if="editable" title="Rename" @click="startRename(layer)" />
+                  <v-list-item
+                    v-if="editable"
+                    title="Import into this layer…"
+                    :prepend-icon="mdiUpload"
+                    :disabled="layer.locked"
+                    @click="emit('importInto', layer)"
+                  />
+                  <v-list-item title="Export as ATAK package" :prepend-icon="mdiDownload" @click="emit('exportLayer', layer, 'atak')" />
+                  <v-list-item title="Export as GeoJSON" :prepend-icon="mdiDownload" @click="emit('exportLayer', layer, 'geojson')" />
+                  <v-list-item
+                    title="Create data package from layer…"
+                    :subtitle="canCopy ? '' : 'Publish this data package first'"
+                    :prepend-icon="mdiContentCopy"
+                    :disabled="!canCopy"
+                    @click="emit('copyLayer', layer)"
+                  />
+                  <template v-if="editable">
+                    <v-divider />
+                    <v-list-item title="Move up" :prepend-icon="mdiArrowUp" :disabled="index === 0" @click="emit('move', layer, 1)" />
+                    <v-list-item
+                      title="Move down"
+                      :prepend-icon="mdiArrowDown"
+                      :disabled="index === layers.length - 1"
+                      @click="emit('move', layer, -1)"
+                    />
+                    <v-list-item title="Delete layer…" base-color="error" :disabled="layers.length === 1" @click="removing = layer" />
+                  </template>
+                </v-list>
+              </v-menu>
+            </template>
+          </v-list-item>
+
+          <VueDraggable
+            :model-value="objectsByLayer[layer.id] ?? []"
+            :animation="180"
+            :sort="false"
+            :group="objectGroup(layer)"
+            :disabled="!editable"
+            ghost-class="drag-ghost"
+            chosen-class="drag-chosen"
+            class="object-list ml-6 mr-1"
+            :class="{ 'object-list--collapsed': collapsed.has(layer.id) }"
+            @update:model-value="objectsByLayer[layer.id] = $event"
+            @add="objectDropped($event, layer.id)"
+          >
+            <template v-if="!collapsed.has(layer.id)">
+              <v-list-item
+                v-for="object in objectsByLayer[layer.id] ?? []"
+                :key="object.id"
+                :data-object-id="object.id"
+                :active="object.id === selectedId"
+                :prepend-icon="KIND_ICONS[object.kind]"
+                prepend-gap="10"
+                class="ps-2"
+                :title="object.name"
+                rounded="lg"
+                density="compact"
+                :class="{ 'text-disabled': !layer.visible }"
+                @click="emit('select', object.id)"
+              />
+            </template>
+          </VueDraggable>
+        </div>
+      </VueDraggable>
     </div>
 
     <ConfirmDialog
@@ -281,10 +302,15 @@ function drop(event: DragEvent, layerId: string): void {
 <style scoped>
 .layer-block {
   border-radius: 8px;
-  outline: 2px dashed transparent;
-  outline-offset: -2px;
 }
-.layer-block--drop {
-  outline-color: rgb(var(--v-theme-primary));
+.layer-handle {
+  cursor: grab;
+}
+/* Collapsed and empty layers keep a small drop zone so objects can still be moved into them. */
+.object-list {
+  min-height: 6px;
+}
+.object-list--collapsed {
+  min-height: 6px;
 }
 </style>

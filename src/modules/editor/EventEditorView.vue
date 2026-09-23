@@ -42,7 +42,7 @@ import ImportReportDialog from "./components/ImportReportDialog.vue";
 import type { LayerExportFormat } from "./components/LayerPanel.vue";
 import ObjectInspector from "./components/ObjectInspector.vue";
 import PackageMapView from "./components/PackageMapView.vue";
-import { reorderedBottomFirst, topFirst } from "@/modules/data-packages/package-order";
+import { topFirst } from "@/modules/data-packages/package-order";
 import { mapContentItems } from "./map/map-content";
 import { readLayersOpen, storeLayersOpen } from "./editor-preferences";
 import type { EventPackageBranch } from "./event-editor.types";
@@ -165,14 +165,10 @@ async function makeEditor(packageId: string): Promise<PackageEditor> {
   return editor;
 }
 
-/** Saves a dragged package order and applies the stored positions to the open editors. */
-async function reorderPackage(packageId: string, targetPackageId: string): Promise<void> {
-  const order = reorderedBottomFirst(branches.value.map(({ dataPackage }) => dataPackage.id), packageId, targetPackageId);
-  if (order === null) {
-    return;
-  }
+/** Saves a dragged package order (top first) and applies the stored positions to the open editors. */
+async function reorderPackages(topFirstIds: string[]): Promise<void> {
   try {
-    const stored = await reorderDataPackages(eventId, order);
+    const stored = await reorderDataPackages(eventId, [...topFirstIds].reverse());
     for (const editor of editors.value) {
       const fresh = stored.find(({ id }) => id === editor.path.packageId);
       if (fresh !== undefined && editor.dataPackage.value !== null) {
@@ -637,7 +633,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
           @export-layer="exportLayer"
           @copy-layer="copyLayer"
           @remove-layer="(branch, layer) => editorFor(branch.dataPackage.id)?.removeLayer(layer)"
-          @reorder-package="reorderPackage"
+          @reorder-packages="reorderPackages"
         />
       </v-sheet>
 

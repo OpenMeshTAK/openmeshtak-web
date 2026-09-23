@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { mdiAccountGroup, mdiClockOutline, mdiDelete, mdiDotsVertical, mdiDragVertical, mdiExport, mdiFileImport, mdiMapOutline, mdiMapPlus } from "@mdi/js";
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import type { Schemas } from "@/shared/api/types";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
@@ -19,7 +19,8 @@ import {
   type AudienceOptions,
 } from "@/modules/event-audience/audience-options";
 import CombinedExportDialog from "./components/CombinedExportDialog.vue";
-import { PACKAGE_DRAG_TYPE, reorderedBottomFirst, topFirst } from "./package-order";
+import { VueDraggable } from "vue-draggable-plus";
+import { topFirst } from "./package-order";
 import ImportReportDialog from "@/modules/editor/components/ImportReportDialog.vue";
 import PackageAudienceDialog from "./components/PackageAudienceDialog.vue";
 import {
@@ -44,35 +45,29 @@ const audienceOpen = ref(false);
 const exportOpen = ref(false);
 /** Top first: the first package is drawn above the others on the map. */
 const orderedPackages = computed(() => topFirst(dataPackages.data.value));
-const dropTarget = ref<string | null>(null);
 
-function startDrag(event: DragEvent, packageId: string): void {
-  if (canEdit.value && event.dataTransfer !== null) {
-    event.dataTransfer.setData(PACKAGE_DRAG_TYPE, packageId);
-    event.dataTransfer.effectAllowed = "move";
-  }
-}
+/** Local copy for vue-draggable-plus, which reorders it during a drag; saved on drop. */
+const rows = ref<DataPackageDto[]>([]);
+watch(orderedPackages, (ordered) => {
+  rows.value = [...ordered];
+}, { immediate: true });
 
-function allowDrop(event: DragEvent, packageId: string): void {
-  if (canEdit.value && (event.dataTransfer?.types ?? []).includes(PACKAGE_DRAG_TYPE)) {
-    event.preventDefault();
-    dropTarget.value = packageId;
-  }
-}
-
-async function drop(event: DragEvent, packageId: string): Promise<void> {
-  dropTarget.value = null;
-  const dragged = event.dataTransfer?.getData(PACKAGE_DRAG_TYPE);
-  const order = dragged ? reorderedBottomFirst(orderedPackages.value.map(({ id }) => id), dragged, packageId) : null;
-  if (order === null) {
+async function packagesDropped(): Promise<void> {
+  const topFirstIds = rows.value.map(({ id }) => id);
+  if (topFirstIds.every((id, index) => id === orderedPackages.value[index]?.id)) {
     return;
   }
+  const bottomFirst = [...topFirstIds].reverse();
+  dataPackages.data.value = dataPackages.data.value.map((dataPackage) => ({
+    ...dataPackage,
+    sortOrder: bottomFirst.indexOf(dataPackage.id),
+  }));
   try {
-    await reorderDataPackages(props.event.id, order);
+    await reorderDataPackages(props.event.id, bottomFirst);
   } catch (caught: unknown) {
     toast.error(caught);
+    await dataPackages.load();
   }
-  await dataPackages.load();
 }
 const fileInput = ref<HTMLInputElement | null>(null);
 const importing = ref(false);
@@ -226,16 +221,19 @@ onMounted(() => {
     <EmptyState v-else-if="dataPackages.data.value.length === 0" title="No data packages yet" text="Create a data package to draw the event's map content." />
 
     <v-card v-else>
-      <template v-for="(dataPackage, index) in orderedPackages" :key="dataPackage.id">
-        <v-divider v-if="index > 0" />
+      <VueDraggable
+        v-model="rows"
+        :animation="180"
+        handle=".drag-handle"
+        ghost-class="drag-ghost"
+        chosen-class="drag-chosen"
+        :disabled="!canEdit"
+        @end="packagesDropped"
+      >
         <div
+          v-for="dataPackage in rows"
+          :key="dataPackage.id"
           class="package-row d-flex align-start ga-4 pa-4"
-          :class="{ 'package-drop-target': dropTarget === dataPackage.id }"
-          :draggable="canEdit"
-          @dragstart="startDrag($event, dataPackage.id)"
-          @dragover="allowDrop($event, dataPackage.id)"
-          @dragleave="dropTarget = null"
-          @drop="drop($event, dataPackage.id)"
         >
           <v-icon
             v-if="canEdit && orderedPackages.length > 1"
@@ -281,7 +279,7 @@ onMounted(() => {
             </v-menu>
           </div>
         </div>
-      </template>
+      </VueDraggable>
     </v-card>
 
     <ImportReportDialog v-model="reportOpen" :report="importReport" />
@@ -340,9 +338,8 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.package-drop-target {
-  outline: 2px dashed rgb(var(--v-theme-primary));
-  outline-offset: -4px;
+.package-row + .package-row {
+  border-top: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 .drag-handle {
   cursor: grab;
