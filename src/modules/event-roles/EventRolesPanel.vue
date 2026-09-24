@@ -7,6 +7,8 @@ import ErrorState from "@/shared/components/ErrorState.vue";
 import { describeError, isApiProblem } from "@/shared/errors/api-problem";
 import { fieldErrors, messagesFor } from "@/shared/errors/field-errors";
 import { useToast } from "@/shared/feedback/toast";
+import type { Schemas } from "@/shared/api/types";
+import { takRoleOptions } from "@/modules/event-groups/provisioning-options";
 import { createRole, deleteRole, listRoles, updateRole, type EventRoleDto } from "./event-roles.api";
 
 const props = defineProps<{ eventId: string; editable: boolean }>();
@@ -18,12 +20,22 @@ const loadError = ref("");
 
 const dialogOpen = ref(false);
 const editing = ref<EventRoleDto | null>(null);
-const form = ref({ name: "", slug: "", description: "" });
+const form = ref<{ name: string; slug: string; description: string; takRoleOverride: Schemas["TakRole"] | null }>({
+  name: "",
+  slug: "",
+  description: "",
+  takRoleOverride: null,
+});
 const saving = ref(false);
 const formError = ref<string | null>(null);
 const formFields = ref<Record<string, string>>({});
 
 const deleting = ref<EventRoleDto | null>(null);
+
+const takRoleItems = [
+  { title: "Use the group's TAK role", value: null },
+  ...takRoleOptions.map((role) => ({ title: role, value: role })),
+];
 
 async function load(): Promise<void> {
   state.value = "loading";
@@ -38,7 +50,12 @@ async function load(): Promise<void> {
 
 function open(role: EventRoleDto | null): void {
   editing.value = role;
-  form.value = { name: role?.name ?? "", slug: role?.slug ?? "", description: role?.description ?? "" };
+  form.value = {
+    name: role?.name ?? "",
+    slug: role?.slug ?? "",
+    description: role?.description ?? "",
+    takRoleOverride: role?.takRoleOverride ?? null,
+  };
   formError.value = null;
   formFields.value = {};
   dialogOpen.value = true;
@@ -47,7 +64,12 @@ function open(role: EventRoleDto | null): void {
 async function save(): Promise<void> {
   saving.value = true;
   formError.value = null;
-  const body = { name: form.value.name, slug: form.value.slug, description: form.value.description || null };
+  const body = {
+    name: form.value.name,
+    slug: form.value.slug,
+    description: form.value.description || null,
+    takRoleOverride: form.value.takRoleOverride,
+  };
   try {
     if (editing.value === null) {
       await createRole(props.eventId, body);
@@ -102,6 +124,7 @@ onMounted(load);
           <tr>
             <th>Name</th>
             <th>Slug</th>
+            <th>TAK role</th>
             <th class="d-none d-md-table-cell">Description</th>
             <th v-if="editable" class="text-right">Actions</th>
           </tr>
@@ -110,6 +133,10 @@ onMounted(load);
           <tr v-for="role in roles" :key="role.id">
             <td>{{ role.name }}</td>
             <td><code>{{ role.slug }}</code></td>
+            <td>
+              <span v-if="role.takRoleOverride">{{ role.takRoleOverride }}</span>
+              <span v-else class="text-medium-emphasis">From group</span>
+            </td>
             <td class="d-none d-md-table-cell text-medium-emphasis">{{ role.description }}</td>
             <td v-if="editable" class="text-right text-no-wrap">
               <v-btn variant="text" size="small" @click="open(role)">Edit</v-btn>
@@ -133,6 +160,15 @@ onMounted(load);
             persistent-hint
             class="mb-2"
             :error-messages="messagesFor(formFields, 'slug')"
+          />
+          <v-select
+            v-model="form.takRoleOverride"
+            :items="takRoleItems"
+            label="TAK role"
+            hint="Replaces the group's TAK role for members with this role, e.g. Team Lead for platoon leaders."
+            persistent-hint
+            class="mb-4"
+            :error-messages="messagesFor(formFields, 'takRoleOverride')"
           />
           <v-textarea v-model="form.description" label="Description (optional)" rows="2" auto-grow />
         </v-card-text>

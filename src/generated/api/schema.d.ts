@@ -2145,6 +2145,11 @@ export interface components {
             slug: string;
             description: string | null;
             /**
+             * @description ATAK role for members of this role, replacing their event group's default TAK role, e.g.
+             *     `Team Lead` for platoon leaders. `null` keeps the group's role.
+             */
+            takRoleOverride: components["schemas"]["TakRole"] | null;
+            /**
              * Format: double
              * @description Optimistic-concurrency version; send it back unchanged with updates.
              */
@@ -2162,6 +2167,7 @@ export interface components {
             name: string;
             slug: components["schemas"]["Slug"];
             description?: string | null;
+            takRoleOverride?: components["schemas"]["TakRole"] | null;
         };
         UpdateEventRoleRequest: {
             /**
@@ -2172,6 +2178,8 @@ export interface components {
             name: string;
             slug: components["schemas"]["Slug"];
             description: string | null;
+            /** @description Omit to keep the current override; `null` removes it. */
+            takRoleOverride?: components["schemas"]["TakRole"] | null;
         };
         /** @enum {string} */
         SyncIssueStatus: "open" | "resolved";
@@ -2371,6 +2379,8 @@ export interface components {
             id: string;
             slug: string;
             name: string;
+            /** @description `null` when the role keeps the group's TAK role, and in revisions before version 5. */
+            takRoleOverride: components["schemas"]["TakRole"] | null;
         };
         SnapshotGroup: {
             id: string;
@@ -2420,7 +2430,7 @@ export interface components {
          */
         ConfigurationSnapshot: {
             /** @enum {number} */
-            schemaVersion: 1 | 2 | 3 | 4;
+            schemaVersion: 1 | 2 | 3 | 4 | 5;
             roles: components["schemas"]["SnapshotRole"][];
             groups: components["schemas"]["SnapshotGroup"][];
             channels: components["schemas"]["SnapshotChannel"][];
