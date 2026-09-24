@@ -56,3 +56,17 @@ export function changeFirmware(
     }),
   );
 }
+
+/** Sets (`value`) or clears (`null`) write-only secrets; Core never returns their values. */
+export function saveSecrets(
+  eventId: string,
+  version: number,
+  secrets: Record<string, string | number | null>,
+): Promise<MeshtasticConfigurationDto> {
+  return unwrap(
+    api.PUT("/events/{eventId}/meshtastic/configuration/secrets", {
+      params: { path: { eventId } },
+      body: { version, secrets },
+    }),
+  );
+}

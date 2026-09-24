@@ -42,7 +42,10 @@ const saveErrors = ref<Record<string, string>>({});
 /** A field appears when it is managed or available for the event's minimum firmware version. */
 const visibleFields = computed(() =>
   (profile.value?.fields ?? []).filter(
-    (field) => field.managed || (configuration.value !== null && field.key in configuration.value.settings),
+    (field) =>
+      field.managed ||
+      (configuration.value !== null &&
+        (field.key in configuration.value.settings || configuration.value.secretFields.includes(field.key))),
   ),
 );
 const sections = computed(() =>
@@ -179,6 +182,9 @@ onMounted(load);
             :enums="profile?.enums ?? {}"
             :editable="editable"
             :errors="errors"
+            :event-id="eventId"
+            :configuration="configuration"
+            @secrets-changed="configuration = $event"
           />
           <v-slide-y-reverse-transition>
             <v-card v-if="editable && dirty" class="save-bar d-flex align-center ga-3 pa-3 mt-4" elevation="4">

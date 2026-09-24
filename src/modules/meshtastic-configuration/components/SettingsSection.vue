@@ -2,13 +2,19 @@
 import { mdiLock } from "@mdi/js";
 import { computed } from "vue";
 import SectionHeader from "@/shared/components/layout/SectionHeader.vue";
-import type { FirmwareEnumValueDto, FirmwareFieldDto, SettingValue } from "../meshtastic-configuration.api";
+import type {
+  FirmwareEnumValueDto,
+  FirmwareFieldDto,
+  MeshtasticConfigurationDto,
+  SettingValue,
+} from "../meshtastic-configuration.api";
 import FirmwareFieldInput from "./FirmwareFieldInput.vue";
+import SecretFieldsCard from "./SecretFieldsCard.vue";
 
 /**
  * One profile section such as LoRa, rendered only from the profile's field definitions: values in
- * a two-column grid, on/off settings as a list with their explanation, and server-managed values
- * read-only at the end.
+ * a two-column grid, on/off settings as a list with their explanation, write-only secrets, and
+ * server-managed values read-only at the end.
  */
 const props = defineProps<{
   label: string;
@@ -16,11 +22,16 @@ const props = defineProps<{
   enums: Record<string, FirmwareEnumValueDto[]>;
   editable: boolean;
   errors: Record<string, string>;
+  eventId: string;
+  configuration: MeshtasticConfigurationDto;
 }>();
+const emit = defineEmits<{ secretsChanged: [configuration: MeshtasticConfigurationDto] }>();
 const settings = defineModel<Record<string, SettingValue | undefined>>({ required: true });
 
-const valueFields = computed(() => props.fields.filter((field) => !field.managed && field.type !== "boolean"));
-const switchFields = computed(() => props.fields.filter((field) => !field.managed && field.type === "boolean"));
+const plainFields = computed(() => props.fields.filter((field) => !field.managed && !field.secret));
+const valueFields = computed(() => plainFields.value.filter((field) => field.type !== "boolean"));
+const switchFields = computed(() => plainFields.value.filter((field) => field.type === "boolean"));
+const secretFields = computed(() => props.fields.filter((field) => field.secret));
 const managedFields = computed(() => props.fields.filter((field) => field.managed));
 
 function errorFor(field: FirmwareFieldDto): string | undefined {
@@ -67,6 +78,15 @@ function errorFor(field: FirmwareFieldDto): string | undefined {
         </template>
       </v-list>
     </v-card>
+
+    <SecretFieldsCard
+      v-if="secretFields.length > 0"
+      :event-id="eventId"
+      :fields="secretFields"
+      :configuration="configuration"
+      :editable="editable"
+      @changed="emit('secretsChanged', $event)"
+    />
 
     <v-card v-if="managedFields.length > 0" class="mb-4">
       <v-list lines="two" class="py-0">

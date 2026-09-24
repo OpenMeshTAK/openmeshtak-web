@@ -365,6 +365,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/events/{eventId}/meshtastic/configuration/secrets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * @description Sets or clears write-only secrets such as the Wi-Fi or MQTT password. Values are never
+         *     returned; `secretsSet` only says which secrets hold a value. Requires the current `version`.
+         */
+        put: operations["UpdateMeshtasticSecrets"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/events/{eventId}/meshtastic/configuration/firmware/preview": {
         parameters: {
             query?: never;
@@ -1731,6 +1751,8 @@ export interface components {
             since: string;
             /** @description Resolved per member by OpenMeshTak and never editable. */
             managed: boolean;
+            /** @description Write-only: set through the secrets endpoint and never returned. Has no default. */
+            secret: boolean;
             /** Format: double */
             maxBytes?: number;
             /** Format: double */
@@ -1790,6 +1812,10 @@ export interface components {
             /** @description `false` when no tested patch reaches the effective minimum version. */
             verified: boolean;
             settings: components["schemas"]["FirmwareSettingsDocument"];
+            /** @description Secret fields available for the event's firmware version, set through `PUT secrets`. */
+            secretFields: string[];
+            /** @description Keys of secret fields that hold a value. The values themselves are never returned. */
+            secretsSet: string[];
             /** @description Why the stored configuration is not valid for this Core release; empty when it is. */
             problems: components["schemas"]["ConfigurationProblemDto"][];
             /**
@@ -1808,6 +1834,19 @@ export interface components {
             version: number;
             /** @description Complete or partial document; missing fields take the profile default. */
             settings: components["schemas"]["FirmwareSettingsDocument"];
+        };
+        /** @description Values of write-only secret fields; `null` clears a value. */
+        SecretSettingsChanges: {
+            [key: string]: (string | number) | null;
+        };
+        UpdateMeshtasticSecretsRequest: {
+            /**
+             * Format: int32
+             * @description Version the client last read.
+             */
+            version: number;
+            /** @description Only the secrets to change; others keep their value. */
+            secrets: components["schemas"]["SecretSettingsChanges"];
         };
         FirmwareChangeReportDto: {
             kept: string[];
@@ -4274,6 +4313,77 @@ export interface operations {
         };
         responses: {
             /** @description Settings updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeshtasticConfigurationDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Version conflict or event archived */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateMeshtasticSecrets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateMeshtasticSecretsRequest"];
+            };
+        };
+        responses: {
+            /** @description Secrets updated */
             200: {
                 headers: {
                     [name: string]: unknown;
