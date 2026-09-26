@@ -3,7 +3,8 @@ import { mdiShieldKey } from "@mdi/js";
 import { ref } from "vue";
 import { describeError } from "@/shared/errors/api-problem";
 import { useToast } from "@/shared/feedback/toast";
-import { importCertificateAuthority, type TakCertificateAuthorityDto } from "../tak-server.api";
+import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
+import { importCertificateAuthority, rotateCertificateAuthority, type TakCertificateAuthorityDto } from "../tak-server.api";
 import PemUploadDialog from "./PemUploadDialog.vue";
 
 /** The CAs that sign TAK client certificates; older ones stay trusted until they expire. */
@@ -12,9 +13,21 @@ const emit = defineEmits<{ changed: [] }>();
 const toast = useToast();
 
 const dialogOpen = ref(false);
+const rotating = ref(false);
 const saving = ref(false);
 const error = ref<string | null>(null);
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" });
+
+async function rotate(): Promise<void> {
+  rotating.value = false;
+  try {
+    await rotateCertificateAuthority();
+    toast.success("New certificate authority created. The previous one stays trusted until it expires.");
+    emit("changed");
+  } catch (caught: unknown) {
+    toast.error(caught);
+  }
+}
 
 async function importAuthority(certificatePem: string, privateKeyPem: string): Promise<void> {
   saving.value = true;
@@ -40,7 +53,10 @@ async function importAuthority(certificatePem: string, privateKeyPem: string): P
         <div class="text-subtitle-1 font-weight-medium">Certificate authorities</div>
         <div class="text-body-2 text-medium-emphasis">Sign the client certificates of TAK apps. Keys never leave the server.</div>
       </div>
-      <v-btn variant="tonal" @click="dialogOpen = true">Import CA</v-btn>
+      <div class="d-flex ga-2">
+        <v-btn variant="text" @click="rotating = true">New CA</v-btn>
+        <v-btn variant="tonal" @click="dialogOpen = true">Import CA</v-btn>
+      </div>
     </div>
     <v-list lines="two" class="pt-0">
       <v-list-item v-for="authority in authorities" :key="authority.id" :title="authority.subject">
@@ -55,6 +71,16 @@ async function importAuthority(certificatePem: string, privateKeyPem: string): P
       </v-list-item>
     </v-list>
 
+    <ConfirmDialog
+      :model-value="rotating"
+      title="Create a new certificate authority?"
+      confirm-label="Create"
+      @update:model-value="rotating = false"
+      @confirm="rotate"
+    >
+      New client certificates are signed by the new CA. Enrolled devices keep working while the
+      current CA has not expired. Requires a recent sign-in.
+    </ConfirmDialog>
     <PemUploadDialog
       v-model="dialogOpen"
       title="Import certificate authority"

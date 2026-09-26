@@ -54,3 +54,7 @@ export function listMyTakCertificates(): Promise<TakClientCertificateDto[]> {
 export function revokeMyTakCertificate(certificateId: string): Promise<TakClientCertificateDto> {
   return unwrap(api.POST("/me/tak-certificates/{certificateId}/revoke", { params: { path: { certificateId } }, body: {} }));
 }
+
+export function rotateCertificateAuthority(): Promise<TakCertificateAuthorityDto> {
+  return unwrap(api.POST("/tak-server/certificate-authorities/rotate"));
+}
