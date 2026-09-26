@@ -73,6 +73,11 @@ const routes: RouteRecordRaw[] = [
         component: () => import("@/modules/service-accounts/ServiceAccountDetailView.vue"),
       },
       {
+        path: "admin/tak-server",
+        name: "tak-server",
+        component: () => import("@/modules/tak-server/TakServerView.vue"),
+      },
+      {
         path: "admin/events/:eventId",
         name: "event-detail",
         component: () => import("@/modules/events/views/EventDetailView.vue"),

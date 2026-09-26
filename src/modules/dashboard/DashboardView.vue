@@ -10,6 +10,7 @@ import { useSession } from "@/modules/auth/session";
 import ProfileSummary from "@/shared/components/ProfileSummary.vue";
 import ChannelHandoutsCard from "./components/ChannelHandoutsCard.vue";
 import DataPackageDownloads from "./components/DataPackageDownloads.vue";
+import TakEnrollmentCard from "@/modules/tak-server/components/TakEnrollmentCard.vue";
 import TakSetupGuide from "./components/TakSetupGuide.vue";
 import MeshtasticProfileCard from "./components/MeshtasticProfileCard.vue";
 import ProvisioningActions from "./components/ProvisioningActions.vue";
@@ -26,6 +27,7 @@ const selected = computed(
   () => memberships.value.find(({ eventId }) => eventId === selectedEventId.value) ?? null,
 );
 const canAdministerEvents = computed(() => session.can("events.read"));
+const isTakAdministrator = computed(() => session.can("tak-server.admin-access"));
 
 async function loadProfile(): Promise<void> {
   profile.value =
@@ -112,8 +114,14 @@ onMounted(load);
           :channels="profile.meshtastic.channels"
         />
         <TakSetupGuide v-if="profile.tak.connection" :profile="profile" />
+        <TakEnrollmentCard />
         <DataPackageDownloads :event-id="profile.eventId" :member-id="profile.memberId" />
       </v-col>
+    </v-row>
+
+    <!-- TAK administrators may connect without being a member of an event. -->
+    <v-row v-if="state === 'ready' && (selected === null || profile === null) && isTakAdministrator" justify="center">
+      <v-col cols="12" md="6"><TakEnrollmentCard /></v-col>
     </v-row>
   </v-container>
 </template>

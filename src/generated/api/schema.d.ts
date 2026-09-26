@@ -110,6 +110,172 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tak-server/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["GetTakServerSettings"];
+        /** @description Replaces the settings. Requires the current `version` (0 before the first save). */
+        put: operations["UpdateTakServerSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tak-server/server-certificate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * @description Adds a publicly trusted server certificate for the TAK host name, e.g. the `fullchain.pem` and
+         *     `privkey.pem` of Let's Encrypt, so devices trust the server without the OpenMeshTak CA.
+         *     Requires a recent sign-in. Client certificates are still issued by the OpenMeshTak CA.
+         */
+        put: operations["AddTakServerCertificate"];
+        post?: never;
+        /** @description Removes an added certificate; the server then uses one issued by the OpenMeshTak CA. */
+        delete: operations["RemoveTakServerCertificate"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/tak-enrollments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Creates a single-use enrollment password for the signed-in user, valid for 15 minutes, with
+         *     the ATAK enrollment link. Members of active events and holders of `tak-server.admin-access`
+         *     may enroll. The account password is never used by TAK apps.
+         */
+        post: operations["CreateTakEnrollment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tak-server/client-certificates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The 500 newest certificates. */
+        get: operations["ListTakClientCertificates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tak-server/client-certificates/{certificateId}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Revokes a certificate; its TAK connections end immediately and it cannot reconnect. */
+        post: operations["RevokeTakClientCertificate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/tak-certificates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ListMyTakCertificates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/tak-certificates/{certificateId}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["RevokeMyTakCertificate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tak-server/certificate-authorities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Lists the active CA and older CAs that are still trusted. A new installation creates its own
+         *     CA on the first call. Private keys are never returned.
+         */
+        get: operations["ListTakCertificateAuthorities"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tak-server/certificate-authorities/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Imports an existing CA and makes it the active one. The previous CA stays trusted until it
+         *     expires. Requires a recent sign-in; the key is encrypted at rest and never returned.
+         */
+        post: operations["ImportTakCertificateAuthority"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/events/{eventId}/tak/configuration": {
         parameters: {
             query?: never;
@@ -1413,7 +1579,7 @@ export interface components {
             page: components["schemas"]["PageInfo"];
         };
         /** @enum {string} */
-        Permission: "users.read" | "users.manage" | "user-groups.read" | "user-groups.manage" | "events.read" | "events.manage" | "events.reactivate" | "members.read" | "members.manage" | "members.sync" | "member-claims.create" | "channel-keys.reveal" | "data-packages.read" | "data-packages.edit" | "data-packages.publish" | "artifacts.generate" | "artifacts.download" | "member-artifacts.download" | "service-accounts.manage" | "audit.read";
+        Permission: "users.read" | "users.manage" | "user-groups.read" | "user-groups.manage" | "events.read" | "events.manage" | "events.reactivate" | "members.read" | "members.manage" | "members.sync" | "member-claims.create" | "channel-keys.reveal" | "data-packages.read" | "data-packages.edit" | "data-packages.publish" | "artifacts.generate" | "artifacts.download" | "member-artifacts.download" | "service-accounts.manage" | "tak-server.manage" | "tak-server.admin-access" | "audit.read";
         PermissionGrantDto: {
             permission: components["schemas"]["Permission"];
             /** @description Event the grant is limited to, or `null` for an instance-wide grant. */
@@ -1462,6 +1628,131 @@ export interface components {
             slug: components["schemas"]["Slug"];
             /** @description Complete replacement of the group's grants. */
             permissions: components["schemas"]["PermissionGrantDto"][];
+        };
+        /** @description The certificate the TAK listeners present. The private key is never returned. */
+        TakServerCertificateDto: {
+            /**
+             * @description `issued` by the OpenMeshTak CA, or `added` by an administrator, e.g. from Let's Encrypt.
+             * @enum {string}
+             */
+            source: "issued" | "added";
+            hostName: string;
+            subject: string;
+            fingerprintSha256: string;
+            /** Format: date-time */
+            notAfter: string;
+        };
+        TakServerSettingsDto: {
+            /** @description Whether the TAK listeners run. Requires a host name. */
+            enabled: boolean;
+            /** @description Public host name or IPv4 address that ATAK and iTAK connect to. */
+            hostName: string | null;
+            /** Format: double */
+            enrollmentPort: number;
+            /** Format: double */
+            martiPort: number;
+            /** Format: double */
+            streamingPort: number;
+            /**
+             * Format: double
+             * @description Lifetime of newly enrolled client certificates.
+             */
+            clientCertificateDays: number;
+            /** @description `null` until the server first starts or a certificate is added. */
+            serverCertificate: components["schemas"]["TakServerCertificateDto"] | null;
+            /**
+             * Format: double
+             * @description Optimistic-concurrency version; 0 until first saved.
+             */
+            version: number;
+        };
+        UpdateTakServerSettingsRequest: {
+            /** Format: int32 */
+            version: number;
+            enabled: boolean;
+            hostName: string | null;
+            /** Format: int32 */
+            enrollmentPort: number;
+            /** Format: int32 */
+            martiPort: number;
+            /** Format: int32 */
+            streamingPort: number;
+            /** Format: int32 */
+            clientCertificateDays: number;
+        };
+        AddTakServerCertificateRequest: {
+            /** @description Full chain in PEM format, server certificate first, e.g. the `fullchain.pem` of Let's Encrypt. */
+            certificateChainPem: string;
+            /**
+             * @description Unencrypted private key in PEM format, e.g. the `privkey.pem` of Let's Encrypt. Encrypted at
+             *     rest and never returned.
+             */
+            privateKeyPem: string;
+        };
+        /**
+         * @description Everything a TAK app needs to enroll once. The token is a single-use password valid for a few
+         *     minutes; it is shown only in this response.
+         */
+        TakEnrollmentDto: {
+            /** @description TAK user name: the stable OpenMeshTak user ID. */
+            username: string;
+            token: string;
+            /** Format: date-time */
+            expiresAt: string;
+            hostName: string;
+            /** Format: double */
+            enrollmentPort: number;
+            /** Format: double */
+            streamingPort: number;
+            /** @description Link and QR code content for ATAK certificate enrollment. */
+            atakEnrollmentUrl: string;
+        };
+        /** @description A client certificate issued to a TAK app. Certificates are public; no key material exists here. */
+        TakClientCertificateDto: {
+            id: components["schemas"]["Uuid"];
+            userId: components["schemas"]["Uuid"];
+            userDisplayName: string;
+            /** @description Device UID the app sent during enrollment, if any. */
+            clientUid: string | null;
+            serialNumber: string;
+            fingerprintSha256: string;
+            /** @enum {string} */
+            status: "valid" | "expired" | "revoked";
+            /** Format: date-time */
+            notBefore: string;
+            /** Format: date-time */
+            notAfter: string;
+            /** Format: date-time */
+            revokedAt: string | null;
+            revocationReason: string | null;
+        };
+        RevokeTakCertificateRequest: {
+            reason?: string | null;
+        };
+        /** @description A TAK certificate authority. The certificate is public trust material; the key never leaves Core. */
+        TakCertificateAuthorityDto: {
+            id: components["schemas"]["Uuid"];
+            /** @enum {string} */
+            origin: "generated" | "imported";
+            /** @description Signs new client and server certificates. */
+            active: boolean;
+            subject: string;
+            /** @description SHA-256 of the DER certificate, lowercase hex, for comparing with what devices show. */
+            fingerprintSha256: string;
+            /** Format: date-time */
+            notBefore: string;
+            /** Format: date-time */
+            notAfter: string;
+            certificatePem: string;
+        };
+        ImportTakCertificateAuthorityRequest: {
+            /** @description The CA certificate in PEM format. */
+            certificatePem: string;
+            /**
+             * @description The unencrypted CA private key in PEM format (PKCS#8 or PKCS#1). It is encrypted at rest and
+             *     never returned.
+             */
+            privateKeyPem: string;
         };
         /**
          * @description - `none`: OpenMeshTak gives no TAK connection guidance.
@@ -3454,6 +3745,493 @@ export interface operations {
             };
             /** @description Last member of a system group */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetTakServerSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description TAK server settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TakServerSettingsDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateTakServerSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTakServerSettingsRequest"];
+            };
+        };
+        responses: {
+            /** @description Settings updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TakServerSettingsDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Version conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    AddTakServerCertificate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddTakServerCertificateRequest"];
+            };
+        };
+        responses: {
+            /** @description Server certificate added */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TakServerSettingsDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RemoveTakServerCertificate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Server certificate removed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TakServerSettingsDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateTakEnrollment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Enrollment created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TakEnrollmentDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No TAK access */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description TAK server not enabled */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListTakClientCertificates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Client certificates */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TakClientCertificateDto"][];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RevokeTakClientCertificate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                certificateId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RevokeTakCertificateRequest"];
+            };
+        };
+        responses: {
+            /** @description Certificate revoked */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TakClientCertificateDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListMyTakCertificates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Own certificates */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TakClientCertificateDto"][];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RevokeMyTakCertificate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                certificateId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RevokeTakCertificateRequest"];
+            };
+        };
+        responses: {
+            /** @description Certificate revoked */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TakClientCertificateDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListTakCertificateAuthorities: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Certificate authorities */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TakCertificateAuthorityDto"][];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ImportTakCertificateAuthority: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportTakCertificateAuthorityRequest"];
+            };
+        };
+        responses: {
+            /** @description Certificate authority imported */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TakCertificateAuthorityDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

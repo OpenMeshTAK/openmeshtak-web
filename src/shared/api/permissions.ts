@@ -85,6 +85,14 @@ export const permissionAreas: PermissionArea[] = [
     ],
   },
   {
+    label: "TAK server",
+    prefix: "tak-server.*",
+    permissions: [
+      { permission: "tak-server.manage", label: "Manage the TAK server and its certificates", instanceOnly: true },
+      { permission: "tak-server.admin-access", label: "Use the TAK server with access to every event", instanceOnly: true },
+    ],
+  },
+  {
     label: "Audit",
     prefix: "audit.*",
     permissions: [{ permission: "audit.read", label: "Read the audit log", instanceOnly: true }],
