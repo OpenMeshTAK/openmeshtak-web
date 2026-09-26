@@ -1759,9 +1759,10 @@ export interface components {
          *     - `meshtastic-local-server`: each participant enables the Meshtastic app's local TAK server and
          *       connects ATAK/iTAK on the same phone to it. The app creates its own certificates, so
          *       OpenMeshTak provides guidance and settings, not a ready-made connection package.
+         *     - `built-in-server`: participants enroll ATAK/iTAK with the built-in OpenMeshTak TAK server.
          * @enum {string}
          */
-        TakConnectionMode: "none" | "meshtastic-local-server";
+        TakConnectionMode: "none" | "meshtastic-local-server" | "built-in-server";
         TakConfigurationDto: {
             eventId: components["schemas"]["Uuid"];
             mode: components["schemas"]["TakConnectionMode"];
@@ -1901,13 +1902,23 @@ export interface components {
          *     channel has not reached the device yet (then the primary channel is used).
          */
         ProfileTakConnection: {
-            /** @enum {string} */
-            mode: "meshtastic-local-server";
             meshChannel: {
                 /** Format: double */
                 slot: number;
                 name: string;
             } | null;
+            /** @enum {string} */
+            mode: "meshtastic-local-server";
+        } | {
+            /** Format: double */
+            streamingPort: number;
+            /** @description `null` while the TAK server is not enabled. */
+            hostName: string | null;
+            /**
+             * @description Enroll with the built-in TAK server from the dashboard.
+             * @enum {string}
+             */
+            mode: "built-in-server";
         };
         /**
          * @description A channel the member receives. `included` channels come with the member's channel set;

@@ -113,8 +113,8 @@ onMounted(load);
           :member-id="profile.memberId"
           :channels="profile.meshtastic.channels"
         />
-        <TakSetupGuide v-if="profile.tak.connection" :profile="profile" />
-        <TakEnrollmentCard />
+        <TakSetupGuide v-if="profile.tak.connection?.mode === 'meshtastic-local-server'" :profile="profile" />
+        <TakEnrollmentCard v-if="profile.tak.connection?.mode === 'built-in-server' || isTakAdministrator" />
         <DataPackageDownloads :event-id="profile.eventId" :member-id="profile.memberId" />
       </v-col>
     </v-row>

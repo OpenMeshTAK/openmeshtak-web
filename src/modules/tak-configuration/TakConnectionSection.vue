@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { mdiCellphoneLink, mdiServerOff } from "@mdi/js";
+import { mdiCellphoneLink, mdiServerOff, mdiServerNetwork } from "@mdi/js";
 import { computed, onMounted, ref } from "vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
 import SectionHeader from "@/shared/components/layout/SectionHeader.vue";
@@ -38,6 +38,12 @@ const modes: Array<{ value: TakConnectionMode; title: string; subtitle: string; 
     title: "Meshtastic app local TAK server",
     subtitle: "ATAK or iTAK on the phone connects to the Meshtastic app, which carries TAK over the mesh.",
     icon: mdiCellphoneLink,
+  },
+  {
+    value: "built-in-server",
+    title: "OpenMeshTak TAK server",
+    subtitle: "ATAK or iTAK enroll from the dashboard and connect to the built-in TAK server over the internet.",
+    icon: mdiServerNetwork,
   },
 ];
 
