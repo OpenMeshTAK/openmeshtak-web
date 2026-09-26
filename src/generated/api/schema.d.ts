@@ -170,6 +170,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/tak-connection-package": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description A TAK Data Package with the server address and the CA to trust, for TAK apps that enroll by
+         *     importing a package instead of scanning the enrollment code. It contains no key or password;
+         *     the app asks for the enrollment user name and password.
+         */
+        get: operations["GetTakConnectionPackage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tak-server/client-certificates": {
         parameters: {
             query?: never;
@@ -3968,6 +3989,53 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TakEnrollmentDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No TAK access */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description TAK server not enabled */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetTakConnectionPackage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Connection Data Package */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
                 };
             };
             /** @description Authentication required */

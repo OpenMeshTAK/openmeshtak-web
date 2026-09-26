@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { mdiCellphoneLink } from "@mdi/js";
+import { mdiCellphoneLink, mdiDownload } from "@mdi/js";
 import { onMounted, ref } from "vue";
 import QrCode from "@/shared/components/QrCode.vue";
 import { isApiProblem } from "@/shared/errors/api-problem";
@@ -100,7 +100,13 @@ onMounted(loadCertificates);
           <div class="d-flex justify-center mb-4">
             <v-btn :href="enrollment.atakEnrollmentUrl" variant="tonal" size="small">Open in ATAK</v-btn>
           </div>
-          <p class="text-body-2 mb-2"><strong>iTAK or manual setup:</strong> add a server with certificate enrollment:</p>
+          <p class="text-body-2 mb-2">
+            <strong>iTAK or manual setup:</strong> import the connection package, or add a server with
+            certificate enrollment, and sign in with:
+          </p>
+          <v-btn href="/api/v1/me/tak-connection-package" download variant="tonal" size="small" class="mb-3" :prepend-icon="mdiDownload">
+            Connection package
+          </v-btn>
           <v-table density="compact">
             <tbody>
               <tr><td>Address</td><td><code>{{ enrollment.hostName }}</code></td></tr>
