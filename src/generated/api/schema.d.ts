@@ -29,8 +29,63 @@ export interface paths {
             cookie?: never;
         };
         get: operations["GetUser"];
-        put?: never;
+        /** @description Renames a user. Requires instance-wide `users.manage`. */
+        put: operations["UpdateUser"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/{userId}/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Disables a user: all sessions end, and sign-in, access links and TAK connections are refused.
+         *     Administrators cannot disable themselves. Requires `users.manage`.
+         */
+        post: operations["DisableUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/{userId}/enable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Enables a disabled user again. Requires `users.manage`. */
+        post: operations["EnableUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/{userId}/revoke-sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Signs the user out everywhere. Requires `users.manage`. */
+        post: operations["RevokeUserSessions"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1608,6 +1663,13 @@ export interface components {
             displayName: string;
             /** @description Email of the linked local login, or `null` when the user has no local login yet. */
             email: string | null;
+            /** @description Disabled users cannot sign in, keep no sessions and lose TAK access. */
+            disabled: boolean;
+            /**
+             * Format: double
+             * @description Optimistic-concurrency version; send it back unchanged with updates.
+             */
+            version: number;
             /** Format: date-time */
             createdAt: string;
         };
@@ -1618,6 +1680,11 @@ export interface components {
         UserPage: {
             items: components["schemas"]["UserDto"][];
             page: components["schemas"]["PageInfo"];
+        };
+        UpdateUserRequest: {
+            /** Format: int32 */
+            version: number;
+            displayName: string;
         };
         /** @enum {string} */
         Permission: "users.read" | "users.manage" | "user-groups.read" | "user-groups.manage" | "events.read" | "events.manage" | "events.reactivate" | "members.read" | "members.manage" | "members.sync" | "member-claims.create" | "channel-keys.reveal" | "data-packages.read" | "data-packages.edit" | "data-packages.publish" | "artifacts.generate" | "artifacts.download" | "member-artifacts.download" | "service-accounts.manage" | "tak-server.manage" | "tak-server.admin-access" | "audit.read";
@@ -3260,6 +3327,8 @@ export interface operations {
             query?: {
                 limit?: number;
                 cursor?: string;
+                /** @description Matches part of the display name or email. */
+                search?: string;
             };
             header?: never;
             path?: never;
@@ -3324,6 +3393,231 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["UserDto"];
                 };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateUserRequest"];
+            };
+        };
+        responses: {
+            /** @description User updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Version conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DisableUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description User disabled */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Cannot disable yourself */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    EnableUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description User enabled */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RevokeUserSessions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sessions revoked */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Authentication required */
             401: {
