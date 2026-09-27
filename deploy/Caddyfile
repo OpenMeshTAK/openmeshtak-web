@@ -1,6 +1,15 @@
 # PUBLIC_HOST is the Web host name, e.g. openmeshtak.example.org. Caddy obtains and renews its
 # Let's Encrypt certificate. Core's TAK ports are published by the Core container directly.
-{$PUBLIC_HOST} {
+#
+# Behind another reverse proxy that already terminates HTTPS (e.g. CloudPanel/nginx), set
+# SITE_ADDRESS=:80 so Caddy serves plain HTTP inside the network and trusts forwarded headers.
+{
+	servers {
+		trusted_proxies static private_ranges
+	}
+}
+
+{$SITE_ADDRESS:{$PUBLIC_HOST}} {
 	encode zstd gzip
 
 	handle /api/* {
