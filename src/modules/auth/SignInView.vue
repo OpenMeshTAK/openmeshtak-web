@@ -77,6 +77,9 @@ async function submit(): Promise<void> {
         Sign in
       </v-btn>
     </v-form>
+    <div class="d-flex justify-end mt-1">
+      <v-btn to="/forgot-password" variant="text" size="small">Forgot password?</v-btn>
+    </div>
     <v-btn variant="tonal" size="large" block class="mt-3" :prepend-icon="mdiKeyVariant" :disabled="submitting" @click="signInWithPasskey">
       Sign in with a passkey
     </v-btn>

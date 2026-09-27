@@ -22,3 +22,8 @@ export function setUserDisabled(userId: string, disabled: boolean): Promise<User
 export async function revokeUserSessions(userId: string): Promise<void> {
   await unwrap(api.POST("/users/{userId}/revoke-sessions", { params: { path: { userId } } }));
 }
+
+/** Core emails a reset link only to a verified address; the response is the same either way. */
+export async function sendPasswordReset(userId: string): Promise<void> {
+  await unwrap(api.POST("/users/{userId}/password-reset", { params: { path: { userId } } }));
+}

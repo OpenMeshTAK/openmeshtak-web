@@ -26,6 +26,8 @@ const routes: RouteRecordRaw[] = [
   publicPage("/setup", "setup", () => import("@/modules/setup/SetupView.vue")),
   publicPage("/sign-in", "sign-in", () => import("@/modules/auth/SignInView.vue")),
   publicPage("/claim", "claim", () => import("@/modules/member-claims/ClaimView.vue")),
+  publicPage("/forgot-password", "forgot-password", () => import("@/modules/auth/ForgotPasswordView.vue")),
+  publicPage("/reset-password", "reset-password", () => import("@/modules/auth/ResetPasswordView.vue")),
   // The editor uses the whole window; it brings its own header with a way back.
   {
     path: "/admin/events/:eventId/data-packages",
@@ -76,6 +78,11 @@ const routes: RouteRecordRaw[] = [
         path: "admin/service-accounts/:serviceAccountId",
         name: "service-account-detail",
         component: () => import("@/modules/service-accounts/ServiceAccountDetailView.vue"),
+      },
+      {
+        path: "admin/email",
+        name: "email-settings",
+        component: () => import("@/modules/email/EmailSettingsView.vue"),
       },
       {
         path: "admin/tak-server",

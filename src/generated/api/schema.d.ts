@@ -75,6 +75,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users/{userId}/password-reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Emails the user a single-use password-reset link if their address is verified. Administrators
+         *     never see or set passwords. Requires `users.manage`.
+         */
+        post: operations["SendUserPasswordReset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/users/{userId}/revoke-sessions": {
         parameters: {
             query?: never;
@@ -1210,6 +1230,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/email/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["GetEmailSettings"];
+        /** @description Replaces the settings. The SMTP password is write-only: omit it to keep the stored one. */
+        put: operations["UpdateEmailSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/email/settings/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Sends a test email with the stored settings. */
+        post: operations["SendTestEmail"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/events/{eventId}/data-packages/{packageId}/revisions": {
         parameters: {
             query?: never;
@@ -1687,7 +1741,7 @@ export interface components {
             displayName: string;
         };
         /** @enum {string} */
-        Permission: "users.read" | "users.manage" | "user-groups.read" | "user-groups.manage" | "events.read" | "events.manage" | "events.reactivate" | "members.read" | "members.manage" | "members.sync" | "member-claims.create" | "channel-keys.reveal" | "data-packages.read" | "data-packages.edit" | "data-packages.publish" | "artifacts.generate" | "artifacts.download" | "member-artifacts.download" | "service-accounts.manage" | "tak-server.manage" | "tak-server.admin-access" | "audit.read";
+        Permission: "users.read" | "users.manage" | "user-groups.read" | "user-groups.manage" | "events.read" | "events.manage" | "events.reactivate" | "members.read" | "members.manage" | "members.sync" | "member-claims.create" | "channel-keys.reveal" | "data-packages.read" | "data-packages.edit" | "data-packages.publish" | "artifacts.generate" | "artifacts.download" | "member-artifacts.download" | "service-accounts.manage" | "tak-server.manage" | "tak-server.admin-access" | "email.manage" | "audit.read";
         PermissionGrantDto: {
             permission: components["schemas"]["Permission"];
             /** @description Event the grant is limited to, or `null` for an instance-wide grant. */
@@ -2866,6 +2920,43 @@ export interface components {
             created: boolean;
             revision: components["schemas"]["ConfigurationRevisionDto"];
         };
+        /** @enum {string} */
+        SmtpSecurity: "starttls" | "tls" | "none";
+        /** @description SMTP settings without the password, which is write-only. */
+        EmailSettingsDto: {
+            enabled: boolean;
+            host: string | null;
+            /** Format: double */
+            port: number;
+            security: components["schemas"]["SmtpSecurity"];
+            username: string | null;
+            /** @description Whether a password is stored. The password itself is never returned. */
+            passwordSet: boolean;
+            fromAddress: string | null;
+            fromName: string;
+            /**
+             * Format: double
+             * @description Optimistic-concurrency version; 0 until first saved.
+             */
+            version: number;
+        };
+        UpdateEmailSettingsRequest: {
+            /** Format: int32 */
+            version: number;
+            enabled: boolean;
+            host: string | null;
+            /** Format: int32 */
+            port: number;
+            security: components["schemas"]["SmtpSecurity"];
+            username: string | null;
+            /** @description Omit to keep the stored password, `null` to remove it. */
+            password?: string | null;
+            fromAddress: string | null;
+            fromName: string;
+        };
+        SendTestEmailRequest: {
+            to: string;
+        };
         PackageRevisionSummaryDto: {
             id: components["schemas"]["Uuid"];
             packageId: components["schemas"]["Uuid"];
@@ -3571,6 +3662,53 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["UserDto"];
                 };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    SendUserPasswordReset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Reset email requested */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Authentication required */
             401: {
@@ -8298,6 +8436,153 @@ export interface operations {
             };
             /** @description Not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetEmailSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Email settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailSettingsDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateEmailSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateEmailSettingsRequest"];
+            };
+        };
+        responses: {
+            /** @description Email settings updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailSettingsDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Version conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    SendTestEmail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SendTestEmailRequest"];
+            };
+        };
+        responses: {
+            /** @description Test email sent */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Delivery failed */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };

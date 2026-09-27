@@ -8,7 +8,7 @@ import ViewHeader from "@/shared/components/layout/ViewHeader.vue";
 import { describeError } from "@/shared/errors/api-problem";
 import { useToast } from "@/shared/feedback/toast";
 import { useSession } from "@/modules/auth/session";
-import { renameUser, revokeUserSessions, searchUsers, setUserDisabled, type UserDto } from "./users.api";
+import { renameUser, revokeUserSessions, searchUsers, sendPasswordReset, setUserDisabled, type UserDto } from "./users.api";
 
 /**
  * Installation-wide user administration. Administrators never see or set passwords; they rename,
@@ -83,6 +83,15 @@ async function toggleDisabled(user: UserDto, disabled: boolean): Promise<void> {
   }
 }
 
+async function resetPassword(user: UserDto): Promise<void> {
+  try {
+    await sendPasswordReset(user.id);
+    toast.success(`If ${user.displayName} has a confirmed email address, a reset link is on its way.`);
+  } catch (caught: unknown) {
+    toast.error(caught);
+  }
+}
+
 async function signOut(user: UserDto): Promise<void> {
   confirmSignOut.value = null;
   try {
@@ -138,6 +147,7 @@ onMounted(() => void load());
                 </template>
                 <v-list density="compact">
                   <v-list-item title="Rename" @click="startRename(user)" />
+                  <v-list-item title="Send password reset email" :disabled="user.email === null" @click="resetPassword(user)" />
                   <v-list-item title="Sign out everywhere" @click="confirmSignOut = user" />
                   <v-list-item v-if="user.disabled" title="Enable" @click="toggleDisabled(user, false)" />
                   <v-list-item v-else title="Disable" base-color="error" @click="confirmDisable = user" />
