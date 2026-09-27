@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { mdiAccessPointNetwork } from "@mdi/js";
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import ErrorState from "@/shared/components/ErrorState.vue";
@@ -97,7 +98,18 @@ onMounted(load);
 
     <template v-else>
       <ViewHeader :title="event.name" :subtitle="`${event.slug} · ${event.timeZone}`">
-        <template #actions><EventStatusBadge :status="event.status" /></template>
+        <template #actions>
+          <v-btn
+            v-if="event.status === 'active' && session.can('tak-traffic.view', event.id)"
+            :to="{ name: 'event-live', params: { eventId: event.id } }"
+            variant="tonal"
+            size="small"
+            :prepend-icon="mdiAccessPointNetwork"
+          >
+            Live TAK
+          </v-btn>
+          <EventStatusBadge :status="event.status" />
+        </template>
       </ViewHeader>
 
       <v-tabs v-model="tab" class="mb-4" density="compact" show-arrows>

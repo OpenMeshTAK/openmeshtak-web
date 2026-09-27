@@ -35,6 +35,11 @@ const routes: RouteRecordRaw[] = [
     component: () => import("@/modules/editor/EventEditorView.vue"),
   },
   {
+    path: "/admin/events/:eventId/live",
+    name: "event-live",
+    component: () => import("@/modules/tak-server/LiveTrafficView.vue"),
+  },
+  {
     path: "/admin/events/:eventId/data-packages/:packageId",
     name: "package-editor",
     component: () => import("@/modules/editor/PackageEditorView.vue"),

@@ -58,3 +58,10 @@ export function revokeMyTakCertificate(certificateId: string): Promise<TakClient
 export function rotateCertificateAuthority(): Promise<TakCertificateAuthorityDto> {
   return unwrap(api.POST("/tak-server/certificate-authorities/rotate"));
 }
+
+export type LiveTakTrafficDto = Schemas["LiveTakTrafficDto"];
+
+/** The event's current TAK traffic from the built-in server's memory. */
+export function getLiveTakTraffic(eventId: string): Promise<LiveTakTrafficDto> {
+  return unwrap(api.GET("/events/{eventId}/tak-traffic", { params: { path: { eventId } } }));
+}

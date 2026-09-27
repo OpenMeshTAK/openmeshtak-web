@@ -15,6 +15,7 @@ import OSM from "ol/source/OSM";
 import VectorSource from "ol/source/Vector";
 import type { PackageGeometry, PackageLayerDto, PackageObjectDto } from "@/modules/data-packages/data-packages.api";
 import { fromMapGeometry, toMapGeometry } from "./geometry-codec";
+import { createLiveLayer, type LiveMapItem } from "./live-layer";
 import { mapContentExtent, mapContentLayer, type MapContentItem } from "./map-content";
 import { objectPriority, objectStyle } from "./object-style";
 
@@ -53,6 +54,7 @@ export class PackageMap {
   private selectedId: string | null = null;
   /** Last pointer position over the map in WGS84, used for pasting at the cursor. */
   private pointer: number[] | null = null;
+  private readonly live = createLiveLayer();
 
   constructor(target: HTMLElement, private readonly callbacks: PackageMapCallbacks) {
     const vectorLayer = new VectorLayer({
@@ -63,7 +65,7 @@ export class PackageMap {
     });
     this.map = new OlMap({
       target,
-      layers: [new TileLayer({ source: new OSM() }), this.contentGroup, vectorLayer],
+      layers: [new TileLayer({ source: new OSM() }), this.contentGroup, vectorLayer, this.live.layer],
       view: new View({ center: DEFAULT_CENTER, zoom: 6 }),
       controls: defaultControls().extend([new ScaleLine()]),
     });
@@ -258,6 +260,19 @@ export class PackageMap {
     const extent = this.contentExtents.get(contentId);
     if (extent !== undefined && !isEmpty(extent)) {
       this.map.getView().fit(extent, { padding: [48, 48, 48, 48], duration: 250 });
+    }
+  }
+
+  /** Live TAK positions and markers, drawn above all package content. */
+  setLiveItems(items: readonly LiveMapItem[]): void {
+    this.live.update(items);
+  }
+
+  /** Centres the map on one live item without changing the zoom more than needed. */
+  zoomToLive(uid: string): void {
+    const position = this.live.positionOf(uid);
+    if (position !== null) {
+      this.map.getView().animate({ center: position, zoom: Math.max(this.map.getView().getZoom() ?? 14, 14), duration: 250 });
     }
   }
 

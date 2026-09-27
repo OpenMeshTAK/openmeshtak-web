@@ -2,6 +2,7 @@
 import "ol/ol.css";
 import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type { PackageGeometry, PackageLayerDto, PackageObjectDto } from "@/modules/data-packages/data-packages.api";
+import type { LiveMapItem } from "../map/live-layer";
 import type { MapContentItem } from "../map/map-content";
 import { PackageMap, type EditorTool } from "../map/package-map";
 
@@ -10,9 +11,11 @@ const props = withDefaults(defineProps<{
   objects: PackageObjectDto[];
   /** Read-only offline maps and rubber sheets. */
   contents?: MapContentItem[];
+  /** Live TAK positions and markers drawn above everything else. */
+  live?: LiveMapItem[];
   selectedId: string | null;
   tool: EditorTool;
-}>(), { contents: () => [] });
+}>(), { contents: () => [], live: () => [] });
 const emit = defineEmits<{
   drawn: [geometry: PackageGeometry];
   modified: [objectId: string, geometry: PackageGeometry];
@@ -36,6 +39,7 @@ onMounted(() => {
   });
   map.setContent(props.layers, props.objects);
   map.setMapContent(props.contents, props.layers);
+  map.setLiveItems(props.live);
   map.setTool(props.tool);
   map.highlight(props.selectedId);
   map.fitToContent();
@@ -52,6 +56,7 @@ watch(
   () => [props.contents, props.layers] as const,
   ([contents, layers]) => map?.setMapContent(contents, layers),
 );
+watch(() => props.live, (items) => map?.setLiveItems(items));
 watch(() => props.tool, (tool) => map?.setTool(tool));
 watch(() => props.selectedId, (objectId) => map?.highlight(objectId));
 
@@ -62,6 +67,7 @@ onBeforeUnmount(() => {
 });
 
 defineExpose({
+  zoomToLive: (uid: string) => map?.zoomToLive(uid),
   fitToContent: () => map?.fitToContent(),
   zoomToContent: (contentId: string) => map?.zoomToContent(contentId),
   pointerPosition: () => map?.pointerPosition() ?? null,

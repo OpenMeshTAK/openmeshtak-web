@@ -75,6 +75,7 @@ export const permissionAreas: PermissionArea[] = [
       { permission: "artifacts.generate", label: "Generate setup files" },
       { permission: "artifacts.download", label: "Download setup files" },
       { permission: "member-artifacts.download", label: "Set up devices for members" },
+      { permission: "tak-traffic.view", label: "Watch live TAK traffic" },
     ],
   },
   {

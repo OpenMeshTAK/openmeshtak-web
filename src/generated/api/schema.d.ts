@@ -224,6 +224,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/events/{eventId}/tak-traffic": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Connected TAK apps of the event and their current positions and markers, from the built-in
+         *     TAK server's memory. Requires `tak-traffic.view` for the event.
+         */
+        get: operations["GetLiveTakTraffic"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me/tak-enrollments": {
         parameters: {
             query?: never;
@@ -1782,7 +1802,7 @@ export interface components {
             displayName: string;
         };
         /** @enum {string} */
-        Permission: "users.read" | "users.manage" | "user-groups.read" | "user-groups.manage" | "events.read" | "events.manage" | "events.reactivate" | "members.read" | "members.manage" | "members.sync" | "member-claims.create" | "channel-keys.reveal" | "data-packages.read" | "data-packages.edit" | "data-packages.publish" | "artifacts.generate" | "artifacts.download" | "member-artifacts.download" | "service-accounts.manage" | "tak-server.manage" | "tak-server.admin-access" | "email.manage" | "audit.read";
+        Permission: "users.read" | "users.manage" | "user-groups.read" | "user-groups.manage" | "events.read" | "events.manage" | "events.reactivate" | "members.read" | "members.manage" | "members.sync" | "member-claims.create" | "channel-keys.reveal" | "data-packages.read" | "data-packages.edit" | "data-packages.publish" | "artifacts.generate" | "artifacts.download" | "member-artifacts.download" | "tak-traffic.view" | "service-accounts.manage" | "tak-server.manage" | "tak-server.admin-access" | "email.manage" | "audit.read";
         PermissionGrantDto: {
             permission: components["schemas"]["Permission"];
             /** @description Event the grant is limited to, or `null` for an instance-wide grant. */
@@ -1891,6 +1911,37 @@ export interface components {
              *     rest and never returned.
              */
             privateKeyPem: string;
+        };
+        LiveTakConnectionDto: {
+            id: components["schemas"]["Uuid"];
+            userId: components["schemas"]["Uuid"];
+            userDisplayName: string;
+            /** @description The app's callsign once it reported its position. */
+            callsign: string | null;
+            /** Format: date-time */
+            connectedAt: string;
+            /** Format: date-time */
+            lastSeenAt: string;
+        };
+        /** @description The newest state of one CoT item, such as a member's position or a marker they placed. */
+        LiveTakItemDto: {
+            uid: string;
+            /** @description CoT type, e.g. `a-f-G-U-C` for a friendly ground unit. */
+            type: string;
+            callsign: string | null;
+            /** Format: double */
+            lat: number;
+            /** Format: double */
+            lon: number;
+            /** Format: date-time */
+            time: string;
+            /** Format: date-time */
+            stale: string;
+        };
+        /** @description Current TAK traffic of one event, held in memory only; nothing of it is stored. */
+        LiveTakTrafficDto: {
+            connections: components["schemas"]["LiveTakConnectionDto"][];
+            items: components["schemas"]["LiveTakItemDto"][];
         };
         /**
          * @description Everything a TAK app needs to enroll once. The token is a single-use password valid for a few
@@ -4482,6 +4533,55 @@ export interface operations {
             };
             /** @description Access denied */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetLiveTakTraffic: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Live TAK traffic */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LiveTakTrafficDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
