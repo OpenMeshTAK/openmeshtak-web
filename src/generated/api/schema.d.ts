@@ -1672,6 +1672,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/events/{eventId}/data-packages/{packageId}/tak-delivery": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * @description Chooses whether the built-in TAK server installs the package by itself on enrollment and/or
+         *     on every connection. Requires `data-packages.publish` and the current `version`.
+         */
+        put: operations["UpdateDataPackageTakDelivery"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/events/{eventId}/data-package-exports/atak/preview": {
         parameters: {
             query?: never;
@@ -3154,6 +3174,13 @@ export interface components {
             memberIds: components["schemas"]["Uuid"][];
             allMembers: boolean;
         };
+        /** @description When the built-in TAK server installs the package on members' TAK apps by itself. */
+        PackageTakDelivery: {
+            /** @description Right after a member enrolls a TAK app. */
+            onEnrollment: boolean;
+            /** @description Whenever a member's TAK app connects, if a newer revision exists. */
+            onConnection: boolean;
+        };
         DataPackageDto: {
             id: components["schemas"]["Uuid"];
             eventId: components["schemas"]["Uuid"];
@@ -3167,6 +3194,7 @@ export interface components {
             /** @description Published package revisions whose content was copied into this package's initial draft. */
             sources: components["schemas"]["DataPackageSourceDto"][];
             audience: components["schemas"]["PackageAudience"];
+            takDelivery: components["schemas"]["PackageTakDelivery"];
             /**
              * Format: double
              * @description Drawing order within the event; lower values are drawn first, below higher ones.
@@ -3401,6 +3429,14 @@ export interface components {
              */
             version: number;
             audience: components["schemas"]["PackageAudience"];
+        };
+        UpdatePackageTakDeliveryRequest: {
+            /**
+             * Format: int32
+             * @description Version the client last read.
+             */
+            version: number;
+            takDelivery: components["schemas"]["PackageTakDelivery"];
         };
         CombinedExportIncluded: {
             packageId: components["schemas"]["Uuid"];
@@ -10637,6 +10673,69 @@ export interface operations {
             };
             /** @description Validation failed */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateDataPackageTakDelivery: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+                packageId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePackageTakDeliveryRequest"];
+            };
+        };
+        responses: {
+            /** @description TAK delivery updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataPackageDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Version conflict or event archived */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

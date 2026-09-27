@@ -4,13 +4,20 @@ import EventAudiencePicker from "@/modules/event-audience/EventAudiencePicker.vu
 import { audienceMembers, memberOptions, type AudienceOptions } from "@/modules/event-audience/audience-options";
 import { describeError } from "@/shared/errors/api-problem";
 import { fieldErrors, messagesFor } from "@/shared/errors/field-errors";
-import { updatePackageAudience, type DataPackageDto, type PackageAudience } from "../data-packages.api";
+import {
+  updatePackageAudience,
+  updatePackageTakDelivery,
+  type DataPackageDto,
+  type PackageAudience,
+  type PackageTakDelivery,
+} from "../data-packages.api";
 
 const open = defineModel<boolean>({ required: true });
 const props = defineProps<{ eventId: string; dataPackage: DataPackageDto; options: AudienceOptions }>();
 const emit = defineEmits<{ saved: [dataPackage: DataPackageDto] }>();
 
 const audience = ref<PackageAudience>(structuredClone(toRaw(props.dataPackage.audience)));
+const takDelivery = ref<PackageTakDelivery>({ ...props.dataPackage.takDelivery });
 const saving = ref(false);
 const formError = ref<string | null>(null);
 const fields = ref<Record<string, string>>({});
@@ -19,6 +26,7 @@ watch(open, (isOpen) => {
   if (isOpen) {
     // The package comes from reactive state and structuredClone cannot copy Vue proxies.
     audience.value = structuredClone(toRaw(props.dataPackage.audience));
+    takDelivery.value = { ...props.dataPackage.takDelivery };
     formError.value = null;
     fields.value = {};
   }
@@ -36,11 +44,12 @@ async function save(): Promise<void> {
   saving.value = true;
   formError.value = null;
   try {
-    const saved = await updatePackageAudience(
-      { eventId: props.eventId, packageId: props.dataPackage.id },
-      props.dataPackage.version,
-      audience.value,
-    );
+    const path = { eventId: props.eventId, packageId: props.dataPackage.id };
+    let saved = await updatePackageAudience(path, props.dataPackage.version, audience.value);
+    const { onEnrollment, onConnection } = props.dataPackage.takDelivery;
+    if (takDelivery.value.onEnrollment !== onEnrollment || takDelivery.value.onConnection !== onConnection) {
+      saved = await updatePackageTakDelivery(path, saved.version, takDelivery.value);
+    }
     open.value = false;
     emit("saved", saved);
   } catch (caught: unknown) {
@@ -77,6 +86,14 @@ async function save(): Promise<void> {
           Reaches {{ reach }} {{ reach === 1 ? "member" : "members" }}. Members download the newest
           published revision.
         </p>
+        <v-divider class="my-4" />
+        <div class="text-subtitle-2 mb-1">Install automatically on TAK apps</div>
+        <p class="text-body-2 text-medium-emphasis mb-1">
+          For members connected to the built-in TAK server. Without either option they pick the
+          package in their TAK app themselves.
+        </p>
+        <v-checkbox v-model="takDelivery.onEnrollment" label="When a member enrolls a TAK app" density="compact" hide-details />
+        <v-checkbox v-model="takDelivery.onConnection" label="On every connection, when a new revision is published" density="compact" hide-details />
       </v-card-text>
       <v-card-actions>
         <v-spacer />

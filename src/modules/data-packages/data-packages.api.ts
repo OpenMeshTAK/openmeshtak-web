@@ -58,6 +58,21 @@ export function updatePackageAudience(
   );
 }
 
+export type PackageTakDelivery = Schemas["PackageTakDelivery"];
+
+export function updatePackageTakDelivery(
+  path: PackagePath,
+  version: number,
+  takDelivery: PackageTakDelivery,
+): Promise<DataPackageDto> {
+  return unwrap(
+    api.PUT("/events/{eventId}/data-packages/{packageId}/tak-delivery", {
+      params: { path },
+      body: { version, takDelivery },
+    }),
+  );
+}
+
 export async function deleteDataPackage(path: PackagePath): Promise<void> {
   await unwrap(api.DELETE("/events/{eventId}/data-packages/{packageId}", { params: { path } }));
 }
