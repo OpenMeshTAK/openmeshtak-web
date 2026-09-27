@@ -83,9 +83,17 @@ export function createClaim(eventId: string, memberId: string): Promise<Schemas[
 }
 
 /** Core renumbers the group's short names 1..n in this order; send every current member once. */
-export function reorderGroupMembers(eventId: string, groupId: string, memberIds: string[]): Promise<EventMemberDto[]> {
+export function reorderGroupMembers(
+  eventId: string,
+  groupId: string,
+  memberIds: string[],
+  notifyMembers: boolean,
+): Promise<EventMemberDto[]> {
   return unwrap(
-    api.PUT("/events/{eventId}/groups/{groupId}/member-order", { params: { path: { eventId, groupId } }, body: { memberIds } }),
+    api.PUT("/events/{eventId}/groups/{groupId}/member-order", {
+      params: { path: { eventId, groupId } },
+      body: { memberIds, notifyMembers },
+    }),
   );
 }
 

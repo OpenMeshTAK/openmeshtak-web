@@ -2749,6 +2749,11 @@ export interface components {
         ReorderGroupMembersRequest: {
             /** @description Every member of the group exactly once, in the new short-name order (first becomes 1). */
             memberIds: string[];
+            /**
+             * @description Emails members whose short name changed, if they have a confirmed address, asking them to set
+             *     up their radio again. Otherwise the change is only shown to the administrator.
+             */
+            notifyMembers?: boolean;
         };
         /** @description Opaque lowercase namespace of the external system, e.g. `discord`. It is not a login provider. */
         ExternalProvider: string;

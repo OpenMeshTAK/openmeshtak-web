@@ -78,13 +78,31 @@ function countIn(groupId: string): number {
 }
 
 /** Core assigns the numbers; the list then shows what Core stored. */
-async function reorder(memberIds: string[]): Promise<void> {
+/** A dragged order waits here until the administrator chose how to tell the affected members. */
+const pendingOrder = ref<string[] | null>(null);
+
+function reorder(memberIds: string[]): void {
+  pendingOrder.value = memberIds;
+}
+
+async function cancelReorder(): Promise<void> {
+  pendingOrder.value = null;
+  // The list already shows the dragged order; reloading puts the stored order back.
+  await load();
+}
+
+async function confirmReorder(notifyMembers: boolean): Promise<void> {
   const group = selectedGroup.value;
-  if (group === null) {
+  const memberIds = pendingOrder.value;
+  pendingOrder.value = null;
+  if (group === null || memberIds === null) {
     return;
   }
   try {
-    const ordered = await reorderGroupMembers(props.event.id, group.id, memberIds);
+    const ordered = await reorderGroupMembers(props.event.id, group.id, memberIds, notifyMembers);
+    if (notifyMembers) {
+      toast.success("Short names changed. Members with a confirmed email address are being notified.");
+    }
     members.value = [...members.value.filter(({ eventGroup }) => eventGroup.id !== group.id), ...ordered];
     renumbered.value = true;
   } catch (caught: unknown) {
@@ -348,6 +366,22 @@ onMounted(load);
         </v-card>
         <ProfileSummary v-else :event-name="event.name" :profile="profile" />
       </div>
+    </v-dialog>
+
+    <v-dialog :model-value="pendingOrder !== null" max-width="520" persistent>
+      <v-card class="pa-2">
+        <v-card-title>Change short names?</v-card-title>
+        <v-card-text>
+          The new order renumbers this group. Radios that are already set up keep their old short
+          name until the member downloads and imports their settings file again.
+        </v-card-text>
+        <v-card-actions class="flex-wrap ga-2">
+          <v-btn variant="text" @click="cancelReorder">Cancel</v-btn>
+          <v-spacer />
+          <v-btn variant="tonal" @click="confirmReorder(false)">Only show a warning</v-btn>
+          <v-btn color="primary" variant="flat" @click="confirmReorder(true)">Email affected members</v-btn>
+        </v-card-actions>
+      </v-card>
     </v-dialog>
 
     <ConfirmDialog
