@@ -81,3 +81,16 @@ export function createClaim(eventId: string, memberId: string): Promise<Schemas[
     api.POST("/events/{eventId}/members/{memberId}/claims", { params: { path: { eventId, memberId } } }),
   );
 }
+
+/** Core renumbers the group's short names 1..n in this order; send every current member once. */
+export function reorderGroupMembers(eventId: string, groupId: string, memberIds: string[]): Promise<EventMemberDto[]> {
+  return unwrap(
+    api.PUT("/events/{eventId}/groups/{groupId}/member-order", { params: { path: { eventId, groupId } }, body: { memberIds } }),
+  );
+}
+
+/** The number part of a short name such as `B12`; members without one sort last. */
+export function shortNameNumber(member: EventMemberDto): number {
+  const digits = /\d+$/.exec(member.shortName ?? "")?.[0];
+  return digits === undefined ? Number.MAX_SAFE_INTEGER : Number(digits);
+}

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { mdiAccountPlus, mdiClose } from "@mdi/js";
+import { mdiAccountGroup, mdiAccountMultiple, mdiAccountPlus, mdiClose, mdiMagnify } from "@mdi/js";
 import { computed, onMounted, ref } from "vue";
 import type { Schemas } from "@/shared/api/types";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
@@ -16,7 +16,15 @@ import DataPackageDownloads from "@/modules/dashboard/components/DataPackageDown
 import MeshtasticProfileCard from "@/modules/dashboard/components/MeshtasticProfileCard.vue";
 import AddMemberDialog from "./AddMemberDialog.vue";
 import EditMemberDialog from "./EditMemberDialog.vue";
-import { fetchProfile, listMembers, removeMember, type EventMemberDto } from "./members.api";
+import GroupMemberList from "./GroupMemberList.vue";
+import {
+  fetchProfile,
+  listMembers,
+  removeMember,
+  reorderGroupMembers,
+  updateMember,
+  type EventMemberDto,
+} from "./members.api";
 
 const props = defineProps<{ event: Schemas["EventDto"] }>();
 const emit = defineEmits<{ issuesChanged: [] }>();
@@ -47,6 +55,60 @@ const canManage = computed(() => mutable.value && session.can("members.manage", 
 const canProvision = computed(
   () => props.event.status === "active" && session.can("member-artifacts.download", props.event.id),
 );
+/** "all" or an event group ID; groups list their members in short-name order. */
+const selected = ref("all");
+const filter = ref("");
+const renumbered = ref(false);
+
+const selectedGroup = computed(() => groups.value.find(({ id }) => id === selected.value) ?? null);
+const groupMembers = computed(() => members.value.filter(({ eventGroup }) => eventGroup.id === selected.value));
+const filteredMembers = computed(() => {
+  const text = filter.value.trim().toLowerCase();
+  return text === ""
+    ? members.value
+    : members.value.filter((member) =>
+        [member.callsign, member.displayName, member.shortName ?? "", member.eventRole.name, member.eventGroup.name].some((value) =>
+          value.toLowerCase().includes(text),
+        ),
+      );
+});
+
+function countIn(groupId: string): number {
+  return members.value.filter(({ eventGroup }) => eventGroup.id === groupId).length;
+}
+
+/** Core assigns the numbers; the list then shows what Core stored. */
+async function reorder(memberIds: string[]): Promise<void> {
+  const group = selectedGroup.value;
+  if (group === null) {
+    return;
+  }
+  try {
+    const ordered = await reorderGroupMembers(props.event.id, group.id, memberIds);
+    members.value = [...members.value.filter(({ eventGroup }) => eventGroup.id !== group.id), ...ordered];
+    renumbered.value = true;
+  } catch (caught: unknown) {
+    toast.error(caught);
+    await load();
+  }
+}
+
+async function moveMember(member: EventMemberDto, groupId: string): Promise<void> {
+  try {
+    await updateMember(props.event.id, member.id, {
+      version: member.version,
+      eventRoleId: member.eventRole.id,
+      eventGroupId: groupId,
+      callsignOverride: member.callsignOverride,
+    });
+    toast.success(`${member.callsign} moved to ${groups.value.find(({ id }) => id === groupId)?.name ?? "the group"}.`);
+    renumbered.value = true;
+    await load();
+  } catch (caught: unknown) {
+    toast.error(caught);
+  }
+}
+
 const canClaim = computed(
   () => props.event.status === "active" && session.can("member-claims.create", props.event.id),
 );
@@ -144,36 +206,85 @@ onMounted(load);
     <ErrorState v-else-if="state === 'error'" :message="loadError" @retry="load" />
     <EmptyState v-else-if="members.length === 0" title="No members yet" text="Members appear here once an integration or an administrator adds them." />
 
-    <v-card v-else>
-      <v-table>
-        <thead>
-          <tr>
-            <th>Callsign</th>
-            <th>Short name</th>
-            <th class="d-none d-md-table-cell">Role</th>
-            <th>Group</th>
-            <th class="text-right">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="member in members" :key="member.id">
-            <td>
-              <div class="font-weight-medium">{{ member.callsign }}</div>
-              <div v-if="member.callsignOverride" class="text-caption text-medium-emphasis">Callsign override</div>
-            </td>
-            <td>{{ member.shortName ?? "—" }}</td>
-            <td class="d-none d-md-table-cell">{{ member.eventRole.name }}</td>
-            <td>{{ member.eventGroup.name }}</td>
-            <td class="text-right text-no-wrap">
-              <v-btn variant="text" size="small" @click="showProfile(member)">Profile</v-btn>
-              <v-btn v-if="canClaim" variant="text" size="small" @click="claimFor = member">Access link</v-btn>
-              <v-btn v-if="canManage" variant="text" size="small" @click="edit(member)">Edit</v-btn>
-              <v-btn v-if="canManage" variant="text" size="small" color="error" @click="removing = member">Remove</v-btn>
-            </td>
-          </tr>
-        </tbody>
-      </v-table>
-    </v-card>
+    <div v-else class="members-layout">
+      <v-card class="members-menu pa-2" tag="nav" aria-label="Event groups">
+        <v-list density="comfortable" nav mandatory :selected="[selected]" @update:selected="selected = String($event[0] ?? selected)">
+          <v-list-item value="all" :prepend-icon="mdiAccountMultiple" title="All members">
+            <template #append><span class="text-caption text-medium-emphasis">{{ members.length }}</span></template>
+          </v-list-item>
+          <v-list-subheader>Groups</v-list-subheader>
+          <v-list-item v-for="group in groups" :key="group.id" :value="group.id" :prepend-icon="mdiAccountGroup" :title="group.name">
+            <template #append><span class="text-caption text-medium-emphasis">{{ countIn(group.id) }}</span></template>
+          </v-list-item>
+        </v-list>
+      </v-card>
+
+      <div class="members-content">
+        <v-alert v-if="renumbered" type="warning" variant="tonal" density="compact" closable class="mb-3" @click:close="renumbered = false">
+          Short names changed. Radios that are already set up keep their old short name until the member is provisioned again.
+        </v-alert>
+
+        <template v-if="selectedGroup">
+          <p class="text-body-2 text-medium-emphasis mb-3">
+            Drag members or use their menu to change the order. Core numbers them from 1 in this order.
+          </p>
+          <GroupMemberList
+            :members="groupMembers"
+            :groups="groups"
+            :group-id="selectedGroup.id"
+            :can-manage="canManage"
+            @reorder="reorder"
+            @move="moveMember"
+          >
+            <template #actions="{ member }">
+              <span class="text-no-wrap"><v-btn variant="text" size="small" @click="showProfile(member)">Profile</v-btn> <v-btn v-if="canClaim" variant="text" size="small" @click="claimFor = member">Access link</v-btn> <v-btn v-if="canManage" variant="text" size="small" @click="edit(member)">Edit</v-btn> <v-btn v-if="canManage" variant="text" size="small" color="error" @click="removing = member">Remove</v-btn></span>
+            </template>
+          </GroupMemberList>
+        </template>
+
+        <template v-else>
+          <v-text-field
+            v-model="filter"
+            :prepend-inner-icon="mdiMagnify"
+            label="Filter by name, callsign, short name, role or group"
+            density="compact"
+            clearable
+            hide-details
+            class="mb-3"
+          />
+          <v-card>
+            <v-table>
+              <thead>
+                <tr>
+                  <th>Callsign</th>
+                  <th>Short name</th>
+                  <th class="d-none d-md-table-cell">Role</th>
+                  <th>Group</th>
+                  <th class="text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="member in filteredMembers" :key="member.id">
+                  <td>
+                    <div class="font-weight-medium">{{ member.callsign }}</div>
+                    <div v-if="member.callsignOverride" class="text-caption text-medium-emphasis">Callsign override</div>
+                  </td>
+                  <td>{{ member.shortName ?? "—" }}</td>
+                  <td class="d-none d-md-table-cell">{{ member.eventRole.name }}</td>
+                  <td>{{ member.eventGroup.name }}</td>
+                  <td class="text-right text-no-wrap">
+                    <v-btn variant="text" size="small" @click="showProfile(member)">Profile</v-btn>
+                    <v-btn v-if="canClaim" variant="text" size="small" @click="claimFor = member">Access link</v-btn>
+                    <v-btn v-if="canManage" variant="text" size="small" @click="edit(member)">Edit</v-btn>
+                    <v-btn v-if="canManage" variant="text" size="small" color="error" @click="removing = member">Remove</v-btn>
+                  </td>
+                </tr>
+              </tbody>
+            </v-table>
+          </v-card>
+        </template>
+      </div>
+    </div>
 
     <AddMemberDialog
       v-model="addOpen"
@@ -271,5 +382,27 @@ onMounted(load);
 
 .provision-body :deep(.v-list) {
   background: transparent;
+}
+
+.members-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.members-menu {
+  position: sticky;
+  top: 16px;
+}
+
+@media (max-width: 959px) {
+  .members-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .members-menu {
+    position: static;
+  }
 }
 </style>
