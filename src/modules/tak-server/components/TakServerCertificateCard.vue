@@ -23,6 +23,9 @@ const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" });
 
 const certificate = computed(() => props.settings.serverCertificate);
 const isAdded = computed(() => certificate.value?.source === "added");
+const isAcme = computed(() => certificate.value?.source === "acme");
+const isPublic = computed(() => isAdded.value || isAcme.value);
+const sourceLabel = computed(() => (isAcme.value ? "ACME" : isAdded.value ? "Publicly trusted" : "OpenMeshTak CA"));
 
 async function add(chainPem: string, keyPem: string): Promise<void> {
   saving.value = true;
@@ -54,8 +57,8 @@ async function remove(): Promise<void> {
     <div class="d-flex align-center mb-3">
       <v-icon :icon="mdiCertificate" class="mr-2" />
       <div class="text-subtitle-1 font-weight-medium flex-grow-1">Server certificate</div>
-      <v-chip size="small" variant="tonal" :color="isAdded ? 'success' : undefined">
-        {{ isAdded ? "Publicly trusted" : "OpenMeshTak CA" }}
+      <v-chip size="small" variant="tonal" :color="isPublic ? 'success' : undefined">
+        {{ sourceLabel }}
       </v-chip>
     </div>
     <template v-if="certificate">
@@ -74,7 +77,7 @@ async function remove(): Promise<void> {
     </p>
     <div class="d-flex ga-2">
       <v-btn variant="tonal" :disabled="settings.hostName === null" @click="dialogOpen = true">
-        {{ isAdded ? "Replace certificate" : "Add Let's Encrypt certificate" }}
+        {{ isPublic ? "Replace manually" : "Add Let's Encrypt certificate" }}
       </v-btn>
       <v-btn v-if="isAdded" variant="text" color="error" @click="removing = true">Use OpenMeshTak CA</v-btn>
     </div>

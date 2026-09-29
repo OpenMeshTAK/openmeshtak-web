@@ -6,15 +6,18 @@ import ViewHeader from "@/shared/components/layout/ViewHeader.vue";
 import { useAsyncData } from "@/shared/composables/useAsyncData";
 import { useToast } from "@/shared/feedback/toast";
 import TakCertificateAuthoritiesCard from "./components/TakCertificateAuthoritiesCard.vue";
+import TakAcmeSettingsCard from "./components/TakAcmeSettingsCard.vue";
 import TakClientCertificatesTable from "./components/TakClientCertificatesTable.vue";
 import TakServerCertificateCard from "./components/TakServerCertificateCard.vue";
 import TakServerSettingsCard from "./components/TakServerSettingsCard.vue";
 import {
   getTakServerSettings,
+  getTakAcmeSettings,
   listCertificateAuthorities,
   listClientCertificates,
   revokeClientCertificate,
   type TakCertificateAuthorityDto,
+  type TakAcmeSettingsDto,
   type TakClientCertificateDto,
   type TakServerSettingsDto,
 } from "./tak-server.api";
@@ -23,15 +26,17 @@ import {
 const toast = useToast();
 const page = useAsyncData(
   async () => {
-    const [settings, authorities, certificates] = await Promise.all([
+    const [settings, acme, authorities, certificates] = await Promise.all([
       getTakServerSettings(),
+      getTakAcmeSettings(),
       listCertificateAuthorities(),
       listClientCertificates(),
     ]);
-    return { settings, authorities, certificates };
+    return { settings, acme, authorities, certificates };
   },
   {
     settings: null as TakServerSettingsDto | null,
+    acme: null as TakAcmeSettingsDto | null,
     authorities: [] as TakCertificateAuthorityDto[],
     certificates: [] as TakClientCertificateDto[],
   },
@@ -39,6 +44,13 @@ const page = useAsyncData(
 
 function showSettings(settings: TakServerSettingsDto): void {
   page.data.value = { ...page.data.value, settings };
+}
+
+async function showAcme(acme: TakAcmeSettingsDto): Promise<void> {
+  page.data.value = { ...page.data.value, acme };
+  if (!acme.running) {
+    await page.load();
+  }
 }
 
 async function revoke(certificate: TakClientCertificateDto): Promise<void> {
@@ -62,7 +74,11 @@ onMounted(page.load);
     />
 
     <v-skeleton-loader v-if="page.state.value === 'loading'" type="article, card" />
-    <ErrorState v-else-if="page.state.value === 'error' || page.data.value.settings === null" :message="page.error.value" @retry="page.load" />
+    <ErrorState
+      v-else-if="page.state.value === 'error' || page.data.value.settings === null || page.data.value.acme === null"
+      :message="page.error.value"
+      @retry="page.load"
+    />
 
     <template v-else>
       <v-alert type="info" variant="tonal" density="compact" class="mb-4">
@@ -74,8 +90,15 @@ onMounted(page.load);
           <TakServerSettingsCard :settings="page.data.value.settings" @saved="showSettings" />
         </v-col>
         <v-col cols="12" lg="6" class="d-flex flex-column ga-4">
-          <TakServerCertificateCard :settings="page.data.value.settings" @changed="showSettings" />
+          <TakServerCertificateCard :settings="page.data.value.settings" @changed="page.load" />
           <TakCertificateAuthoritiesCard :authorities="page.data.value.authorities" @changed="page.load" />
+        </v-col>
+        <v-col cols="12">
+          <TakAcmeSettingsCard
+            :settings="page.data.value.acme"
+            :host-name="page.data.value.settings.hostName"
+            @changed="showAcme"
+          />
         </v-col>
         <v-col cols="12">
           <v-card>

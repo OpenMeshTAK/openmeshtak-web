@@ -412,6 +412,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tak-server/acme": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["GetSettings"];
+        /** @description Replaces settings. The provider token is write-only; omit it to keep the stored value. */
+        put: operations["UpdateSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tak-server/acme/renew": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Immediately obtains or renews the public certificate with the configured solver. */
+        post: operations["Renew"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/events/{eventId}/tak/configuration": {
         parameters: {
             query?: never;
@@ -1855,10 +1889,10 @@ export interface components {
         /** @description The certificate the TAK listeners present. The private key is never returned. */
         TakServerCertificateDto: {
             /**
-             * @description `issued` by the OpenMeshTak CA, or `added` by an administrator, e.g. from Let's Encrypt.
+             * @description OpenMeshTak-issued, administrator-added, or obtained automatically through ACME.
              * @enum {string}
              */
-            source: "issued" | "added";
+            source: "issued" | "added" | "acme";
             hostName: string;
             subject: string;
             fingerprintSha256: string;
@@ -2007,6 +2041,43 @@ export interface components {
              *     never returned.
              */
             privateKeyPem: string;
+        };
+        AcmeSolverDto: {
+            challengeType: string;
+            provider: string;
+            label: string;
+        };
+        /** @description ACME settings and renewal status. Provider tokens and the account key are never returned. */
+        TakAcmeSettingsDto: {
+            enabled: boolean;
+            email: string | null;
+            challengeType: string;
+            provider: string;
+            cloudflareZoneId: string | null;
+            apiTokenSet: boolean;
+            availableSolvers: components["schemas"]["AcmeSolverDto"][];
+            running: boolean;
+            /** Format: date-time */
+            lastAttemptAt: string | null;
+            /** Format: date-time */
+            lastSuccessAt: string | null;
+            lastError: string | null;
+            /**
+             * Format: double
+             * @description Optimistic-concurrency version; 0 until first saved.
+             */
+            version: number;
+        };
+        UpdateTakAcmeSettingsRequest: {
+            /** Format: int32 */
+            version: number;
+            enabled: boolean;
+            email: string | null;
+            challengeType: string;
+            provider: string;
+            cloudflareZoneId: string | null;
+            /** @description Omit to keep the stored token, `null` to remove it. The token is encrypted and write-only. */
+            apiToken?: string | null;
         };
         /**
          * @description - `none`: OpenMeshTak gives no TAK connection guidance.
@@ -4967,6 +5038,160 @@ export interface operations {
             };
             /** @description Validation failed */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ACME settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TakAcmeSettingsDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTakAcmeSettingsRequest"];
+            };
+        };
+        responses: {
+            /** @description ACME settings updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TakAcmeSettingsDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Version conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    Renew: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Certificate renewed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TakAcmeSettingsDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description ACME is disabled */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description ACME renewal failed */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };

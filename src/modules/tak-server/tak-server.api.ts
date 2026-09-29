@@ -5,7 +5,9 @@ export type TakServerSettingsDto = Schemas["TakServerSettingsDto"];
 export type TakCertificateAuthorityDto = Schemas["TakCertificateAuthorityDto"];
 export type TakClientCertificateDto = Schemas["TakClientCertificateDto"];
 export type TakEnrollmentDto = Schemas["TakEnrollmentDto"];
+export type TakAcmeSettingsDto = Schemas["TakAcmeSettingsDto"];
 export type TakServerSettingsChanges = Omit<Schemas["UpdateTakServerSettingsRequest"], "version">;
+export type TakAcmeSettingsChanges = Omit<Schemas["UpdateTakAcmeSettingsRequest"], "version">;
 
 export function getTakServerSettings(): Promise<TakServerSettingsDto> {
   return unwrap(api.GET("/tak-server/settings"));
@@ -13,6 +15,19 @@ export function getTakServerSettings(): Promise<TakServerSettingsDto> {
 
 export function saveTakServerSettings(version: number, changes: TakServerSettingsChanges): Promise<TakServerSettingsDto> {
   return unwrap(api.PUT("/tak-server/settings", { body: { version, ...changes } }));
+}
+
+export function getTakAcmeSettings(): Promise<TakAcmeSettingsDto> {
+  return unwrap(api.GET("/tak-server/acme"));
+}
+
+/** Leave `apiToken` out to keep the encrypted provider token; Core never returns it. */
+export function saveTakAcmeSettings(version: number, changes: TakAcmeSettingsChanges): Promise<TakAcmeSettingsDto> {
+  return unwrap(api.PUT("/tak-server/acme", { body: { version, ...changes } }));
+}
+
+export function renewTakAcmeCertificate(): Promise<TakAcmeSettingsDto> {
+  return unwrap(api.POST("/tak-server/acme/renew"));
 }
 
 /** The key is sent once and never returned by Core. */
