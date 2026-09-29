@@ -3,13 +3,14 @@
 #
 # Behind another reverse proxy that already terminates HTTPS (e.g. CloudPanel/nginx), set
 # SITE_ADDRESS=:80 so Caddy serves plain HTTP inside the network and trusts forwarded headers.
+# Otherwise SITE_ADDRESS is the public host name (compose sets it from PUBLIC_HOST).
 {
 	servers {
 		trusted_proxies static private_ranges
 	}
 }
 
-{$SITE_ADDRESS:{$PUBLIC_HOST}} {
+{$SITE_ADDRESS} {
 	encode zstd gzip
 
 	handle /api/* {
