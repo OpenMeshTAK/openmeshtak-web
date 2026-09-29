@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { mdiClose } from "@mdi/js";
 import { onMounted, ref } from "vue";
+import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
 import ViewContent from "@/shared/components/layout/ViewContent.vue";
 import ViewHeader from "@/shared/components/layout/ViewHeader.vue";
@@ -24,7 +26,7 @@ const form = ref<EmailSettingsChanges>({
   fromName: "OpenMeshTak",
 });
 const newPassword = ref("");
-const removePassword = ref(false);
+const confirmRemovePassword = ref(false);
 const saving = ref(false);
 const errors = ref<Record<string, string>>({});
 const testAddress = ref("");
@@ -48,7 +50,6 @@ function show(settings: EmailSettingsDto): void {
     fromName: settings.fromName,
   };
   newPassword.value = "";
-  removePassword.value = false;
 }
 
 async function save(): Promise<void> {
@@ -57,7 +58,7 @@ async function save(): Promise<void> {
   }
   saving.value = true;
   errors.value = {};
-  const password = removePassword.value ? { password: null } : newPassword.value === "" ? {} : { password: newPassword.value };
+  const password = newPassword.value === "" ? {} : { password: newPassword.value };
   try {
     show(await saveEmailSettings(page.data.value.version, { ...form.value, fromAddress: form.value.fromAddress?.trim() || null, ...password }));
     toast.success("Email settings saved.");
@@ -66,6 +67,32 @@ async function save(): Promise<void> {
     toast.error(caught);
   } finally {
     saving.value = false;
+  }
+}
+
+/** Removes the stored SMTP password right away, keeping the other stored settings unchanged. */
+async function removePassword(): Promise<void> {
+  confirmRemovePassword.value = false;
+  const stored = page.data.value;
+  if (stored === null) {
+    return;
+  }
+  try {
+    const saved = await saveEmailSettings(stored.version, {
+      enabled: stored.enabled,
+      host: stored.host,
+      port: stored.port,
+      security: stored.security,
+      username: stored.username,
+      fromAddress: stored.fromAddress,
+      fromName: stored.fromName,
+      password: null,
+    });
+    // Keep unsaved edits in the form; only the password state and version come from the server.
+    page.data.value = saved;
+    toast.success("Stored SMTP password removed.");
+  } catch (caught: unknown) {
+    toast.error(caught);
   }
 }
 
@@ -112,9 +139,11 @@ onMounted(async () => {
                 type="password"
                 autocomplete="new-password"
                 :label="page.data.value.passwordSet ? 'New password (leave empty to keep)' : 'Password (optional)'"
-                :disabled="removePassword"
+                :append-inner-icon="page.data.value.passwordSet && newPassword === '' ? mdiClose : undefined"
+                :hint="page.data.value.passwordSet ? 'A password is stored.' : ''"
+                persistent-hint
+                @click:append-inner="confirmRemovePassword = true"
               />
-              <v-checkbox v-if="page.data.value.passwordSet" v-model="removePassword" label="Remove stored password" density="compact" hide-details />
             </v-col>
             <v-col cols="12" sm="6"><v-text-field v-model="form.fromAddress" label="Sender address" type="email" :error-messages="messagesFor(errors, 'fromAddress')" /></v-col>
             <v-col cols="12" sm="6"><v-text-field v-model="form.fromName" label="Sender name" /></v-col>
@@ -133,5 +162,15 @@ onMounted(async () => {
         </v-card>
       </v-col>
     </v-row>
+    <ConfirmDialog
+      :model-value="confirmRemovePassword"
+      title="Remove the stored SMTP password?"
+      confirm-label="Remove"
+      confirm-color="error"
+      @update:model-value="confirmRemovePassword = false"
+      @confirm="removePassword"
+    >
+      The SMTP server is then used without a password. Emails fail if the server requires one.
+    </ConfirmDialog>
   </ViewContent>
 </template>
