@@ -80,3 +80,25 @@ export type LiveTakTrafficDto = Schemas["LiveTakTrafficDto"];
 export function getLiveTakTraffic(eventId: string): Promise<LiveTakTrafficDto> {
   return unwrap(api.GET("/events/{eventId}/tak-traffic", { params: { path: { eventId } } }));
 }
+
+export type TakTrafficRecordingDto = Schemas["TakTrafficRecordingDto"];
+
+export function getTakTrafficRecording(eventId: string): Promise<TakTrafficRecordingDto> {
+  return unwrap(api.GET("/events/{eventId}/tak-traffic/recording", { params: { path: { eventId } } }));
+}
+
+export function saveTakTrafficRecording(
+  eventId: string,
+  version: number,
+  enabled: boolean,
+  retentionDays: number,
+): Promise<TakTrafficRecordingDto> {
+  return unwrap(
+    api.PUT("/events/{eventId}/tak-traffic/recording", { params: { path: { eventId } }, body: { version, enabled, retentionDays } }),
+  );
+}
+
+/** Same-origin link: the browser downloads with the session cookie, and Core audits the export. */
+export function takTrafficExportUrl(eventId: string): string {
+  return `/api/v1/events/${encodeURIComponent(eventId)}/tak-traffic/recording/export`;
+}

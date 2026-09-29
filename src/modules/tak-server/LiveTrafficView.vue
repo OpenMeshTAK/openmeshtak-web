@@ -9,6 +9,7 @@ import { topFirst } from "@/modules/data-packages/package-order";
 import PackageMapView from "@/modules/editor/components/PackageMapView.vue";
 import { mapContentItems } from "@/modules/editor/map/map-content";
 import { usePackageEditor, type PackageEditor } from "@/modules/editor/usePackageEditor";
+import TrafficRecordingCard from "./components/TrafficRecordingCard.vue";
 import { getLiveTakTraffic, type LiveTakTrafficDto } from "./tak-server.api";
 
 /**
@@ -136,6 +137,8 @@ onBeforeUnmount(() => clearInterval(timer));
             </template>
           </v-list-item>
         </v-list>
+        <v-divider />
+        <TrafficRecordingCard :event-id="eventId" />
       </v-sheet>
     </main>
   </div>

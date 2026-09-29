@@ -185,6 +185,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/events/{eventId}/tak-traffic/recording": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Requires `tak-traffic.view` for the event. */
+        get: operations["GetTakTrafficRecording"];
+        /** @description Turns recording on or off and sets the retention in days. Requires `events.manage`. */
+        put: operations["UpdateTakTrafficRecording"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{eventId}/tak-traffic/recording/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description The recorded positions and markers as a GeoJSON FeatureCollection, oldest first, at most
+         *     50,000 items. Requires `tak-traffic.view`; every export is audited.
+         */
+        get: operations["ExportTakTraffic"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tak-server/settings": {
         parameters: {
             query?: never;
@@ -1885,6 +1923,32 @@ export interface components {
             slug: components["schemas"]["Slug"];
             /** @description Complete replacement of the group's grants. */
             permissions: components["schemas"]["PermissionGrantDto"][];
+        };
+        /** @description Whether an event stores its TAK traffic, and for how long. Off by default. */
+        TakTrafficRecordingDto: {
+            enabled: boolean;
+            /**
+             * Format: double
+             * @description Recorded positions and markers are deleted after this many days.
+             */
+            retentionDays: number;
+            /**
+             * Format: double
+             * @description Number of items currently stored for the event.
+             */
+            storedItems: number;
+            /**
+             * Format: double
+             * @description Optimistic-concurrency version; 0 until first saved.
+             */
+            version: number;
+        };
+        UpdateTakTrafficRecordingRequest: {
+            /** Format: int32 */
+            version: number;
+            enabled: boolean;
+            /** Format: int32 */
+            retentionDays: number;
         };
         /** @description The certificate the TAK listeners present. The private key is never returned. */
         TakServerCertificateDto: {
@@ -4417,6 +4481,175 @@ export interface operations {
             };
             /** @description Last member of a system group */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetTakTrafficRecording: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Recording settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TakTrafficRecordingDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateTakTrafficRecording: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTakTrafficRecordingRequest"];
+            };
+        };
+        responses: {
+            /** @description Recording settings updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TakTrafficRecordingDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Version conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ExportTakTraffic: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Recorded traffic as GeoJSON */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
