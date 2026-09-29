@@ -11,7 +11,7 @@ import LayerGroup from "ol/layer/Group";
 import TileLayer from "ol/layer/Tile";
 import VectorLayer from "ol/layer/Vector";
 import { fromLonLat, toLonLat } from "ol/proj";
-import OSM from "ol/source/OSM";
+import XYZ from "ol/source/XYZ";
 import VectorSource from "ol/source/Vector";
 import type { PackageGeometry, PackageLayerDto, PackageObjectDto } from "@/modules/data-packages/data-packages.api";
 import { fromMapGeometry, toMapGeometry } from "./geometry-codec";
@@ -31,6 +31,10 @@ export interface PackageMapCallbacks {
 
 const DRAW_TYPES = { point: "Point", line: "LineString", polygon: "Polygon", circle: "Circle" } as const;
 const DEFAULT_CENTER = fromLonLat([10.45, 51.16]);
+
+function escapeHtml(text: string): string {
+  return text.replace(/[&<>"']/g, (character) => `&#${String(character.charCodeAt(0))};`);
+}
 
 /**
  * OpenLayers adapter of the data package editor (EDITOR.md: map state stays behind this boundary).
@@ -55,6 +59,8 @@ export class PackageMap {
   /** Last pointer position over the map in WGS84, used for pasting at the cursor. */
   private pointer: number[] | null = null;
   private readonly live = createLiveLayer();
+  /** Gets its source once the configured base map is known, so no other provider loads first. */
+  private readonly baseLayer = new TileLayer();
 
   constructor(target: HTMLElement, private readonly callbacks: PackageMapCallbacks) {
     const vectorLayer = new VectorLayer({
@@ -65,7 +71,7 @@ export class PackageMap {
     });
     this.map = new OlMap({
       target,
-      layers: [new TileLayer({ source: new OSM() }), this.contentGroup, vectorLayer, this.live.layer],
+      layers: [this.baseLayer, this.contentGroup, vectorLayer, this.live.layer],
       view: new View({ center: DEFAULT_CENTER, zoom: 6 }),
       controls: defaultControls().extend([new ScaleLine()]),
     });
@@ -261,6 +267,18 @@ export class PackageMap {
     if (extent !== undefined && !isEmpty(extent)) {
       this.map.getView().fit(extent, { padding: [48, 48, 48, 48], duration: 250 });
     }
+  }
+
+  /** The online base map from the installation settings, with the provider's attribution. */
+  setBaseMap(baseMap: { tileUrlTemplate: string; attribution: string; maxZoom: number }): void {
+    this.baseLayer.setSource(
+      new XYZ({
+        url: baseMap.tileUrlTemplate,
+        // Text only: OpenLayers renders attributions as HTML, so the configured text is escaped.
+        attributions: escapeHtml(baseMap.attribution),
+        maxZoom: baseMap.maxZoom,
+      }),
+    );
   }
 
   /** Live TAK positions and markers, drawn above all package content. */

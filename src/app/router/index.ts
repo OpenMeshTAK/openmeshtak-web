@@ -85,6 +85,11 @@ const routes: RouteRecordRaw[] = [
         component: () => import("@/modules/service-accounts/ServiceAccountDetailView.vue"),
       },
       {
+        path: "admin/base-map",
+        name: "base-map",
+        component: () => import("@/modules/map-settings/MapSettingsView.vue"),
+      },
+      {
         path: "admin/email",
         name: "email-settings",
         component: () => import("@/modules/email/EmailSettingsView.vue"),

@@ -5,6 +5,7 @@ import type { PackageGeometry, PackageLayerDto, PackageObjectDto } from "@/modul
 import type { LiveMapItem } from "../map/live-layer";
 import type { MapContentItem } from "../map/map-content";
 import { PackageMap, type EditorTool } from "../map/package-map";
+import { loadBaseMap } from "@/modules/map-settings/map-settings.api";
 
 const props = withDefaults(defineProps<{
   layers: PackageLayerDto[];
@@ -40,6 +41,7 @@ onMounted(() => {
   map.setContent(props.layers, props.objects);
   map.setMapContent(props.contents, props.layers);
   map.setLiveItems(props.live);
+  void loadBaseMap().then((baseMap) => map?.setBaseMap(baseMap));
   map.setTool(props.tool);
   map.highlight(props.selectedId);
   map.fitToContent();

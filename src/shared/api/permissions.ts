@@ -99,6 +99,11 @@ export const permissionAreas: PermissionArea[] = [
     permissions: [{ permission: "email.manage", label: "Manage email delivery", instanceOnly: true }],
   },
   {
+    label: "Settings",
+    prefix: "settings.*",
+    permissions: [{ permission: "settings.manage", label: "Manage installation settings such as the base map", instanceOnly: true }],
+  },
+  {
     label: "Audit",
     prefix: "audit.*",
     permissions: [{ permission: "audit.read", label: "Read the audit log", instanceOnly: true }],

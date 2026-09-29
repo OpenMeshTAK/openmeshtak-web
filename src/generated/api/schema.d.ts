@@ -1000,6 +1000,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/map/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The base map the Web app shows. Readable by every signed-in user. */
+        get: operations["GetMapSettings"];
+        /** @description Changes the base map for everyone. Requires instance-wide `settings.manage`. */
+        put: operations["UpdateMapSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -1874,7 +1892,7 @@ export interface components {
             displayName: string;
         };
         /** @enum {string} */
-        Permission: "users.read" | "users.manage" | "user-groups.read" | "user-groups.manage" | "events.read" | "events.manage" | "events.reactivate" | "members.read" | "members.manage" | "members.sync" | "member-claims.create" | "channel-keys.reveal" | "data-packages.read" | "data-packages.edit" | "data-packages.publish" | "artifacts.generate" | "artifacts.download" | "member-artifacts.download" | "tak-traffic.view" | "service-accounts.manage" | "tak-server.manage" | "tak-server.admin-access" | "email.manage" | "audit.read";
+        Permission: "users.read" | "users.manage" | "user-groups.read" | "user-groups.manage" | "events.read" | "events.manage" | "events.reactivate" | "members.read" | "members.manage" | "members.sync" | "member-claims.create" | "channel-keys.reveal" | "data-packages.read" | "data-packages.edit" | "data-packages.publish" | "artifacts.generate" | "artifacts.download" | "member-artifacts.download" | "tak-traffic.view" | "service-accounts.manage" | "tak-server.manage" | "tak-server.admin-access" | "email.manage" | "settings.manage" | "audit.read";
         PermissionGrantDto: {
             permission: components["schemas"]["Permission"];
             /** @description Event the grant is limited to, or `null` for an instance-wide grant. */
@@ -2756,6 +2774,30 @@ export interface components {
         };
         ClaimExchangeRequest: {
             token: string;
+        };
+        /** @description The Web map's online base map. Defaults to OpenStreetMap until an administrator changes it. */
+        MapSettingsDto: {
+            providerName: string;
+            /** @description XYZ tile URL with `{z}`, `{x}` and `{y}`; `{a-c}` selects subdomains. */
+            tileUrlTemplate: string;
+            /** @description Plain-text attribution the provider requires; the Web app shows it on every map. */
+            attribution: string;
+            /** Format: double */
+            maxZoom: number;
+            /**
+             * Format: double
+             * @description Optimistic-concurrency version; 0 while the default is in use.
+             */
+            version: number;
+        };
+        UpdateMapSettingsRequest: {
+            /** Format: int32 */
+            version: number;
+            providerName: string;
+            tileUrlTemplate: string;
+            attribution: string;
+            /** Format: int32 */
+            maxZoom: number;
         };
         HealthResponse: {
             /** @enum {string} */
@@ -7384,6 +7426,95 @@ export interface operations {
             };
             /** @description Too many attempts */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetMapSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Map settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MapSettingsDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateMapSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateMapSettingsRequest"];
+            };
+        };
+        responses: {
+            /** @description Map settings updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MapSettingsDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Version conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
