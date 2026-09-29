@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { mdiContentCopy, mdiOpenInNew, mdiQrcode } from "@mdi/js";
 import { computed, ref, watch } from "vue";
+import { useDisplay } from "vuetify";
 import type { Schemas } from "@/shared/api/types";
 import QrCode from "@/shared/components/QrCode.vue";
+import InfoHint from "@/shared/components/InfoHint.vue";
 import { describeError } from "@/shared/errors/api-problem";
 import { useToast } from "@/shared/feedback/toast";
 import { fetchChannelHandout } from "../dashboard.api";
@@ -14,6 +16,7 @@ const props = defineProps<{
 }>();
 
 const toast = useToast();
+const { xs } = useDisplay();
 const holderChannels = computed(() => props.channels.filter(({ keyHolder }) => keyHolder));
 const dialogOpen = ref(false);
 const selected = ref<Schemas["ProfileChannel"] | null>(null);
@@ -66,10 +69,11 @@ watch(dialogOpen, (open) => {
     <div class="d-flex align-center ga-2 mb-1">
       <v-icon :icon="mdiQrcode" color="warning" />
       <div class="text-subtitle-1 font-weight-medium">Secret channel handouts</div>
+      <InfoHint
+        label="About key holders"
+        text="You are a key holder. Open a handout only when you are ready to share that channel on site."
+      />
     </div>
-    <p class="text-body-2 text-medium-emphasis mb-3">
-      You are a key holder. Open a handout only when you are ready to share that channel on site.
-    </p>
     <v-list lines="two" density="compact" class="pa-0">
       <v-list-item v-for="channel in holderChannels" :key="channel.id" class="px-0">
         <v-list-item-title>{{ channel.name }}</v-list-item-title>
@@ -85,7 +89,7 @@ watch(dialogOpen, (open) => {
     </v-list>
   </v-card>
 
-  <v-dialog v-model="dialogOpen" max-width="560">
+  <v-dialog v-model="dialogOpen" max-width="560" :fullscreen="xs">
     <v-card>
       <v-card-title>Handout for {{ selected?.name }}</v-card-title>
       <v-card-text>

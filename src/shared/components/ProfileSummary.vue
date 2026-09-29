@@ -1,61 +1,130 @@
 <script setup lang="ts">
+import { mdiAccountGroup, mdiMapMarkerAccount, mdiShieldAccount, mdiTimerSand } from "@mdi/js";
 import { computed } from "vue";
 import type { Schemas } from "@/shared/api/types";
 import { takTeamSwatches } from "./tak-team-colors";
 
 const props = defineProps<{ eventName: string; profile: Schemas["ResolvedProfileDto"] }>();
 
-/** Secret channels that a key holder shares on site are named, but marked as such. */
-const channelNames = computed(() =>
-  props.profile.meshtastic.channels
-    .map(({ name, delivery }) => (delivery === "on-site" ? `${name} (handed out on site)` : name))
-    .join(", "),
-);
+/**
+ * The TAK team color is event data, so it only appears as a small swatch next to the team name and
+ * never as a UI color. An outline keeps light swatches such as White visible on the surface.
+ */
+const teamSwatch = computed(() => takTeamSwatches[props.profile.tak.team]);
+const meshtasticName = computed(() => {
+  const { shortName, longName } = props.profile.meshtastic;
+  return shortName === null ? longName : `${shortName} · ${longName}`;
+});
 </script>
 
 <template>
-  <v-card class="pa-5">
-    <div class="text-overline text-medium-emphasis">{{ eventName }}</div>
-    <div class="text-h4 font-weight-bold text-break mb-2">{{ profile.callsign }}</div>
-    <div class="d-flex align-center flex-wrap ga-2 text-body-1">
-      <span>{{ profile.group.name }}</span>
-      <span aria-hidden="true">·</span>
-      <span class="d-inline-flex align-center ga-1">
-        <span
-          class="d-inline-block rounded-circle border"
-          :style="{ width: '14px', height: '14px', background: takTeamSwatches[profile.tak.team] }"
-          aria-hidden="true"
-        />
-        {{ profile.tak.team }}
-      </span>
-      <span aria-hidden="true">·</span>
-      <span>{{ profile.tak.role }}</span>
+  <v-card class="profile-summary">
+    <div class="profile-summary__body">
+      <div class="profile-summary__identity">
+        <div class="text-overline text-medium-emphasis text-truncate">{{ eventName }}</div>
+        <div class="text-h4 font-weight-bold text-break callsign">{{ profile.callsign }}</div>
+        <div class="d-flex flex-wrap ga-2 mt-3">
+          <v-chip size="small" label :prepend-icon="mdiAccountGroup">{{ profile.group.name }}</v-chip>
+          <v-chip size="small" label>
+            <template #prepend>
+              <span class="team-dot mr-2" :style="{ background: teamSwatch }" aria-hidden="true" />
+            </template>
+            {{ profile.tak.team }} team
+          </v-chip>
+          <v-chip size="small" label :prepend-icon="mdiMapMarkerAccount">{{ profile.tak.role }}</v-chip>
+        </div>
+      </div>
+
+      <dl class="profile-facts text-body-2">
+        <div>
+          <dt>Event role</dt>
+          <dd class="d-flex align-center ga-1">
+            <v-icon :icon="mdiShieldAccount" size="16" class="text-medium-emphasis" aria-hidden="true" />
+            {{ profile.eventRole.name }}
+          </dd>
+        </div>
+        <div>
+          <dt>Meshtastic name</dt>
+          <dd>{{ meshtasticName }}</dd>
+        </div>
+        <div class="profile-facts__wide">
+          <dt>Channels</dt>
+          <dd v-if="profile.meshtastic.channels.length === 0">—</dd>
+          <dd v-else class="d-flex flex-wrap ga-1">
+            <v-chip
+              v-for="channel in profile.meshtastic.channels"
+              :key="channel.id"
+              size="x-small"
+              variant="outlined"
+              label
+              :prepend-icon="channel.delivery === 'on-site' ? mdiTimerSand : undefined"
+            >
+              {{ channel.name }}<template v-if="channel.delivery === 'on-site'">&nbsp;· handed out on site</template>
+            </v-chip>
+          </dd>
+        </div>
+      </dl>
     </div>
-
-    <v-divider class="my-4" />
-
-    <dl class="profile-facts text-body-2">
-      <dt>Event role</dt>
-      <dd>{{ profile.eventRole.name }}</dd>
-      <dt>Meshtastic</dt>
-      <dd>{{ profile.meshtastic.shortName ?? "—" }} · {{ profile.meshtastic.longName }}</dd>
-      <dt>Channels</dt>
-      <dd>{{ channelNames || "—" }}</dd>
-    </dl>
   </v-card>
 </template>
 
 <style scoped>
+.profile-summary__body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 20px 40px;
+  min-width: 0;
+  padding: 20px 24px;
+}
+
+.profile-summary__identity {
+  flex: 1 1 280px;
+  min-width: 0;
+}
+
+.callsign {
+  line-height: 1.15;
+}
+
+.team-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(var(--v-theme-on-surface), 0.3);
+}
+
 .profile-facts {
   display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: 4px 16px;
+  flex: 1 1 320px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 24px;
+  margin: 0;
 }
+
+.profile-facts__wide {
+  grid-column: 1 / -1;
+}
+
 .profile-facts dt {
+  margin-bottom: 2px;
+  font-size: 0.75rem;
   color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
+
 .profile-facts dd {
   margin: 0;
   overflow-wrap: anywhere;
+}
+
+@media (max-width: 599px) {
+  .profile-summary__body {
+    padding: 16px;
+  }
+
+  .profile-facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 </style>

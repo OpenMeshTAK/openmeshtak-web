@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { mdiDownload, mdiOpenInNew, mdiRadioTower } from "@mdi/js";
+import { mdiDownload, mdiKeyAlert, mdiOpenInNew, mdiRadioTower } from "@mdi/js";
 import { computed, ref, watch } from "vue";
 import type { Schemas } from "@/shared/api/types";
+import InfoHint from "@/shared/components/InfoHint.vue";
 import { saveFile } from "@/shared/files/save-file";
 import { useToast } from "@/shared/feedback/toast";
 import { downloadDeviceProfile } from "../dashboard.api";
@@ -52,48 +53,83 @@ async function download(): Promise<void> {
 
 <template>
   <v-card class="pa-5">
-    <div class="d-flex align-center ga-2 mb-2">
+    <div class="d-flex align-center flex-wrap ga-2 mb-4">
       <v-icon :icon="mdiRadioTower" size="small" />
-      <div class="text-subtitle-1 font-weight-medium flex-grow-1">Meshtastic radio</div>
+      <div class="text-subtitle-1 font-weight-medium">Meshtastic radio</div>
       <v-chip v-if="firmware && !firmware.verified" size="small" color="warning" variant="tonal">Not verified</v-chip>
+      <v-spacer />
+      <v-btn
+        v-if="firmware"
+        :href="firmware.flasherUrl"
+        target="_blank"
+        rel="noopener noreferrer"
+        variant="tonal"
+        size="small"
+        :append-icon="mdiOpenInNew"
+      >
+        Open flasher
+      </v-btn>
     </div>
 
     <p v-if="firmware === null" class="text-body-2 text-medium-emphasis mb-0">
       The Meshtastic settings are not published yet. Ask the organizers to publish the event configuration.
     </p>
     <template v-else>
-      <p class="text-body-2 mb-2">
-        Flash Meshtastic firmware <strong>{{ firmware.recommendedVersion }}</strong> first, at least
-        {{ firmware.minimumVersion }} ({{ firmware.channel }}).
-      </p>
-      <p v-if="firmware.flashingNotes" class="text-body-2 text-medium-emphasis mb-2">{{ firmware.flashingNotes }}</p>
-      <v-btn
-        :href="firmware.flasherUrl"
-        target="_blank"
-        rel="noopener noreferrer"
-        variant="text"
-        size="small"
-        class="px-0 mb-1"
-        :append-icon="mdiOpenInNew"
-      >
-        Open the Meshtastic flasher
-      </v-btn>
+      <div class="d-flex align-center flex-wrap ga-2 mb-1">
+        <span class="text-body-1">Flash firmware</span>
+        <v-chip size="small" color="primary" variant="tonal" label class="font-weight-bold">
+          {{ firmware.recommendedVersion }}
+        </v-chip>
+        <span class="text-body-2 text-medium-emphasis">at least {{ firmware.minimumVersion }} · {{ firmware.channel }}</span>
+        <InfoHint label="About the firmware">
+          {{ firmware.flashingNotes ?? "Flash this firmware before importing the settings file." }}
+          Settings made for a newer firmware can misconfigure an older radio.
+        </InfoHint>
+      </div>
 
-      <v-checkbox v-model="acknowledged" :label="acknowledgement" density="compact" hide-details class="mb-2" />
-      <v-btn
-        color="primary"
-        block
-        :prepend-icon="mdiDownload"
-        :disabled="!acknowledged"
-        :loading="downloading"
-        @click="download"
-      >
-        Download settings file
-      </v-btn>
-      <p class="text-caption text-medium-emphasis mt-2 mb-0">
-        Import the file in the Meshtastic app. It contains channel keys{{ onBehalf ? " for this member" : "" }}: do not share it.
-        <template v-if="onBehalf"> The download is recorded in the audit log.</template>
-      </p>
+      <v-divider class="my-4" />
+
+      <div class="download-row">
+        <v-checkbox v-model="acknowledged" :label="acknowledgement" density="compact" hide-details />
+        <v-btn
+          color="primary"
+          :prepend-icon="mdiDownload"
+          :disabled="!acknowledged"
+          :loading="downloading"
+          class="download-row__action"
+          @click="download"
+        >
+          Download settings file
+        </v-btn>
+      </div>
+      <v-alert type="warning" density="compact" :icon="mdiKeyAlert" class="mt-3">
+        <div class="d-flex align-center ga-1">
+          <span>
+            <strong>Contains channel keys{{ onBehalf ? " for this member" : "" }}. Do not share this file.</strong>
+            <template v-if="onBehalf"> The download is recorded in the audit log.</template>
+          </span>
+          <InfoHint label="About the settings file">
+            Import the file in the Meshtastic app. It sets this event's channels and radio settings. Anyone
+            with the file can read and transmit on the event's channels.
+          </InfoHint>
+        </div>
+      </v-alert>
     </template>
   </v-card>
 </template>
+
+<style scoped>
+.download-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+@media (max-width: 599px) {
+  .download-row__action {
+    width: 100%;
+  }
+}
+</style>

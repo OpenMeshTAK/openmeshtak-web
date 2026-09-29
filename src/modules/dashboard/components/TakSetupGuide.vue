@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { mdiAlertDecagram } from "@mdi/js";
+import { mdiCellphoneLink } from "@mdi/js";
 import { computed, ref } from "vue";
 import type { Schemas } from "@/shared/api/types";
+import InfoHint from "@/shared/components/InfoHint.vue";
 
 /**
  * Steps to connect ATAK/iTAK through the Meshtastic app's local TAK server. The app creates the
  * TAK certificates on the phone, so the TAK Data Package comes from the app, not from OpenMeshTak.
- * Menu paths follow the official Meshtastic documentation; the flow is not device-tested yet.
+ * Menu paths follow the official Meshtastic documentation; the flow was verified on real devices
+ * (2026-10-06).
  */
 const props = defineProps<{ profile: Schemas["ResolvedProfileDto"] }>();
 const platform = ref<"android" | "ios">("android");
@@ -42,13 +44,13 @@ const steps = computed(() =>
   <v-card>
     <div class="pa-5 pb-3">
       <div class="d-flex align-center ga-2 flex-wrap mb-1">
+        <v-icon :icon="mdiCellphoneLink" size="small" />
         <span class="text-subtitle-1 font-weight-medium">Connect TAK over Meshtastic</span>
-        <v-chip size="small" color="warning" variant="tonal" label :prepend-icon="mdiAlertDecagram">Not verified</v-chip>
+        <InfoHint label="How TAK over Meshtastic works">
+          ATAK or iTAK on this phone talks to the Meshtastic app, which sends TAK over the mesh as
+          {{ profile.tak.callsign }}.
+        </InfoHint>
       </div>
-      <p class="text-body-2 text-medium-emphasis mb-0">
-        ATAK or iTAK on this phone talks to the Meshtastic app, which sends TAK over the mesh as
-        {{ profile.tak.callsign }}.
-      </p>
     </div>
     <v-tabs v-model="platform" density="compact" class="px-3">
       <v-tab value="android">Android</v-tab>
