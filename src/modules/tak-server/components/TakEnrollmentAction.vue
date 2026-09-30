@@ -1,16 +1,17 @@
 <script setup lang="ts">
 import { mdiDownload } from "@mdi/js";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { useDisplay } from "vuetify";
 import QrCode from "@/shared/components/QrCode.vue";
 import { isApiProblem } from "@/shared/errors/api-problem";
 import { useToast } from "@/shared/feedback/toast";
+import { useSession } from "@/modules/auth/session";
 import { createTakEnrollment, type TakEnrollmentDto } from "../tak-server.api";
 
 /**
- * Enrolls a TAK app with the built-in TAK server: QR code for ATAK, the connection package and
- * manual login data. The enrollment password is single-use, valid for a few minutes and only kept
- * while the dialog is open; the account password never reaches the app.
+ * Connects a TAK app to the built-in TAK server: QR code for ATAK, the connection package and
+ * manual login data. People log in with their username and OpenMeshTak password; the QR code
+ * carries a QR token instead, which lives only while the dialog is open.
  */
 withDefaults(defineProps<{ label?: string }>(), { label: "Connect a TAK app" });
 const emit = defineEmits<{ closed: [] }>();
@@ -21,7 +22,9 @@ const enrollment = ref<TakEnrollmentDto | null>(null);
 const creating = ref(false);
 const unavailable = ref(false);
 const method = ref<"qr" | "package" | "login">("qr");
-const timeFormat = new Intl.DateTimeFormat(undefined, { timeStyle: "short" });
+const session = useSession();
+const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
+const needsPassword = computed(() => session.state.principal?.hasPassword === false);
 
 async function create(): Promise<void> {
   creating.value = true;
@@ -61,6 +64,10 @@ function close(): void {
       </v-tabs>
       <v-divider />
       <v-card-text>
+        <v-alert v-if="needsPassword && method !== 'qr'" type="warning" density="compact" class="mb-4">
+          You have no password yet. <RouterLink to="/account">Set one on your account page</RouterLink> to log in here,
+          or use the QR code.
+        </v-alert>
         <v-window v-model="method">
           <v-window-item value="qr">
             <p class="text-body-2 mb-3">Scan this code with the QR scanner in ATAK, or open the link on the phone with ATAK.</p>
@@ -70,17 +77,19 @@ function close(): void {
             <div class="d-flex justify-center">
               <v-btn :href="enrollment.atakEnrollmentUrl" variant="tonal" size="small">Open in ATAK</v-btn>
             </div>
+            <p class="text-caption text-medium-emphasis text-center mt-3 mb-0">
+              Valid until {{ dateFormat.format(new Date(enrollment.expiresAt)) }}. Do not share it: it signs in as you.
+            </p>
           </v-window-item>
 
           <v-window-item value="package">
             <p class="text-body-2 mb-3">
-              Download the connection package and import it in ATAK or iTAK. The package holds no password; when
-              the app asks, sign in with:
+              Download the connection package and import it in ATAK or iTAK. When the app asks, sign in with:
             </p>
             <v-table density="compact" class="mb-4">
               <tbody>
-                <tr><td>Username</td><td><code class="text-break">{{ enrollment.username }}</code></td></tr>
-                <tr><td>Password</td><td><code>{{ enrollment.token }}</code></td></tr>
+                <tr><td>Username</td><td><code>{{ enrollment.username }}</code></td></tr>
+                <tr><td>Password</td><td>Your OpenMeshTak password</td></tr>
               </tbody>
             </v-table>
             <v-btn href="/api/v1/me/tak-connection-package" download color="primary" :prepend-icon="mdiDownload">
@@ -96,15 +105,12 @@ function close(): void {
               <tbody>
                 <tr><td>Address</td><td><code>{{ enrollment.hostName }}</code></td></tr>
                 <tr><td>Port</td><td><code>{{ enrollment.streamingPort }}</code> (SSL)</td></tr>
-                <tr><td>Username</td><td><code class="text-break">{{ enrollment.username }}</code></td></tr>
-                <tr><td>Password</td><td><code>{{ enrollment.token }}</code></td></tr>
+                <tr><td>Username</td><td><code>{{ enrollment.username }}</code></td></tr>
+                <tr><td>Password</td><td>Your OpenMeshTak password</td></tr>
               </tbody>
             </v-table>
           </v-window-item>
         </v-window>
-        <p class="text-caption text-medium-emphasis mt-4 mb-0">
-          Works once and expires at {{ timeFormat.format(new Date(enrollment.expiresAt)) }}.
-        </p>
       </v-card-text>
       <v-card-actions>
         <v-spacer />
