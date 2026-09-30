@@ -5,12 +5,13 @@ import { api, unwrap } from "@/shared/api/client";
 import { describeError, isApiProblem } from "@/shared/errors/api-problem";
 import { fieldErrors, messagesFor } from "@/shared/errors/field-errors";
 import { useSession } from "@/modules/auth/session";
+import { normalizeUsernameInput, USERNAME_HINT, usernameRule } from "@/shared/forms/username";
 import { markSetupComplete } from "./setup.api";
 
 const router = useRouter();
 const session = useSession();
 
-const form = ref({ token: "", name: "", email: "", password: "" });
+const form = ref({ token: "", name: "", username: "", email: "", password: "" });
 const submitting = ref(false);
 const error = ref<string | null>(null);
 const fields = ref<Record<string, string>>({});
@@ -21,7 +22,7 @@ async function submit(): Promise<void> {
   fields.value = {};
   try {
     // The bootstrap token goes only into this request body, never into the URL or storage.
-    await unwrap(api.POST("/setup", { body: form.value }));
+    await unwrap(api.POST("/setup", { body: { ...form.value, username: normalizeUsernameInput(form.value.username) } }));
     form.value.token = "";
     markSetupComplete();
     await session.refresh();
@@ -60,6 +61,19 @@ async function submit(): Promise<void> {
         required
       />
       <v-text-field v-model="form.name" label="Your name" autocomplete="name" :error-messages="messagesFor(fields, 'name')" required />
+      <v-text-field
+        v-model="form.username"
+        label="Username"
+        autocomplete="username"
+        autocapitalize="none"
+        spellcheck="false"
+        :hint="USERNAME_HINT"
+        persistent-hint
+        :rules="[(value: string) => usernameRule(normalizeUsernameInput(value))]"
+        :error-messages="messagesFor(fields, 'username')"
+        class="mb-2"
+        required
+      />
       <v-text-field
         v-model="form.email"
         label="Email"

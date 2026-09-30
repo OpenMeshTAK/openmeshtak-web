@@ -8,11 +8,12 @@ import ViewHeader from "@/shared/components/layout/ViewHeader.vue";
 import { describeError } from "@/shared/errors/api-problem";
 import { useToast } from "@/shared/feedback/toast";
 import { useSession } from "@/modules/auth/session";
-import { renameUser, revokeUserSessions, searchUsers, sendPasswordReset, setUserDisabled, type UserDto } from "./users.api";
+import { normalizeUsernameInput, USERNAME_HINT, usernameRule } from "@/shared/forms/username";
+import { revokeUserSessions, searchUsers, sendPasswordReset, setUserDisabled, updateUser, type UserDto } from "./users.api";
 
 /**
- * Installation-wide user administration. Administrators never see or set passwords; they rename,
- * disable or sign users out. Event membership stays on each event's Members tab.
+ * Installation-wide user administration. Administrators never see or set passwords; they edit the
+ * name and username, disable or sign users out. Event membership stays on each event's Members tab.
  */
 const session = useSession();
 const toast = useToast();
@@ -24,8 +25,11 @@ const state = ref<"loading" | "ready" | "error">("loading");
 const error = ref("");
 const canManage = session.can("users.manage");
 
-const renaming = ref<UserDto | null>(null);
+const editing = ref<UserDto | null>(null);
 const newName = ref("");
+const newUsername = ref("");
+const saving = ref(false);
+const editError = ref("");
 const confirmDisable = ref<UserDto | null>(null);
 const confirmSignOut = ref<UserDto | null>(null);
 
@@ -54,22 +58,34 @@ function replace(updated: UserDto): void {
   users.value = users.value.map((user) => (user.id === updated.id ? updated : user));
 }
 
-function startRename(user: UserDto): void {
-  renaming.value = user;
+function startEdit(user: UserDto): void {
+  editing.value = user;
   newName.value = user.displayName;
+  newUsername.value = user.username ?? "";
+  editError.value = "";
 }
 
-async function saveName(): Promise<void> {
-  const user = renaming.value;
-  renaming.value = null;
-  if (user === null || newName.value.trim() === "" || newName.value.trim() === user.displayName) {
+/** Errors stay in the open dialog, so a taken username can be corrected without retyping. */
+async function saveEdit(): Promise<void> {
+  const user = editing.value;
+  if (user === null || newName.value.trim() === "") {
     return;
   }
+  const username = user.username === null ? null : normalizeUsernameInput(newUsername.value);
+  if (username !== null && usernameRule(username) !== true) {
+    return;
+  }
+  saving.value = true;
+  editError.value = "";
   try {
-    replace(await renameUser(user, newName.value.trim()));
-    toast.success("User renamed.");
+    const updated = await updateUser(user, newName.value.trim(), username);
+    replace(updated);
+    editing.value = null;
+    toast.success(`${updated.displayName} was updated.`);
   } catch (caught: unknown) {
-    toast.error(caught);
+    editError.value = describeError(caught);
+  } finally {
+    saving.value = false;
   }
 }
 
@@ -127,6 +143,7 @@ onMounted(() => void load());
         <thead>
           <tr>
             <th>Name</th>
+            <th>Username</th>
             <th class="d-none d-md-table-cell">Email</th>
             <th>Status</th>
             <th v-if="canManage" class="text-right">Actions</th>
@@ -135,6 +152,10 @@ onMounted(() => void load());
         <tbody>
           <tr v-for="user in users" :key="user.id">
             <td class="font-weight-medium">{{ user.displayName }}</td>
+            <td>
+              <code v-if="user.username">{{ user.username }}</code>
+              <span v-else class="text-medium-emphasis">—</span>
+            </td>
             <td class="d-none d-md-table-cell text-medium-emphasis">{{ user.email ?? "No local sign-in yet" }}</td>
             <td>
               <v-chip v-if="user.disabled" size="small" color="error" variant="tonal" :prepend-icon="mdiAccountOff">Disabled</v-chip>
@@ -146,7 +167,7 @@ onMounted(() => void load());
                   <v-btn v-bind="menu" :icon="mdiDotsVertical" variant="text" size="small" :aria-label="`Actions for ${user.displayName}`" />
                 </template>
                 <v-list density="compact">
-                  <v-list-item title="Rename" @click="startRename(user)" />
+                  <v-list-item title="Edit" @click="startEdit(user)" />
                   <v-list-item title="Send password reset email" :disabled="user.email === null" @click="resetPassword(user)" />
                   <v-list-item title="Sign out everywhere" @click="confirmSignOut = user" />
                   <v-list-item v-if="user.disabled" title="Enable" @click="toggleDisabled(user, false)" />
@@ -156,7 +177,7 @@ onMounted(() => void load());
             </td>
           </tr>
           <tr v-if="users.length === 0">
-            <td colspan="4" class="text-medium-emphasis">No users match the search.</td>
+            <td colspan="5" class="text-medium-emphasis">No users match the search.</td>
           </tr>
         </tbody>
       </v-table>
@@ -165,16 +186,31 @@ onMounted(() => void load());
       </div>
     </v-card>
 
-    <v-dialog :model-value="renaming !== null" max-width="420" @update:model-value="renaming = null">
+    <v-dialog :model-value="editing !== null" max-width="460" @update:model-value="editing = null">
       <v-card class="pa-2">
-        <v-card-title>Rename user</v-card-title>
+        <v-card-title>Edit user</v-card-title>
         <v-card-text>
-          <v-text-field v-model="newName" label="Display name" maxlength="100" autofocus @keydown.enter="saveName" />
+          <v-alert v-if="editError" type="error" density="compact" class="mb-4">{{ editError }}</v-alert>
+          <v-text-field v-model="newName" label="Display name" maxlength="100" autofocus @keydown.enter="saveEdit" />
+          <v-text-field
+            v-if="editing?.username !== null"
+            v-model="newUsername"
+            label="Username"
+            autocapitalize="none"
+            spellcheck="false"
+            :hint="USERNAME_HINT"
+            persistent-hint
+            :rules="[(value: string) => usernameRule(normalizeUsernameInput(value))]"
+            @keydown.enter="saveEdit"
+          />
+          <p v-else class="text-body-2 text-medium-emphasis mb-0">
+            The username is created when this user first signs in.
+          </p>
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn variant="text" @click="renaming = null">Cancel</v-btn>
-          <v-btn color="primary" variant="flat" @click="saveName">Save</v-btn>
+          <v-btn variant="text" @click="editing = null">Cancel</v-btn>
+          <v-btn color="primary" variant="flat" :loading="saving" @click="saveEdit">Save</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>

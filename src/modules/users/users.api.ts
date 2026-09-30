@@ -9,8 +9,10 @@ export function searchUsers(search: string, cursor: string | null): Promise<Sche
   return unwrap(api.GET("/users", { params: { query } }));
 }
 
-export function renameUser(user: UserDto, displayName: string): Promise<UserDto> {
-  return unwrap(api.PUT("/users/{userId}", { params: { path: { userId: user.id } }, body: { version: user.version, displayName } }));
+/** Saves the display name and, for users with a local login, the username. */
+export function updateUser(user: UserDto, displayName: string, username: string | null): Promise<UserDto> {
+  const body = { version: user.version, displayName, ...(username === null ? {} : { username }) };
+  return unwrap(api.PUT("/users/{userId}", { params: { path: { userId: user.id } }, body }));
 }
 
 export function setUserDisabled(userId: string, disabled: boolean): Promise<UserDto> {

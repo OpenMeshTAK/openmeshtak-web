@@ -10,7 +10,8 @@ const route = useRoute();
 const router = useRouter();
 const session = useSession();
 
-const email = ref("");
+/** Username or email address; both sign in to the same account. */
+const login = ref("");
 const password = ref("");
 const submitting = ref(false);
 const error = ref<string | null>(null);
@@ -42,13 +43,16 @@ async function submit(): Promise<void> {
   submitting.value = true;
   error.value = null;
   try {
-    const result = await authClient.signIn.email({ email: email.value, password: password.value });
+    const name = login.value.trim();
+    const result = name.includes("@")
+      ? await authClient.signIn.email({ email: name, password: password.value })
+      : await authClient.signIn.username({ username: name.toLowerCase(), password: password.value });
     if (result.error) {
       // Generic on purpose: never reveal whether the account exists.
       error.value =
         result.error.status === 429
           ? "Too many attempts. Wait a moment and try again."
-          : "Email or password is not correct.";
+          : "Username, email or password is not correct.";
       return;
     }
     await completeSignIn();
@@ -65,7 +69,7 @@ async function submit(): Promise<void> {
     <h1 class="text-h5 mb-6">Sign in</h1>
     <v-alert v-if="error" type="error" class="mb-4">{{ error }}</v-alert>
     <v-form @submit.prevent="submit">
-      <v-text-field v-model="email" label="Email" type="email" autocomplete="username" required />
+      <v-text-field v-model="login" label="Username or email" autocomplete="username" autocapitalize="none" spellcheck="false" required />
       <v-text-field
         v-model="password"
         label="Password"

@@ -292,9 +292,10 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * @description Creates a single-use enrollment password for the signed-in user, valid for 15 minutes, with
-         *     the ATAK enrollment link. Members of active events and holders of `tak-server.admin-access`
-         *     may enroll. The account password is never used by TAK apps.
+         * @description Returns the TAK login of the signed-in user (account username, used with the account
+         *     password) and a fresh QR token in the ATAK enrollment link, valid until the end of the user's
+         *     latest active event. Members of active events and holders of `tak-server.admin-access` may
+         *     enroll. QR tokens never carry the account password.
          */
         post: operations["CreateTakEnrollment"];
         delete?: never;
@@ -1538,6 +1539,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/events/{eventId}/data-packages/{packageId}/kml": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Exports the current draft as KML; `layerId` limits it to one layer. Circles become polygons. */
+        get: operations["ExportPackageDraftKml"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{eventId}/data-packages/{packageId}/revisions/{number}/kml": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Exports a published revision as KML; `layerId` limits it to one layer. */
+        get: operations["ExportPackageRevisionKml"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/events/{eventId}/data-packages/{packageId}/layers/{layerId}/import": {
         parameters: {
             query?: never;
@@ -1836,6 +1871,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Sets the first password of the signed-in account, for example after signing in with an access
+         *     link. It is then used for sign-in and the TAK login. Accounts that already have a password
+         *     change it through the authentication API with the current password.
+         */
+        post: operations["SetPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1866,6 +1922,8 @@ export interface components {
         UserDto: {
             id: components["schemas"]["Uuid"];
             displayName: string;
+            /** @description Sign-in and TAK login name, or `null` when the user has no local login yet. */
+            username: string | null;
             /** @description Email of the linked local login, or `null` when the user has no local login yet. */
             email: string | null;
             /** @description Disabled users cannot sign in, keep no sessions and lose TAK access. */
@@ -1890,6 +1948,11 @@ export interface components {
             /** Format: int32 */
             version: number;
             displayName: string;
+            /**
+             * @description New sign-in and TAK login name; only for users with a local login. Apps enrolled with the old
+             *     name keep working, because client certificates name the user ID.
+             */
+            username?: string;
         };
         /** @enum {string} */
         Permission: "users.read" | "users.manage" | "user-groups.read" | "user-groups.manage" | "events.read" | "events.manage" | "events.reactivate" | "members.read" | "members.manage" | "members.sync" | "member-claims.create" | "channel-keys.reveal" | "data-packages.read" | "data-packages.edit" | "data-packages.publish" | "artifacts.generate" | "artifacts.download" | "member-artifacts.download" | "tak-traffic.view" | "service-accounts.manage" | "tak-server.manage" | "tak-server.admin-access" | "email.manage" | "settings.manage" | "audit.read";
@@ -2060,21 +2123,23 @@ export interface components {
             items: components["schemas"]["LiveTakItemDto"][];
         };
         /**
-         * @description Everything a TAK app needs to enroll once. The token is a single-use password valid for a few
-         *     minutes; it is shown only in this response.
+         * @description Everything a TAK app needs to connect. Manual setup uses `username` with the account password;
+         *     the ATAK link and QR code carry a QR token instead, which is shown only in this response.
          */
         TakEnrollmentDto: {
-            /** @description TAK user name: the stable OpenMeshTak user ID. */
+            /** @description The account username, the TAK login name. */
             username: string;
-            token: string;
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description When the QR token expires: the end of the user's latest active event, otherwise in 30 days.
+             */
             expiresAt: string;
             hostName: string;
             /** Format: double */
             enrollmentPort: number;
             /** Format: double */
             streamingPort: number;
-            /** @description Link and QR code content for ATAK certificate enrollment. */
+            /** @description Link and QR code content for ATAK certificate enrollment, with the QR token. */
             atakEnrollmentUrl: string;
         };
         /** @description A client certificate issued to a TAK app. Certificates are public; no key material exists here. */
@@ -2199,6 +2264,7 @@ export interface components {
         SetupResponse: {
             user: {
                 email: string;
+                username: string;
                 name: string;
                 id: string;
             };
@@ -2207,6 +2273,8 @@ export interface components {
             /** Format: email */
             email: string;
             name: string;
+            /** @description Sign-in and TAK login name: 3 to 32 lowercase letters, digits, dots, underscores or hyphens. */
+            username: string;
             password: string;
             token: string;
         };
@@ -2426,6 +2494,10 @@ export interface components {
             /** Format: uuid */
             id: string;
             name: string;
+            /** @description Sign-in and TAK login name of a user; `null` for service accounts. */
+            username: string | null;
+            /** @description Whether a user can sign in with a password, which the TAK login needs; `false` for service accounts. */
+            hasPassword: boolean;
             /** @description Effective grants, deduplicated across all sources. */
             permissions: components["schemas"]["PermissionGrantDto"][];
         };
@@ -3697,6 +3769,9 @@ export interface components {
             /** @description Name of the combined Data Package; defaults to the event name. */
             name?: string;
             packages: components["schemas"]["CombinedExportSelection"][];
+        };
+        SetPasswordRequest: {
+            newPassword: string;
         };
     };
     responses: never;
@@ -10322,6 +10397,111 @@ export interface operations {
             };
         };
     };
+    ExportPackageDraftKml: {
+        parameters: {
+            query?: {
+                layerId?: components["schemas"]["Uuid"];
+            };
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+                packageId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description KML of the draft */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ExportPackageRevisionKml: {
+        parameters: {
+            query?: {
+                layerId?: components["schemas"]["Uuid"];
+            };
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+                packageId: components["schemas"]["Uuid"];
+                number: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description KML of the revision */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     ImportPackageGeoJson: {
         parameters: {
             query?: never;
@@ -11558,6 +11738,55 @@ export interface operations {
             };
             /** @description Validation failed */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    SetPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetPasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description Password set */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Recent sign-in required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Password already set */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
