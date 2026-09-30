@@ -9,6 +9,7 @@ import { useSession } from "@/modules/auth/session";
 import { getEvent, type EventDto } from "@/modules/events/events.api";
 import {
   downloadAtak,
+  downloadDraftKml,
   exportDraftGeoJson,
   importAtak,
   importGeoJson,
@@ -162,6 +163,16 @@ async function exportDraft(layer?: PackageLayerDto): Promise<void> {
   }
 }
 
+/** The draft as KML for GIS tools, optionally only one layer. */
+async function exportKml(layer?: PackageLayerDto): Promise<void> {
+  try {
+    const { blob, fileName } = await downloadDraftKml(editor.path, layer?.id);
+    saveFile(blob, fileName);
+  } catch (caught: unknown) {
+    toast.error(caught);
+  }
+}
+
 /** ATAK receives published revisions only, never the draft. */
 async function exportAtak(layer?: PackageLayerDto): Promise<void> {
   const revision = editor.dataPackage.value?.latestRevision;
@@ -179,7 +190,7 @@ async function exportAtak(layer?: PackageLayerDto): Promise<void> {
 }
 
 function exportLayer(layer: PackageLayerDto, format: LayerExportFormat): void {
-  void (format === "atak" ? exportAtak(layer) : exportDraft(layer));
+  void (format === "atak" ? exportAtak(layer) : format === "kml" ? exportKml(layer) : exportDraft(layer));
 }
 
 function importInto(layer: PackageLayerDto): void {
@@ -290,6 +301,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
         <v-list density="compact">
           <v-list-item title="ATAK Data Package (.zip)" :subtitle="revisionLabel" @click="exportAtak()" />
           <v-list-item title="GeoJSON of the draft" @click="exportDraft()" />
+          <v-list-item title="KML of the draft" @click="exportKml()" />
         </v-list>
       </v-menu>
       <v-btn v-if="canPublish" color="primary" :prepend-icon="mdiPublish" :loading="publishing" @click="publish">Publish</v-btn>

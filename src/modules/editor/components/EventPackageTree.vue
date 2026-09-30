@@ -145,6 +145,7 @@ function togglePackage(packageId: string): void {
                   @click="emit('exportPackage', branch, 'atak')"
                 />
                 <v-list-item title="Export draft as GeoJSON" :prepend-icon="mdiDownload" @click="emit('exportPackage', branch, 'geojson')" />
+                <v-list-item title="Export draft as KML" :prepend-icon="mdiDownload" @click="emit('exportPackage', branch, 'kml')" />
               </v-list>
             </v-menu>
           </template>

@@ -22,6 +22,7 @@ import CreatePackageCopyDialog from "@/modules/data-packages/components/CreatePa
 import {
   createDataPackage,
   downloadAtak,
+  downloadDraftKml,
   exportDraftGeoJson,
   importAtak,
   importGeoJson,
@@ -373,6 +374,15 @@ async function exportDraft(editor: PackageEditor, layer?: PackageLayerDto): Prom
   }
 }
 
+async function exportKml(editor: PackageEditor, layer?: PackageLayerDto): Promise<void> {
+  try {
+    const { blob, fileName } = await downloadDraftKml(editor.path, layer?.id);
+    saveFile(blob, fileName);
+  } catch (caught: unknown) {
+    toast.error(caught);
+  }
+}
+
 async function exportAtak(editor: PackageEditor, layer?: PackageLayerDto): Promise<void> {
   const revision = editor.dataPackage.value?.latestRevision;
   if (revision === null || revision === undefined) {
@@ -390,14 +400,14 @@ async function exportAtak(editor: PackageEditor, layer?: PackageLayerDto): Promi
 function exportPackage(branch: EventPackageBranch, format: LayerExportFormat): void {
   const editor = editorFor(branch.dataPackage.id);
   if (editor !== null) {
-    void (format === "atak" ? exportAtak(editor) : exportDraft(editor));
+    void (format === "atak" ? exportAtak(editor) : format === "kml" ? exportKml(editor) : exportDraft(editor));
   }
 }
 
 function exportLayer(branch: EventPackageBranch, layer: PackageLayerDto, format: LayerExportFormat): void {
   const editor = editorFor(branch.dataPackage.id);
   if (editor !== null) {
-    void (format === "atak" ? exportAtak(editor, layer) : exportDraft(editor, layer));
+    void (format === "atak" ? exportAtak(editor, layer) : format === "kml" ? exportKml(editor, layer) : exportDraft(editor, layer));
   }
 }
 

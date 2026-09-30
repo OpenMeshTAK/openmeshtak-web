@@ -289,3 +289,17 @@ export async function deleteContent(path: PackagePath, contentId: string): Promi
     }),
   );
 }
+
+/** The draft as KML for GIS tools, optionally one layer; Core names the file. */
+export async function downloadDraftKml(path: PackagePath, layerId?: string): Promise<{ blob: Blob; fileName: string }> {
+  const url = new URL(packageUrl(path, "kml"));
+  if (layerId !== undefined) {
+    url.searchParams.set("layerId", layerId);
+  }
+  const response = await fetch(url.href, { credentials: "same-origin" });
+  if (!response.ok) {
+    throw await failure(response);
+  }
+  const fileName = /filename="([^"]+)"/.exec(response.headers.get("Content-Disposition") ?? "")?.[1] ?? "data-package.kml";
+  return { blob: await response.blob(), fileName };
+}

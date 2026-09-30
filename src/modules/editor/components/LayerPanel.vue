@@ -31,7 +31,7 @@ import type {
 import LayerContentRow from "./LayerContentRow.vue";
 
 export type LayerChanges = Partial<Pick<PackageLayerDto, "name" | "visible" | "locked">>;
-export type LayerExportFormat = "atak" | "geojson";
+export type LayerExportFormat = "atak" | "geojson" | "kml";
 
 const props = defineProps<{
   /** Used to remember collapsed layers per data package in this browser. */
@@ -261,6 +261,7 @@ function objectGroup(layer: PackageLayerDto) {
                   />
                   <v-list-item title="Export as ATAK package" :prepend-icon="mdiDownload" @click="emit('exportLayer', layer, 'atak')" />
                   <v-list-item title="Export as GeoJSON" :prepend-icon="mdiDownload" @click="emit('exportLayer', layer, 'geojson')" />
+                  <v-list-item title="Export as KML" :prepend-icon="mdiDownload" @click="emit('exportLayer', layer, 'kml')" />
                   <v-list-item
                     title="Create data package from layer…"
                     :subtitle="canCopy ? '' : 'Publish this data package first'"
