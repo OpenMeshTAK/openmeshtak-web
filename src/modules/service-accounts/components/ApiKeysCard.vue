@@ -6,7 +6,6 @@ import OneTimeCredentialReveal from "@/shared/components/OneTimeCredentialReveal
 import { useAsyncData } from "@/shared/composables/useAsyncData";
 import { useSubmission } from "@/shared/composables/useSubmission";
 import { useToast } from "@/shared/feedback/toast";
-import ReauthenticateDialog from "@/modules/auth/ReauthenticateDialog.vue";
 import { createApiKey, listApiKeys, revokeApiKey, type ApiKeyDto } from "../service-accounts.api";
 
 /** API-key lifecycle of one service account: create (rotate), reveal once, revoke. */
@@ -19,7 +18,6 @@ const activeKeys = computed(() => keys.data.value.filter(({ status }) => status 
 const dialogOpen = ref(false);
 const keyName = ref("");
 const creation = useSubmission();
-const reauthOpen = ref(false);
 /** The plaintext key lives only here and only until the operator dismisses the reveal. */
 const revealedKey = ref<string | null>(null);
 const revoking = ref<ApiKeyDto | null>(null);
@@ -41,10 +39,6 @@ async function create(): Promise<void> {
   if (created !== null) {
     revealedKey.value = created.value.key;
     await keys.load();
-  } else if (creation.code.value === "RECENT_AUTHENTICATION_REQUIRED") {
-    // Core asks for a recent sign-in before minting credentials; confirm, then retry.
-    creation.reset();
-    reauthOpen.value = true;
   }
 }
 
@@ -123,8 +117,6 @@ onMounted(keys.load);
         </v-card-actions>
       </v-card>
     </v-dialog>
-
-    <ReauthenticateDialog v-model="reauthOpen" @confirmed="create" />
 
     <ConfirmDialog
       :model-value="revoking !== null"

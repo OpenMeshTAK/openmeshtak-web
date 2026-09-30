@@ -1,6 +1,7 @@
 import createClient from "openapi-fetch";
 import type { paths } from "@/generated/api/schema";
 import { ApiProblem } from "@/shared/errors/api-problem";
+import { stepUpMiddleware } from "./step-up";
 
 /**
  * Typed client generated from Core's OpenAPI contract. Requests stay same-origin so the
@@ -13,6 +14,7 @@ export const api = createClient<paths>({
   // Resolve fetch per call instead of capturing it at import time, so tests can replace it.
   fetch: (request) => globalThis.fetch(request),
 });
+api.use(stepUpMiddleware);
 
 interface ApiResult<T> {
   data?: T;

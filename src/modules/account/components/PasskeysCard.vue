@@ -4,8 +4,8 @@ import { onMounted, ref } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import { useAsyncData } from "@/shared/composables/useAsyncData";
 import { useToast } from "@/shared/feedback/toast";
-import ReauthenticateDialog from "@/modules/auth/ReauthenticateDialog.vue";
 import { useSession } from "@/modules/auth/session";
+import { requestStepUp } from "@/modules/auth/step-up";
 import { addPasskey, deletePasskey, listPasskeys, type PasskeySummary } from "../passkeys";
 
 const session = useSession();
@@ -13,7 +13,6 @@ const toast = useToast();
 const passkeys = useAsyncData(listPasskeys, []);
 
 const adding = ref(false);
-const reauthOpen = ref(false);
 const removing = ref<PasskeySummary | null>(null);
 
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
@@ -24,18 +23,23 @@ function describe(passkey: PasskeySummary): string {
 
 async function add(): Promise<void> {
   adding.value = true;
+  let signInRequired = false;
   try {
     const result = await addPasskey(session.state.principal?.name ?? "OpenMeshTak");
     if (result.outcome === "added") {
       toast.success("Passkey added. You can now sign in with it.");
       await passkeys.load();
     } else if (result.outcome === "sign-in-required") {
-      reauthOpen.value = true;
+      signInRequired = true;
     } else {
       toast.info(result.message);
     }
   } finally {
     adding.value = false;
+  }
+  // Better Auth asks for a fresh session; retry once the user has signed in again.
+  if (signInRequired && (await requestStepUp())) {
+    await add();
   }
 }
 
@@ -95,7 +99,6 @@ onMounted(passkeys.load);
       </v-list>
     </v-card-text>
 
-    <ReauthenticateDialog v-model="reauthOpen" @confirmed="add" />
 
     <ConfirmDialog
       :model-value="removing !== null"
