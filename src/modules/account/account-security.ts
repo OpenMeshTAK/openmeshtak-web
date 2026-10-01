@@ -35,9 +35,15 @@ export async function completeAccountSetup(username: string, newPassword: string
   await unwrap(api.POST("/me/account-setup", { body: { username, newPassword } }));
 }
 
+/** Better Auth lists sessions only for a recent sign-in; older sessions must sign in again first. */
+export class FreshSignInRequiredError extends Error {}
+
 export async function listSessions(): Promise<SessionSummary[]> {
   const [sessions, current] = await Promise.all([authClient.listSessions(), authClient.getSession()]);
   if (sessions.error) {
+    if ("code" in sessions.error && sessions.error.code === "SESSION_NOT_FRESH") {
+      throw new FreshSignInRequiredError("Sign in again to see your signed-in devices.");
+    }
     throw new Error("Your sessions could not be loaded.");
   }
   const currentToken = current.data?.session.token ?? null;
