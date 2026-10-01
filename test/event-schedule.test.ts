@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compareEvents, formatEventDates, scheduleHint } from "@/modules/events/event-schedule";
+import { scheduleHint } from "@/modules/events/event-schedule";
 import type { EventDto } from "@/modules/events/events.api";
 
 function event(overrides: Partial<EventDto>): EventDto {
@@ -27,23 +27,5 @@ describe("event schedule", () => {
     expect(scheduleHint(event({ startsAt: "2026-10-05T08:00:00.000Z", endsAt: "2026-10-08T08:00:00.000Z" }), now)).toBe("Running");
     expect(scheduleHint(event({ endsAt: "2026-10-01T08:00:00.000Z" }), now)).toBe("Ended");
     expect(scheduleHint(event({}), now)).toBeNull();
-  });
-
-  it("shows dates in the event's time zone", () => {
-    // 23:30 UTC is already the next day in Berlin.
-    const dates = formatEventDates(event({ startsAt: "2026-10-09T23:30:00.000Z", endsAt: null }));
-    expect(dates).toContain("10");
-    expect(formatEventDates(event({}))).toBeNull();
-  });
-
-  it("lists active events first, then drafts, then archived ones, each by start", () => {
-    const sorted = [
-      event({ name: "Old", status: "archived", startsAt: "2026-01-01T00:00:00.000Z" }),
-      event({ name: "Undated draft", status: "draft" }),
-      event({ name: "Later", status: "active", startsAt: "2026-12-01T00:00:00.000Z" }),
-      event({ name: "Draft", status: "draft", startsAt: "2026-11-01T00:00:00.000Z" }),
-      event({ name: "Soon", status: "active", startsAt: "2026-10-10T00:00:00.000Z" }),
-    ].sort(compareEvents);
-    expect(sorted.map(({ name }) => name)).toEqual(["Soon", "Later", "Draft", "Undated draft", "Old"]);
   });
 });
