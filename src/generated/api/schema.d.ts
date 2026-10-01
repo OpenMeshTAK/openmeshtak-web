@@ -1396,6 +1396,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/download-grants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Creates a link that downloads one artifact the signed-in user may download right now, valid
+         *     for 5 minutes and at most 3 downloads. Access is checked again when the link is used.
+         */
+        post: operations["CreateDownloadGrant"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/downloads/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Downloads the artifact of a download link without a session. */
+        get: operations["DownloadWithGrant"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/events/{eventId}/data-packages/{packageId}/revisions": {
         parameters: {
             query?: never;
@@ -1871,7 +1908,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/me/password": {
+    "/me/account-setup": {
         parameters: {
             query?: never;
             header?: never;
@@ -1881,11 +1918,11 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * @description Sets the first password of the signed-in account, for example after signing in with an access
-         *     link. It is then used for sign-in and the TAK login. Accounts that already have a password
-         *     change it through the authentication API with the current password.
+         * @description Completes an account without a password, for example right after signing in with an access
+         *     link: optionally picks the username and sets the first password, used for sign-in and the TAK
+         *     login. Accounts that already have a password change it through the authentication API.
          */
-        post: operations["SetPassword"];
+        post: operations["CompleteAccountSetup"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2132,15 +2169,19 @@ export interface components {
             /**
              * Format: date-time
              * @description When the QR token expires: the end of the user's latest active event, otherwise in 30 days.
+             *     `null` without QR enrollment.
              */
-            expiresAt: string;
+            expiresAt: string | null;
             hostName: string;
             /** Format: double */
             enrollmentPort: number;
             /** Format: double */
             streamingPort: number;
-            /** @description Link and QR code content for ATAK certificate enrollment, with the QR token. */
-            atakEnrollmentUrl: string;
+            /**
+             * @description Link and QR code content for ATAK certificate enrollment, with the QR token. `null` while the
+             *     TAK server uses a certificate from its own CA, because ATAK's QR enrollment then fails.
+             */
+            atakEnrollmentUrl: string | null;
         };
         /** @description A client certificate issued to a TAK app. Certificates are public; no key material exists here. */
         TakClientCertificateDto: {
@@ -3307,6 +3348,24 @@ export interface components {
         SendTestEmailRequest: {
             to: string;
         };
+        /** @description A link that downloads the artifact without a session, e.g. from a QR code on another device. */
+        DownloadGrantDto: {
+            /** @description Treat as a secret: whoever has it can download the file until it expires. */
+            url: string;
+            /** Format: date-time */
+            expiresAt: string;
+        };
+        /** @enum {string} */
+        DownloadGrantKind: "device-profile" | "member-data-package" | "tak-connection-package";
+        CreateDownloadGrantRequest: {
+            kind: components["schemas"]["DownloadGrantKind"];
+            /** @description Required for `device-profile` and `member-data-package`. */
+            eventId?: components["schemas"]["Uuid"];
+            /** @description Required for `device-profile` and `member-data-package`. */
+            memberId?: components["schemas"]["Uuid"];
+            /** @description Required for `member-data-package`. */
+            packageId?: components["schemas"]["Uuid"];
+        };
         PackageRevisionSummaryDto: {
             id: components["schemas"]["Uuid"];
             packageId: components["schemas"]["Uuid"];
@@ -3770,8 +3829,10 @@ export interface components {
             name?: string;
             packages: components["schemas"]["CombinedExportSelection"][];
         };
-        SetPasswordRequest: {
+        AccountSetupRequest: {
             newPassword: string;
+            /** @description Sign-in and TAK login name; keeps the one derived from the name when omitted. */
+            username?: string;
         };
     };
     responses: never;
@@ -9485,6 +9546,79 @@ export interface operations {
             };
         };
     };
+    CreateDownloadGrant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateDownloadGrantRequest"];
+            };
+        };
+        responses: {
+            /** @description Download link created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DownloadGrantDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DownloadWithGrant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The artifact */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            /** @description Link invalid, used up or expired */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     ListPackageRevisions: {
         parameters: {
             query?: {
@@ -11747,7 +11881,7 @@ export interface operations {
             };
         };
     };
-    SetPassword: {
+    CompleteAccountSetup: {
         parameters: {
             query?: never;
             header?: never;
@@ -11756,11 +11890,11 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["SetPasswordRequest"];
+                "application/json": components["schemas"]["AccountSetupRequest"];
             };
         };
         responses: {
-            /** @description Password set */
+            /** @description Account set up */
             204: {
                 headers: {
                     [name: string]: unknown;
@@ -11785,7 +11919,7 @@ export interface operations {
                     "application/json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Password already set */
+            /** @description Password already set or username taken */
             409: {
                 headers: {
                     [name: string]: unknown;

@@ -30,9 +30,9 @@ export async function changePassword(currentPassword: string, newPassword: strin
   return { outcome: "failed", message: result.error.message ?? "The password could not be changed." };
 }
 
-/** Sets the first password of an account that has none, e.g. after signing in with an access link. */
-export async function setFirstPassword(newPassword: string): Promise<void> {
-  await unwrap(api.POST("/me/password", { body: { newPassword } }));
+/** Chooses the login name and sets the first password after signing in with an access link. */
+export async function completeAccountSetup(username: string, newPassword: string): Promise<void> {
+  await unwrap(api.POST("/me/account-setup", { body: { username, newPassword } }));
 }
 
 export async function listSessions(): Promise<SessionSummary[]> {

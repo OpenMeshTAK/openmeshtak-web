@@ -25,11 +25,13 @@ const method = ref<"qr" | "package" | "login">("qr");
 const session = useSession();
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
 const needsPassword = computed(() => session.state.principal?.hasPassword === false);
+const qrAvailable = computed(() => enrollment.value?.atakEnrollmentUrl !== null);
 
 async function create(): Promise<void> {
   creating.value = true;
   try {
     enrollment.value = await createTakEnrollment();
+    method.value = enrollment.value.atakEnrollmentUrl === null ? "package" : "qr";
   } catch (caught: unknown) {
     if (isApiProblem(caught, "TAK_SERVER_NOT_READY")) {
       unavailable.value = true;
@@ -58,18 +60,21 @@ function close(): void {
     <v-card v-if="enrollment">
       <v-card-title class="pt-4 px-6">Connect a TAK app</v-card-title>
       <v-tabs v-model="method" density="compact" grow>
-        <v-tab value="qr">QR code</v-tab>
+        <v-tab v-if="qrAvailable" value="qr">QR code</v-tab>
         <v-tab value="package">Connection package</v-tab>
         <v-tab value="login">Login data</v-tab>
       </v-tabs>
       <v-divider />
       <v-card-text>
+        <v-alert v-if="!qrAvailable" type="info" density="compact" class="mb-4">
+          QR enrollment needs a publicly trusted TAK server certificate. Import the connection package first so your app trusts this server.
+        </v-alert>
         <v-alert v-if="needsPassword && method !== 'qr'" type="warning" density="compact" class="mb-4">
           You have no password yet. <RouterLink to="/account">Set one on your account page</RouterLink> to log in here,
           or use the QR code.
         </v-alert>
         <v-window v-model="method">
-          <v-window-item value="qr">
+          <v-window-item v-if="enrollment.atakEnrollmentUrl && enrollment.expiresAt" value="qr">
             <p class="text-body-2 mb-3">Scan this code with the QR scanner in ATAK, or open the link on the phone with ATAK.</p>
             <div class="d-flex justify-center mb-3">
               <QrCode :value="enrollment.atakEnrollmentUrl" label="ATAK enrollment code" :size="220" />
