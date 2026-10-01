@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { mdiAccountKey } from "@mdi/js";
+import { mdiAccountCircleOutline } from "@mdi/js";
 import { ref } from "vue";
-import { useRouter } from "vue-router";
 import InfoHint from "@/shared/components/InfoHint.vue";
 import { useSession } from "@/modules/auth/session";
 import ViewContent from "@/shared/components/layout/ViewContent.vue";
@@ -11,47 +10,61 @@ import EmailCard from "./components/EmailCard.vue";
 import PasskeysCard from "./components/PasskeysCard.vue";
 import SessionsCard from "./components/SessionsCard.vue";
 
+/** The signed-in person's login: username, email and password on the left, devices on the right. */
 const session = useSession();
-const router = useRouter();
 const sessionsCard = ref<InstanceType<typeof SessionsCard> | null>(null);
-const completingSetup = ref(session.state.principal?.hasPassword === false);
-
-async function passwordChanged(): Promise<void> {
-  if (completingSetup.value) {
-    completingSetup.value = false;
-    await router.replace({ name: "home" });
-    return;
-  }
-  await sessionsCard.value?.reload();
-}
 </script>
 
 <template>
   <ViewContent>
-    <ViewHeader
-      :title="completingSetup ? 'Complete account setup' : 'Account security'"
-      :subtitle="completingSetup ? 'Choose the login you will use after this access link closes.' : 'How you sign in to OpenMeshTak.'"
-    />
-    <div class="d-flex flex-column ga-4" style="max-width: 720px">
-      <ChangePasswordCard v-if="completingSetup" @changed="passwordChanged" />
-      <v-card v-if="!completingSetup" class="pa-5">
-        <div class="d-flex align-center ga-2">
-          <v-icon :icon="mdiAccountKey" size="small" />
-          <div class="text-subtitle-1 font-weight-medium">Username</div>
-          <InfoHint
-            label="About the username"
-            text="Sign in with it instead of your email, and use it with your password as login in ATAK or iTAK. Ask an administrator to change it."
-          />
-          <v-spacer />
-          <code class="text-body-1">{{ session.state.principal?.username ?? "—" }}</code>
-        </div>
-      </v-card>
-      <template v-if="!completingSetup">
+    <ViewHeader title="Account" subtitle="How you sign in to OpenMeshTak and your TAK apps." />
+
+    <div class="account-grid">
+      <div class="account-column">
+        <v-card class="pa-5">
+          <div class="d-flex align-center ga-3">
+            <v-icon :icon="mdiAccountCircleOutline" size="40" class="text-medium-emphasis" />
+            <div class="flex-grow-1" style="min-width: 0">
+              <div class="text-h6 text-truncate">{{ session.state.principal?.name }}</div>
+              <div class="d-flex align-center ga-1 text-body-2 text-medium-emphasis">
+                Username <code class="text-high-emphasis">{{ session.state.principal?.username ?? "—" }}</code>
+                <InfoHint
+                  label="About the username"
+                  text="Sign in with it instead of your email, and use it with your password as login in ATAK or iTAK. Ask an administrator to change it."
+                />
+              </div>
+            </div>
+          </div>
+        </v-card>
         <EmailCard />
-        <ChangePasswordCard @changed="passwordChanged" />
+        <ChangePasswordCard @changed="sessionsCard?.reload()" />
+      </div>
+      <div class="account-column">
         <PasskeysCard />
         <SessionsCard ref="sessionsCard" />
-      </template>
+      </div>
     </div>
   </ViewContent>
 </template>
+
+<style scoped>
+.account-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.account-column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+@media (min-width: 1280px) {
+  .account-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+</style>

@@ -28,6 +28,12 @@ const routes: RouteRecordRaw[] = [
   publicPage("/claim", "claim", () => import("@/modules/member-claims/ClaimView.vue")),
   publicPage("/forgot-password", "forgot-password", () => import("@/modules/auth/ForgotPasswordView.vue")),
   publicPage("/reset-password", "reset-password", () => import("@/modules/auth/ResetPasswordView.vue")),
+  // Signed in, but shown in the simple public layout: the account is not usable before setup.
+  {
+    path: "/account/setup",
+    component: () => import("@/app/layouts/PublicLayout.vue"),
+    children: [{ path: "", name: "account-setup", component: () => import("@/modules/account/AccountSetupView.vue") }],
+  },
   // The editor uses the whole window; it brings its own header with a way back.
   {
     path: "/admin/events/:eventId/data-packages",
@@ -135,8 +141,9 @@ router.beforeEach(async (to) => {
   }
   // A claim creates a deliberately incomplete account. Keep it in the setup screen until it has
   // a password, otherwise closing the access-link session would lock the participant out.
-  if (session.state.principal?.hasPassword === false && to.name !== "account") {
-    return { name: "account" };
+  const needsSetup = session.state.principal?.hasPassword === false;
+  if (needsSetup !== (to.name === "account-setup")) {
+    return { name: needsSetup ? "account-setup" : "home" };
   }
   return true;
 });

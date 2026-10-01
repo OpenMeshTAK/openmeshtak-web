@@ -21,7 +21,7 @@ async function mountClaim(fetchMock: ReturnType<typeof vi.fn>) {
     routes: [
       { path: "/claim", name: "claim", component: ClaimView },
       { path: "/", name: "home", component: { template: "<div />" } },
-      { path: "/account", name: "account", component: { template: "<div />" } },
+      { path: "/account/setup", name: "account-setup", component: { template: "<div />" } },
       { path: "/sign-in", name: "sign-in", component: { template: "<div />" } },
     ],
   });
@@ -57,7 +57,7 @@ describe("claim page", () => {
     expect(exchange).toBeDefined();
     expect((exchange?.[0] as Request).url).not.toContain("omtk_claim_");
     expect(await requestBody(exchange ?? [])).toBe(JSON.stringify({ token }));
-    expect(router.currentRoute.value.name).toBe("account");
+    expect(router.currentRoute.value.name).toBe("account-setup");
   });
 
   it("explains unusable links without retrying", async () => {
