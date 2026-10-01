@@ -133,6 +133,11 @@ router.beforeEach(async (to) => {
   if (session.state.status !== "authenticated") {
     return { name: "sign-in", query: { redirect: to.fullPath } };
   }
+  // A claim creates a deliberately incomplete account. Keep it in the setup screen until it has
+  // a password, otherwise closing the access-link session would lock the participant out.
+  if (session.state.principal?.hasPassword === false && to.name !== "account") {
+    return { name: "account" };
+  }
   return true;
 });
 

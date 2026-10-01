@@ -29,7 +29,7 @@ async function exchange(): Promise<void> {
     await unwrap(api.POST("/auth/claims/exchange", { body: { token } }));
     token = "";
     await session.refresh();
-    await router.replace({ name: "home" });
+    await router.replace({ name: session.state.principal?.hasPassword === false ? "account" : "home" });
   } catch (error: unknown) {
     // Accounts with their own password or passkey never get a session from a link.
     if (isApiProblem(error, "SIGN_IN_REQUIRED")) {

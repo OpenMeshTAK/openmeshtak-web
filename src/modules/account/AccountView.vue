@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { mdiAccountKey } from "@mdi/js";
 import { ref } from "vue";
+import { useRouter } from "vue-router";
 import InfoHint from "@/shared/components/InfoHint.vue";
 import { useSession } from "@/modules/auth/session";
 import ViewContent from "@/shared/components/layout/ViewContent.vue";
@@ -11,14 +12,29 @@ import PasskeysCard from "./components/PasskeysCard.vue";
 import SessionsCard from "./components/SessionsCard.vue";
 
 const session = useSession();
+const router = useRouter();
 const sessionsCard = ref<InstanceType<typeof SessionsCard> | null>(null);
+const completingSetup = ref(session.state.principal?.hasPassword === false);
+
+async function passwordChanged(): Promise<void> {
+  if (completingSetup.value) {
+    completingSetup.value = false;
+    await router.replace({ name: "home" });
+    return;
+  }
+  await sessionsCard.value?.reload();
+}
 </script>
 
 <template>
   <ViewContent>
-    <ViewHeader title="Account security" subtitle="How you sign in to OpenMeshTak." />
+    <ViewHeader
+      :title="completingSetup ? 'Complete account setup' : 'Account security'"
+      :subtitle="completingSetup ? 'Choose the login you will use after this access link closes.' : 'How you sign in to OpenMeshTak.'"
+    />
     <div class="d-flex flex-column ga-4" style="max-width: 720px">
-      <v-card class="pa-5">
+      <ChangePasswordCard v-if="completingSetup" @changed="passwordChanged" />
+      <v-card v-if="!completingSetup" class="pa-5">
         <div class="d-flex align-center ga-2">
           <v-icon :icon="mdiAccountKey" size="small" />
           <div class="text-subtitle-1 font-weight-medium">Username</div>
@@ -30,10 +46,12 @@ const sessionsCard = ref<InstanceType<typeof SessionsCard> | null>(null);
           <code class="text-body-1">{{ session.state.principal?.username ?? "—" }}</code>
         </div>
       </v-card>
-      <EmailCard />
-      <ChangePasswordCard @changed="sessionsCard?.reload()" />
-      <PasskeysCard />
-      <SessionsCard ref="sessionsCard" />
+      <template v-if="!completingSetup">
+        <EmailCard />
+        <ChangePasswordCard @changed="passwordChanged" />
+        <PasskeysCard />
+        <SessionsCard ref="sessionsCard" />
+      </template>
     </div>
   </ViewContent>
 </template>
