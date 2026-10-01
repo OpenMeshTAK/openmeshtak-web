@@ -157,7 +157,7 @@ onMounted(load);
 
 <style scoped>
 .event-switcher {
-  width: min(260px, 45vw);
+  width: min(260px, 100%);
 }
 
 /* One 16px gap between every box: columns, side cards and setup steps. */
