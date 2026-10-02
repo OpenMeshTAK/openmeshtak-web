@@ -91,20 +91,19 @@ const routes: RouteRecordRaw[] = [
         component: () => import("@/modules/service-accounts/ServiceAccountDetailView.vue"),
       },
       {
-        path: "admin/base-map",
-        name: "base-map",
-        component: () => import("@/modules/map-settings/MapSettingsView.vue"),
+        path: "admin/settings",
+        name: "settings",
+        component: () => import("@/modules/settings/SettingsView.vue"),
+        children: [
+          { path: "email", name: "email-settings", component: () => import("@/modules/email/EmailSettingsPanel.vue") },
+          { path: "base-map", name: "base-map", component: () => import("@/modules/map-settings/MapSettingsPanel.vue") },
+          { path: "tak-server", name: "tak-server", component: () => import("@/modules/tak-server/TakServerPanel.vue") },
+        ],
       },
-      {
-        path: "admin/email",
-        name: "email-settings",
-        component: () => import("@/modules/email/EmailSettingsView.vue"),
-      },
-      {
-        path: "admin/tak-server",
-        name: "tak-server",
-        component: () => import("@/modules/tak-server/TakServerView.vue"),
-      },
+      // Earlier standalone settings pages; keep bookmarks working.
+      { path: "admin/email", redirect: { name: "email-settings" } },
+      { path: "admin/base-map", redirect: { name: "base-map" } },
+      { path: "admin/tak-server", redirect: { name: "tak-server" } },
       {
         path: "admin/events/:eventId",
         name: "event-detail",

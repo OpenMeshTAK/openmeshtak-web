@@ -19,7 +19,7 @@ function isActive(item: NavigationItem): boolean {
 }
 
 const visibleItems = computed(() =>
-  navigationItems.filter((item) => item.permission === undefined || session.can(item.permission)),
+  navigationItems.filter((item) => item.permission === undefined || [item.permission].flat().some((permission) => session.can(permission))),
 );
 </script>
 

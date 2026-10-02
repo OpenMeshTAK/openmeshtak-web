@@ -3,8 +3,7 @@ import { mdiClose } from "@mdi/js";
 import { onMounted, ref } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
-import ViewContent from "@/shared/components/layout/ViewContent.vue";
-import ViewHeader from "@/shared/components/layout/ViewHeader.vue";
+import SectionHeader from "@/shared/components/layout/SectionHeader.vue";
 import { useAsyncData } from "@/shared/composables/useAsyncData";
 import { fieldErrors, messagesFor } from "@/shared/errors/field-errors";
 import { useToast } from "@/shared/feedback/toast";
@@ -117,8 +116,8 @@ onMounted(async () => {
 </script>
 
 <template>
-  <ViewContent>
-    <ViewHeader title="Email" subtitle="SMTP delivery for password resets, address confirmations and security notices." />
+  <div>
+    <SectionHeader title="Email" description="SMTP delivery for password resets, address confirmations and security notices." />
     <v-skeleton-loader v-if="page.state.value === 'loading'" type="article" />
     <ErrorState v-else-if="page.state.value === 'error' || page.data.value === null" :message="page.error.value" @retry="page.load" />
     <v-row v-else>
@@ -172,5 +171,5 @@ onMounted(async () => {
     >
       The SMTP server is then used without a password. Emails fail if the server requires one.
     </ConfirmDialog>
-  </ViewContent>
+  </div>
 </template>

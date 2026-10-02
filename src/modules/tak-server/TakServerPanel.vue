@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { onMounted } from "vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
-import ViewContent from "@/shared/components/layout/ViewContent.vue";
-import ViewHeader from "@/shared/components/layout/ViewHeader.vue";
+import SectionHeader from "@/shared/components/layout/SectionHeader.vue";
 import { useAsyncData } from "@/shared/composables/useAsyncData";
 import { useToast } from "@/shared/feedback/toast";
 import TakCertificateAuthoritiesCard from "./components/TakCertificateAuthoritiesCard.vue";
@@ -67,10 +66,10 @@ onMounted(page.load);
 </script>
 
 <template>
-  <ViewContent>
-    <ViewHeader
+  <div>
+    <SectionHeader
       title="TAK server"
-      subtitle="The built-in TAK server for ATAK and iTAK: enrollment, Data Packages and live CoT within each event."
+      description="The built-in TAK server for ATAK and iTAK: enrollment, Data Packages and live CoT within each event."
     />
 
     <v-skeleton-loader v-if="page.state.value === 'loading'" type="article, card" />
@@ -86,10 +85,10 @@ onMounted(page.load);
         TAK administrator permission can enroll from their dashboard.
       </v-alert>
       <v-row>
-        <v-col cols="12" lg="6">
+        <v-col cols="12" xl="6">
           <TakServerSettingsCard :settings="page.data.value.settings" @saved="showSettings" />
         </v-col>
-        <v-col cols="12" lg="6" class="d-flex flex-column ga-4">
+        <v-col cols="12" xl="6" class="d-flex flex-column ga-4">
           <TakServerCertificateCard :settings="page.data.value.settings" @changed="page.load" />
           <TakCertificateAuthoritiesCard :authorities="page.data.value.authorities" @changed="page.load" />
         </v-col>
@@ -114,5 +113,5 @@ onMounted(page.load);
         </v-col>
       </v-row>
     </template>
-  </ViewContent>
+  </div>
 </template>
