@@ -17,6 +17,7 @@
     "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm license:check",
     "dev": "vite",
     "license:check": "node scripts/check-licenses.ts",
+    "release:notices": "node scripts/write-release-notices.ts",
     "lint": "eslint . --max-warnings 0",
     "preview": "vite preview",
     "test": "vitest run",
