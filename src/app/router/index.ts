@@ -1,5 +1,6 @@
 import {
   mdiAccount,
+  mdiAccountCog,
   mdiAccountGroup,
   mdiCalendarMultiple,
   mdiCogOutline,
@@ -89,21 +90,29 @@ const routes: RouteRecordRaw[] = [
           { path: ":eventId", name: "event-detail", component: () => import("@/modules/events/views/EventDetailView.vue") },
         ],
       },
+      // A group without a page of its own: its path only prefixes the children, so the URLs stay
+      // /admin/users and /admin/user-groups.
       {
-        path: "admin/users",
-        name: "users",
-        component: () => import("@/modules/users/UserListView.vue"),
-        meta: { navigation: { title: "Users", icon: mdiAccount, permission: "users.read" } },
-      },
-      {
-        path: "admin/user-groups",
-        meta: { navigation: { title: "User groups", icon: mdiAccountGroup, permission: "user-groups.read" } },
+        path: "admin",
+        meta: { navigation: { title: "User management", icon: mdiAccountCog } },
         children: [
-          { path: "", name: "user-groups", component: () => import("@/modules/user-groups/UserGroupListView.vue") },
           {
-            path: ":userGroupId",
-            name: "user-group-detail",
-            component: () => import("@/modules/user-groups/UserGroupDetailView.vue"),
+            path: "users",
+            name: "users",
+            component: () => import("@/modules/users/UserListView.vue"),
+            meta: { navigation: { title: "Users", icon: mdiAccount, permission: "users.read" } },
+          },
+          {
+            path: "user-groups",
+            meta: { navigation: { title: "User groups", icon: mdiAccountGroup, permission: "user-groups.read" } },
+            children: [
+              { path: "", name: "user-groups", component: () => import("@/modules/user-groups/UserGroupListView.vue") },
+              {
+                path: ":userGroupId",
+                name: "user-group-detail",
+                component: () => import("@/modules/user-groups/UserGroupDetailView.vue"),
+              },
+            ],
           },
         ],
       },

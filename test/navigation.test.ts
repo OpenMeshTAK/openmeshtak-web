@@ -9,12 +9,11 @@ function titles(items: ReturnType<typeof navigationFromRoutes>): unknown[] {
 }
 
 describe("navigation from the route table", () => {
-  it("lists the shell destinations with Settings as a submenu", () => {
+  it("lists the shell destinations with User management and Settings as submenus", () => {
     expect(titles(navigation)).toEqual([
       "Dashboard",
       "Events",
-      "Users",
-      "User groups",
+      { "User management": ["Users", "User groups"] },
       "Service accounts",
       { Settings: ["Email", "Base map", "TAK server"] },
     ]);
@@ -35,7 +34,7 @@ describe("navigation from the route table", () => {
   it.each([
     ["/", "Dashboard"],
     ["/admin/events", "Events"],
-    ["/admin/user-groups/00000000-0000-0000-0000-000000000000", "User groups"],
+    ["/admin/user-groups/00000000-0000-0000-0000-000000000000", "User management"],
     ["/admin/settings/tak-server", "Settings"],
   ])("marks only the matching item active on %s", (path, title) => {
     const route = router.resolve(path);
