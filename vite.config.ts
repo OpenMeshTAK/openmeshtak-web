@@ -2,6 +2,7 @@ import vue from "@vitejs/plugin-vue";
 import { defineConfig } from "vitest/config";
 import vuetify from "vite-plugin-vuetify";
 import { VitePWA } from "vite-plugin-pwa";
+import { readFileSync } from "node:fs";
 
 /**
  * Installable app shell. Only the build output (scripts, styles, icons and index.html) is
@@ -37,12 +38,16 @@ const pwa = VitePWA({
   },
 });
 
+const { version } = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")) as { version: string };
+
 /**
  * In development the Vite server proxies `/api` to Core so the browser stays same-origin, exactly
  * like the Caddy deployment. Better Auth cookies and origin checks therefore behave identically.
  * Set Core's PUBLIC_ORIGIN to the Vite origin (http://localhost:5173) while developing.
  */
 export default defineConfig({
+  // Compared with Core's version to warn about mismatched releases.
+  define: { __APP_VERSION__: JSON.stringify(version) },
   plugins: [vue(), vuetify({ autoImport: true }), pwa],
   resolve: {
     alias: {

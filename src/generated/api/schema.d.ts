@@ -2925,6 +2925,12 @@ export interface components {
             status: "ok";
             /** @enum {string} */
             service: "openmeshtak";
+            /**
+             * @description Core release version. Core and Web are released together: a Web app works with every Core of
+             *     the same major and minor version and warns otherwise.
+             * @example 0.1.0
+             */
+            version: string;
             timestamp: string;
         };
         EventOverview: {
