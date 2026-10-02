@@ -3,7 +3,7 @@ import { mdiClose } from "@mdi/js";
 import { onMounted, ref } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
-import SectionHeader from "@/shared/components/layout/SectionHeader.vue";
+import ViewHeader from "@/shared/components/layout/ViewHeader.vue";
 import { useAsyncData } from "@/shared/composables/useAsyncData";
 import { fieldErrors, messagesFor } from "@/shared/errors/field-errors";
 import { useToast } from "@/shared/feedback/toast";
@@ -117,7 +117,7 @@ onMounted(async () => {
 
 <template>
   <div>
-    <SectionHeader title="Email" description="SMTP delivery for password resets, address confirmations and security notices." />
+    <ViewHeader title="Email" subtitle="SMTP delivery for password resets, address confirmations and security notices." />
     <v-skeleton-loader v-if="page.state.value === 'loading'" type="article" />
     <ErrorState v-else-if="page.state.value === 'error' || page.data.value === null" :message="page.error.value" @retry="page.load" />
     <v-row v-else>

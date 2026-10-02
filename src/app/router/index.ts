@@ -116,22 +116,6 @@ const routes: RouteRecordRaw[] = [
           },
         ],
       },
-      {
-        path: "admin/service-accounts",
-        meta: { navigation: { title: "Service accounts", icon: mdiKeyChain, permission: "service-accounts.manage" } },
-        children: [
-          {
-            path: "",
-            name: "service-accounts",
-            component: () => import("@/modules/service-accounts/ServiceAccountListView.vue"),
-          },
-          {
-            path: ":serviceAccountId",
-            name: "service-account-detail",
-            component: () => import("@/modules/service-accounts/ServiceAccountDetailView.vue"),
-          },
-        ],
-      },
       // Child routes with their own navigation entry turn "Settings" into a submenu.
       {
         path: "admin/settings",
@@ -157,12 +141,33 @@ const routes: RouteRecordRaw[] = [
             component: () => import("@/modules/tak-server/TakServerPanel.vue"),
             meta: { navigation: { title: "TAK server", icon: mdiServerNetwork, permission: "tak-server.manage" } },
           },
+          {
+            path: "service-accounts",
+            meta: { navigation: { title: "Service accounts", icon: mdiKeyChain, permission: "service-accounts.manage" } },
+            children: [
+              {
+                path: "",
+                name: "service-accounts",
+                component: () => import("@/modules/service-accounts/ServiceAccountListView.vue"),
+              },
+              {
+                path: ":serviceAccountId",
+                name: "service-account-detail",
+                component: () => import("@/modules/service-accounts/ServiceAccountDetailView.vue"),
+              },
+            ],
+          },
         ],
       },
       // Earlier standalone settings pages; keep bookmarks working.
       { path: "admin/email", redirect: { name: "email-settings" } },
       { path: "admin/base-map", redirect: { name: "base-map" } },
       { path: "admin/tak-server", redirect: { name: "tak-server" } },
+      { path: "admin/service-accounts", redirect: { name: "service-accounts" } },
+      {
+        path: "admin/service-accounts/:serviceAccountId",
+        redirect: (to) => ({ name: "service-account-detail", params: { serviceAccountId: to.params.serviceAccountId } }),
+      },
     ],
   },
   { path: "/:pathMatch(.*)*", redirect: "/" },

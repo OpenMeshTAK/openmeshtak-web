@@ -14,13 +14,13 @@ describe("navigation from the route table", () => {
       "Dashboard",
       "Events",
       { "User management": ["Users", "User groups"] },
-      "Service accounts",
-      { Settings: ["Email", "Base map", "TAK server"] },
+      { Settings: ["Email", "Base map", "TAK server", "Service accounts"] },
     ]);
     expect(navigation.find((item) => item.title === "Settings")?.children.map((child) => child.path)).toEqual([
       "/admin/settings/email",
       "/admin/settings/base-map",
       "/admin/settings/tak-server",
+      "/admin/settings/service-accounts",
     ]);
   });
 
@@ -36,6 +36,7 @@ describe("navigation from the route table", () => {
     ["/admin/events", "Events"],
     ["/admin/user-groups/00000000-0000-0000-0000-000000000000", "User management"],
     ["/admin/settings/tak-server", "Settings"],
+    ["/admin/settings/service-accounts/00000000-0000-0000-0000-000000000000", "Settings"],
   ])("marks only the matching item active on %s", (path, title) => {
     const route = router.resolve(path);
     expect(navigation.filter((item) => isNavigationActive(item, route)).map((item) => item.title)).toEqual([title]);

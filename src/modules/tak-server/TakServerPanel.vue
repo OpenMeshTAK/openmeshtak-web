@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted } from "vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
-import SectionHeader from "@/shared/components/layout/SectionHeader.vue";
+import ViewHeader from "@/shared/components/layout/ViewHeader.vue";
 import { useAsyncData } from "@/shared/composables/useAsyncData";
 import { useToast } from "@/shared/feedback/toast";
 import TakCertificateAuthoritiesCard from "./components/TakCertificateAuthoritiesCard.vue";
@@ -67,9 +67,9 @@ onMounted(page.load);
 
 <template>
   <div>
-    <SectionHeader
+    <ViewHeader
       title="TAK server"
-      description="The built-in TAK server for ATAK and iTAK: enrollment, Data Packages and live CoT within each event."
+      subtitle="The built-in TAK server for ATAK and iTAK: enrollment, Data Packages and live CoT within each event."
     />
 
     <v-skeleton-loader v-if="page.state.value === 'loading'" type="article, card" />

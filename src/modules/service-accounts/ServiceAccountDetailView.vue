@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import { mdiArrowLeft } from "@mdi/js";
 import { computed, onMounted, ref } from "vue";
 import { useRoute } from "vue-router";
 import type { Schemas } from "@/shared/api/types";
-import ViewContent from "@/shared/components/layout/ViewContent.vue";
+import ErrorState from "@/shared/components/ErrorState.vue";
 import ViewHeader from "@/shared/components/layout/ViewHeader.vue";
 import PermissionGrantEditor from "@/shared/components/PermissionGrantEditor.vue";
 import { useAsyncData } from "@/shared/composables/useAsyncData";
@@ -59,12 +60,14 @@ onMounted(page.load);
 </script>
 
 <template>
-  <ViewContent :state="page.state.value" :error="page.error.value" @retry="page.load">
-    <template v-if="page.data.value">
+  <div>
+    <v-btn :prepend-icon="mdiArrowLeft" :to="{ name: 'service-accounts' }" variant="text" class="mb-2 ms-n3">Service accounts</v-btn>
+    <v-skeleton-loader v-if="page.state.value === 'loading'" type="heading, article" />
+    <ErrorState v-else-if="page.state.value === 'error'" :message="page.error.value" @retry="page.load" />
+    <template v-else-if="page.data.value">
       <ViewHeader :title="page.data.value.account.name" subtitle="Service account">
         <template #actions><ServiceAccountStatusChip :status="page.data.value.account.status" /></template>
       </ViewHeader>
-
 
       <v-card class="pa-5 mb-6">
         <div class="text-subtitle-1 font-weight-medium mb-4">Settings and permissions</div>
@@ -83,5 +86,5 @@ onMounted(page.load);
 
       <ApiKeysCard :service-account-id="serviceAccountId" />
     </template>
-  </ViewContent>
+  </div>
 </template>

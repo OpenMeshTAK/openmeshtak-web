@@ -3,7 +3,6 @@ import { mdiPlus, mdiRobotOutline } from "@mdi/js";
 import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import EmptyState from "@/shared/components/EmptyState.vue";
-import ViewContent from "@/shared/components/layout/ViewContent.vue";
 import ViewHeader from "@/shared/components/layout/ViewHeader.vue";
 import { useAsyncData } from "@/shared/composables/useAsyncData";
 import { listAllEvents } from "@/modules/events/events.api";
@@ -29,8 +28,8 @@ onMounted(page.load);
 </script>
 
 <template>
-  <ViewContent>
-    <ViewHeader title="Service accounts" subtitle="Machine identities for bots and portals. They never act as a user.">
+  <div>
+    <ViewHeader title="Service accounts" subtitle="Machine identities with their own API keys, for bots and portals. They never act as a user.">
       <template #actions>
         <v-btn color="primary" :prepend-icon="mdiPlus" @click="createOpen = true">New service account</v-btn>
       </template>
@@ -75,5 +74,5 @@ onMounted(page.load);
     </v-card>
 
     <CreateServiceAccountDialog v-model="createOpen" :events="page.data.value.events" @created="open" />
-  </ViewContent>
+  </div>
 </template>
