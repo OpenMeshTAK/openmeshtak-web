@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { mdiAccountAlert, mdiCalendarBlank, mdiCalendarPlus, mdiMagnify, mdiUploadOutline } from "@mdi/js";
+import { mdiCalendarBlank, mdiCalendarPlus, mdiMagnify } from "@mdi/js";
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import EmptyState from "@/shared/components/EmptyState.vue";
@@ -42,6 +42,7 @@ const statusOptions = computed(() => {
 const headers = [
   { title: "Name", key: "name" },
   { title: "Status", key: "status" },
+  { title: "Published", key: "published", value: (event: EventListItem) => event.overview.publishedRevision ?? -1 },
   { title: "Members", key: "members", value: (event: EventListItem) => event.overview.memberCount, align: "end" as const },
   { title: "Sync issues", key: "issues", value: (event: EventListItem) => event.overview.openSyncIssueCount, align: "end" as const },
   { title: "Dates", key: "startsAt" },
@@ -158,42 +159,24 @@ onMounted(events.load);
             </router-link>
           </template>
           <template #[`item.status`]="{ item }">
-            <div class="d-flex align-center flex-wrap ga-1 py-1">
-              <EventStatusBadge :status="item.status" />
-              <v-chip
-                v-if="item.overview.unpublishedChanges"
-                size="small"
-                color="warning"
-                variant="tonal"
-                label
-                :prepend-icon="mdiUploadOutline"
-              >
-                Not published
-              </v-chip>
-            </div>
-            <div v-if="item.overview.publishedRevision !== null" class="text-caption text-medium-emphasis">
+            <EventStatusBadge :status="item.status" />
+          </template>
+          <template #[`item.published`]="{ item }">
+            <span v-if="item.overview.publishedRevision === null" class="text-medium-emphasis">—</span>
+            <span v-else class="text-no-wrap">
               Revision {{ item.overview.publishedRevision }}
-            </div>
+              <span v-if="item.overview.unpublishedChanges" class="text-warning"> · Changes pending</span>
+            </span>
           </template>
           <template #[`item.members`]="{ item }">{{ item.overview.memberCount }}</template>
           <template #[`item.issues`]="{ item }">
-            <v-chip
-              v-if="item.overview.openSyncIssueCount > 0"
-              size="small"
-              color="error"
-              variant="tonal"
-              label
-              :prepend-icon="mdiAccountAlert"
-            >
+            <span :class="item.overview.openSyncIssueCount > 0 ? 'text-error font-weight-medium' : 'text-medium-emphasis'">
               {{ item.overview.openSyncIssueCount }}
-            </v-chip>
-            <span v-else class="text-medium-emphasis">0</span>
+            </span>
           </template>
           <template #[`item.startsAt`]="{ item }">
-            <div>{{ eventDates(item) }}</div>
-            <div class="text-caption text-medium-emphasis">
-              {{ item.timeZone }}<template v-if="item.status !== 'archived' && scheduleHint(item)"> · {{ scheduleHint(item) }}</template>
-            </div>
+            <span class="text-no-wrap">{{ eventDates(item) }}</span>
+            <span v-if="item.status !== 'archived' && scheduleHint(item)" class="text-medium-emphasis"> · {{ scheduleHint(item) }}</span>
           </template>
           <template #[`item.updatedAt`]="{ item }">
             <span class="text-medium-emphasis">{{ updatedFormat.format(new Date(item.updatedAt)) }}</span>
