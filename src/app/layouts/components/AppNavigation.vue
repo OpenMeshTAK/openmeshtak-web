@@ -1,26 +1,19 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { useRoute } from "vue-router";
+import { useRouter } from "vue-router";
 import { useDisplay } from "vuetify";
 import AppLogo from "@/shared/components/AppLogo.vue";
 import ThemeToggle from "@/shared/components/ThemeToggle.vue";
 import { useSession } from "@/modules/auth/session";
-import { navigationItems, type NavigationItem } from "./navigation-items";
+import { navigationFromRoutes, visibleNavigation } from "@/app/router/navigation";
+import NavigationEntry from "./NavigationEntry.vue";
 
 const session = useSession();
+const router = useRouter();
 const { smAndUp } = useDisplay();
-const route = useRoute();
 
-// Detail pages are sibling routes, not children, so vue-router's own active check
-// misses them. Match by path prefix instead: /admin/events/<id> keeps "Events" lit.
-function isActive(item: NavigationItem): boolean {
-  if (item.to === "/") return route.path === "/";
-  return route.path === item.to || route.path.startsWith(`${item.to}/`);
-}
-
-const visibleItems = computed(() =>
-  navigationItems.filter((item) => item.permission === undefined || [item.permission].flat().some((permission) => session.can(permission))),
-);
+// Destinations come from `meta.navigation` in the route table.
+const items = computed(() => visibleNavigation(navigationFromRoutes(router.options.routes), (permission) => session.can(permission)));
 </script>
 
 <template>
@@ -29,21 +22,7 @@ const visibleItems = computed(() =>
     <router-link to="/" class="navigation__logo" aria-label="Dashboard"><AppLogo :size="30" /></router-link>
     <v-divider class="mx-3 mb-2" />
     <div class="navigation__items">
-      <v-tooltip v-for="item in visibleItems" :key="item.to" :text="item.title" location="end">
-        <template #activator="{ props: tooltip }">
-          <v-btn
-            v-bind="tooltip"
-            :to="item.to"
-            :active="isActive(item)"
-            :icon="item.icon"
-            :aria-label="item.title"
-            variant="text"
-            rounded="lg"
-            size="44"
-            class="navigation__item"
-          />
-        </template>
-      </v-tooltip>
+      <NavigationEntry v-for="item in items" :key="item.path" :item="item" rail />
     </div>
     <v-spacer />
     <ThemeToggle />
@@ -51,18 +30,7 @@ const visibleItems = computed(() =>
 
   <!-- Phones: the same destinations as a floating bar within thumb reach. -->
   <nav v-else class="navigation navigation--bottom" aria-label="Main navigation">
-    <v-btn
-      v-for="item in visibleItems"
-      :key="item.to"
-      :to="item.to"
-      :active="isActive(item)"
-      :icon="item.icon"
-      :aria-label="item.title"
-      variant="text"
-      rounded="lg"
-      size="44"
-      class="navigation__item"
-    />
+    <NavigationEntry v-for="item in items" :key="item.path" :item="item" :rail="false" />
   </nav>
 </template>
 
@@ -100,16 +68,5 @@ const visibleItems = computed(() =>
   display: flex;
   flex-direction: column;
   gap: 8px;
-}
-.navigation__item {
-  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-}
-/* Vuetify marks router-linked buttons with v-btn--active; fill them like the reference design. */
-.navigation__item.v-btn--active {
-  color: rgb(var(--v-theme-on-primary));
-  background: rgb(var(--v-theme-primary));
-}
-.navigation__item.v-btn--active :deep(.v-btn__overlay) {
-  opacity: 0;
 }
 </style>

@@ -1,11 +1,25 @@
+import {
+  mdiAccount,
+  mdiAccountGroup,
+  mdiCalendarMultiple,
+  mdiCogOutline,
+  mdiEmailOutline,
+  mdiKeyChain,
+  mdiLayersOutline,
+  mdiServerNetwork,
+  mdiViewDashboard,
+} from "@mdi/js";
 import { createRouter, createWebHistory, type RouteRecordRaw } from "vue-router";
 import { useSession } from "@/modules/auth/session";
 import { isSetupComplete } from "@/modules/setup/setup.api";
+import type { RouteNavigation } from "./navigation";
 
 declare module "vue-router" {
   interface RouteMeta {
     /** Reachable without a session (setup, sign-in, claim links). */
     public?: boolean;
+    /** Shows the route in the main navigation; see `navigationFromRoutes`. */
+    navigation?: RouteNavigation;
   }
 }
 
@@ -54,61 +68,92 @@ const routes: RouteRecordRaw[] = [
     path: "/",
     component: () => import("@/app/layouts/AppShell.vue"),
     children: [
-      { path: "", name: "home", component: () => import("@/modules/dashboard/DashboardView.vue") },
+      {
+        path: "",
+        name: "home",
+        component: () => import("@/modules/dashboard/DashboardView.vue"),
+        meta: { navigation: { title: "Dashboard", icon: mdiViewDashboard } },
+      },
       {
         path: "account",
         name: "account",
         component: () => import("@/modules/account/AccountView.vue"),
       },
+      // List and detail pages share a parent record without a component, so the navigation
+      // item of the list stays active on its detail pages.
       {
         path: "admin/events",
-        name: "events",
-        component: () => import("@/modules/events/views/EventListView.vue"),
+        meta: { navigation: { title: "Events", icon: mdiCalendarMultiple, permission: "events.read" } },
+        children: [
+          { path: "", name: "events", component: () => import("@/modules/events/views/EventListView.vue") },
+          { path: ":eventId", name: "event-detail", component: () => import("@/modules/events/views/EventDetailView.vue") },
+        ],
       },
       {
         path: "admin/users",
         name: "users",
         component: () => import("@/modules/users/UserListView.vue"),
+        meta: { navigation: { title: "Users", icon: mdiAccount, permission: "users.read" } },
       },
       {
         path: "admin/user-groups",
-        name: "user-groups",
-        component: () => import("@/modules/user-groups/UserGroupListView.vue"),
-      },
-      {
-        path: "admin/user-groups/:userGroupId",
-        name: "user-group-detail",
-        component: () => import("@/modules/user-groups/UserGroupDetailView.vue"),
+        meta: { navigation: { title: "User groups", icon: mdiAccountGroup, permission: "user-groups.read" } },
+        children: [
+          { path: "", name: "user-groups", component: () => import("@/modules/user-groups/UserGroupListView.vue") },
+          {
+            path: ":userGroupId",
+            name: "user-group-detail",
+            component: () => import("@/modules/user-groups/UserGroupDetailView.vue"),
+          },
+        ],
       },
       {
         path: "admin/service-accounts",
-        name: "service-accounts",
-        component: () => import("@/modules/service-accounts/ServiceAccountListView.vue"),
+        meta: { navigation: { title: "Service accounts", icon: mdiKeyChain, permission: "service-accounts.manage" } },
+        children: [
+          {
+            path: "",
+            name: "service-accounts",
+            component: () => import("@/modules/service-accounts/ServiceAccountListView.vue"),
+          },
+          {
+            path: ":serviceAccountId",
+            name: "service-account-detail",
+            component: () => import("@/modules/service-accounts/ServiceAccountDetailView.vue"),
+          },
+        ],
       },
-      {
-        path: "admin/service-accounts/:serviceAccountId",
-        name: "service-account-detail",
-        component: () => import("@/modules/service-accounts/ServiceAccountDetailView.vue"),
-      },
+      // Child routes with their own navigation entry turn "Settings" into a submenu.
       {
         path: "admin/settings",
         name: "settings",
         component: () => import("@/modules/settings/SettingsView.vue"),
+        meta: { navigation: { title: "Settings", icon: mdiCogOutline } },
         children: [
-          { path: "email", name: "email-settings", component: () => import("@/modules/email/EmailSettingsPanel.vue") },
-          { path: "base-map", name: "base-map", component: () => import("@/modules/map-settings/MapSettingsPanel.vue") },
-          { path: "tak-server", name: "tak-server", component: () => import("@/modules/tak-server/TakServerPanel.vue") },
+          {
+            path: "email",
+            name: "email-settings",
+            component: () => import("@/modules/email/EmailSettingsPanel.vue"),
+            meta: { navigation: { title: "Email", icon: mdiEmailOutline, permission: "email.manage" } },
+          },
+          {
+            path: "base-map",
+            name: "base-map",
+            component: () => import("@/modules/map-settings/MapSettingsPanel.vue"),
+            meta: { navigation: { title: "Base map", icon: mdiLayersOutline, permission: "settings.manage" } },
+          },
+          {
+            path: "tak-server",
+            name: "tak-server",
+            component: () => import("@/modules/tak-server/TakServerPanel.vue"),
+            meta: { navigation: { title: "TAK server", icon: mdiServerNetwork, permission: "tak-server.manage" } },
+          },
         ],
       },
       // Earlier standalone settings pages; keep bookmarks working.
       { path: "admin/email", redirect: { name: "email-settings" } },
       { path: "admin/base-map", redirect: { name: "base-map" } },
       { path: "admin/tak-server", redirect: { name: "tak-server" } },
-      {
-        path: "admin/events/:eventId",
-        name: "event-detail",
-        component: () => import("@/modules/events/views/EventDetailView.vue"),
-      },
     ],
   },
   { path: "/:pathMatch(.*)*", redirect: "/" },
