@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { mdiCalendarBlank, mdiCalendarPlus, mdiMagnify } from "@mdi/js";
+import { mdiAccountAlert, mdiCalendarBlank, mdiCalendarPlus, mdiMagnify, mdiUploadOutline } from "@mdi/js";
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import EmptyState from "@/shared/components/EmptyState.vue";
@@ -11,16 +11,23 @@ import { useSession } from "@/modules/auth/session";
 import CreateEventDialog from "../components/CreateEventDialog.vue";
 import EventStatusBadge from "../components/EventStatusBadge.vue";
 import { scheduleHint } from "../event-schedule";
-import { listAllEvents, type EventDto } from "../events.api";
+import { listAllEvents, type EventDto, type EventListItem } from "../events.api";
 
 type StatusFilter = "all" | EventDto["status"];
 
 const router = useRouter();
 const session = useSession();
-const events = useAsyncData(listAllEvents, [] as EventDto[]);
+const events = useAsyncData(listAllEvents, [] as EventListItem[]);
 const createOpen = ref(false);
 const search = ref("");
 const status = ref<StatusFilter>("all");
+/** Unpublished changes or unresolved sync issues: things an organizer has to act on. */
+const attentionOnly = ref(false);
+
+function needsAttention(event: EventListItem): boolean {
+  return event.overview.unpublishedChanges || event.overview.openSyncIssueCount > 0;
+}
+const attentionCount = computed(() => events.data.value.filter(needsAttention).length);
 
 const statusOptions = computed(() => {
   const count = (value: EventDto["status"]): number => events.data.value.filter((event) => event.status === value).length;
@@ -35,9 +42,9 @@ const statusOptions = computed(() => {
 const headers = [
   { title: "Name", key: "name" },
   { title: "Status", key: "status" },
-  { title: "Start", key: "startsAt" },
-  { title: "End", key: "endsAt" },
-  { title: "Time zone", key: "timeZone" },
+  { title: "Members", key: "members", value: (event: EventListItem) => event.overview.memberCount, align: "end" as const },
+  { title: "Sync issues", key: "issues", value: (event: EventListItem) => event.overview.openSyncIssueCount, align: "end" as const },
+  { title: "Dates", key: "startsAt" },
   { title: "Updated", key: "updatedAt" },
 ];
 
@@ -48,7 +55,6 @@ const byDate = (a: string | null, b: string | null): number =>
 const sortKeys = {
   status: (a: EventDto["status"], b: EventDto["status"]) => STATUS_ORDER[a] - STATUS_ORDER[b],
   startsAt: byDate,
-  endsAt: byDate,
   updatedAt: byDate,
 };
 const sortBy = ref([{ key: "status", order: "asc" as const }]);
@@ -58,13 +64,23 @@ const rows = computed(() => {
   return events.data.value.filter(
     (event) =>
       (status.value === "all" || event.status === status.value) &&
+      (!attentionOnly.value || needsAttention(event)) &&
       (text === "" || event.name.toLowerCase().includes(text) || event.slug.includes(text)),
   );
 });
 
 /** Dates in the event's own time zone, so organizers everywhere see the same days. */
-function eventDate(event: EventDto, value: string | null): string {
-  return value === null ? "—" : new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeZone: event.timeZone }).format(new Date(value));
+function eventDates(event: EventDto): string {
+  const format = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeZone: event.timeZone });
+  const start = event.startsAt === null ? null : new Date(event.startsAt);
+  const end = event.endsAt === null ? null : new Date(event.endsAt);
+  if (start !== null && end !== null) {
+    return format.formatRange(start, end);
+  }
+  if (start !== null || end !== null) {
+    return start !== null ? `From ${format.format(start)}` : `Until ${format.format(end ?? new Date())}`;
+  }
+  return "—";
 }
 
 const updatedFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
@@ -111,6 +127,14 @@ onMounted(events.load);
           class="event-filters__search"
         />
         <v-select v-model="status" :items="statusOptions" label="Status" density="compact" hide-details class="event-filters__status" />
+        <v-switch
+          v-model="attentionOnly"
+          :label="`Needs attention (${String(attentionCount)})`"
+          color="primary"
+          density="compact"
+          hide-details
+          inset
+        />
       </div>
 
       <v-card>
@@ -134,17 +158,42 @@ onMounted(events.load);
             </router-link>
           </template>
           <template #[`item.status`]="{ item }">
-            <EventStatusBadge :status="item.status" />
-          </template>
-          <template #[`item.startsAt`]="{ item }">
-            <div>{{ eventDate(item, item.startsAt) }}</div>
-            <div v-if="item.status !== 'archived' && scheduleHint(item)" class="text-caption text-medium-emphasis">
-              {{ scheduleHint(item) }}
+            <div class="d-flex align-center flex-wrap ga-1 py-1">
+              <EventStatusBadge :status="item.status" />
+              <v-chip
+                v-if="item.overview.unpublishedChanges"
+                size="small"
+                color="warning"
+                variant="tonal"
+                label
+                :prepend-icon="mdiUploadOutline"
+              >
+                Not published
+              </v-chip>
+            </div>
+            <div v-if="item.overview.publishedRevision !== null" class="text-caption text-medium-emphasis">
+              Revision {{ item.overview.publishedRevision }}
             </div>
           </template>
-          <template #[`item.endsAt`]="{ item }">{{ eventDate(item, item.endsAt) }}</template>
-          <template #[`item.timeZone`]="{ item }">
-            <span class="text-medium-emphasis">{{ item.timeZone }}</span>
+          <template #[`item.members`]="{ item }">{{ item.overview.memberCount }}</template>
+          <template #[`item.issues`]="{ item }">
+            <v-chip
+              v-if="item.overview.openSyncIssueCount > 0"
+              size="small"
+              color="error"
+              variant="tonal"
+              label
+              :prepend-icon="mdiAccountAlert"
+            >
+              {{ item.overview.openSyncIssueCount }}
+            </v-chip>
+            <span v-else class="text-medium-emphasis">0</span>
+          </template>
+          <template #[`item.startsAt`]="{ item }">
+            <div>{{ eventDates(item) }}</div>
+            <div class="text-caption text-medium-emphasis">
+              {{ item.timeZone }}<template v-if="item.status !== 'archived' && scheduleHint(item)"> · {{ scheduleHint(item) }}</template>
+            </div>
           </template>
           <template #[`item.updatedAt`]="{ item }">
             <span class="text-medium-emphasis">{{ updatedFormat.format(new Date(item.updatedAt)) }}</span>

@@ -2,10 +2,12 @@ import { api, unwrap } from "@/shared/api/client";
 import type { Schemas } from "@/shared/api/types";
 
 export type EventDto = Schemas["EventDto"];
+/** An event as the overview lists it, with member counts and publication state. */
+export type EventListItem = Schemas["EventListItemDto"];
 export type EventTransition = "activate" | "archive" | "reactivate";
 
-export async function listAllEvents(): Promise<EventDto[]> {
-  const events: EventDto[] = [];
+export async function listAllEvents(): Promise<EventListItem[]> {
+  const events: EventListItem[] = [];
   let cursor: string | undefined;
   do {
     const page = await unwrap(api.GET("/events", { params: { query: { limit: 100, ...(cursor ? { cursor } : {}) } } }));

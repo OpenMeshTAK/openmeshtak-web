@@ -712,7 +712,13 @@
 					},
 					"enrollmentPort": {
 						"type": "number",
-						"format": "double"
+						"format": "double",
+						"description": "Public ports; they may differ from the listen ports inside the container."
+					},
+					"martiPort": {
+						"type": "number",
+						"format": "double",
+						"description": "Public Marti port for Data Packages; the enrollment profile also sets it in ATAK."
 					},
 					"streamingPort": {
 						"type": "number",
@@ -729,6 +735,7 @@
 					"expiresAt",
 					"hostName",
 					"enrollmentPort",
+					"martiPort",
 					"streamingPort",
 					"atakEnrollmentUrl"
 				],
@@ -2998,6 +3005,38 @@
 				"type": "object",
 				"additionalProperties": false
 			},
+			"EventOverview": {
+				"properties": {
+					"memberCount": {
+						"type": "number",
+						"format": "double",
+						"description": "Members of the event, whatever their group or role."
+					},
+					"openSyncIssueCount": {
+						"type": "number",
+						"format": "double",
+						"description": "Synchronized members that could not be resolved and wait for an administrator."
+					},
+					"publishedRevision": {
+						"type": "number",
+						"format": "double",
+						"nullable": true,
+						"description": "Number of the configuration revision participants receive; `null` before the first one."
+					},
+					"unpublishedChanges": {
+						"type": "boolean",
+						"description": "Whether an active event's current configuration differs from its published revision, so\nparticipants do not see the changes until someone publishes. Always `false` for drafts\n(activation publishes) and archived events (read-only)."
+					}
+				},
+				"required": [
+					"memberCount",
+					"openSyncIssueCount",
+					"publishedRevision",
+					"unpublishedChanges"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
 			"EventStatus": {
 				"type": "string",
 				"enum": [
@@ -3005,6 +3044,87 @@
 					"active",
 					"archived"
 				]
+			},
+			"EventListItemDto": {
+				"description": "An event in the overview list, with the facts organizers act on.",
+				"properties": {
+					"id": {
+						"$ref": "#/components/schemas/Uuid"
+					},
+					"name": {
+						"type": "string"
+					},
+					"slug": {
+						"type": "string"
+					},
+					"timeZone": {
+						"type": "string",
+						"description": "IANA time-zone identifier used for event-local schedules, e.g. `Europe/Berlin`."
+					},
+					"status": {
+						"$ref": "#/components/schemas/EventStatus"
+					},
+					"version": {
+						"type": "number",
+						"format": "double",
+						"description": "Optimistic-concurrency version; send it back unchanged with updates."
+					},
+					"startsAt": {
+						"type": "string",
+						"nullable": true,
+						"format": "date-time"
+					},
+					"endsAt": {
+						"type": "string",
+						"nullable": true,
+						"format": "date-time"
+					},
+					"createdAt": {
+						"type": "string",
+						"format": "date-time"
+					},
+					"updatedAt": {
+						"type": "string",
+						"format": "date-time"
+					},
+					"overview": {
+						"$ref": "#/components/schemas/EventOverview"
+					}
+				},
+				"required": [
+					"id",
+					"name",
+					"slug",
+					"timeZone",
+					"status",
+					"version",
+					"startsAt",
+					"endsAt",
+					"createdAt",
+					"updatedAt",
+					"overview"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"EventPage": {
+				"properties": {
+					"items": {
+						"items": {
+							"$ref": "#/components/schemas/EventListItemDto"
+						},
+						"type": "array"
+					},
+					"page": {
+						"$ref": "#/components/schemas/PageInfo"
+					}
+				},
+				"required": [
+					"items",
+					"page"
+				],
+				"type": "object",
+				"additionalProperties": false
 			},
 			"EventDto": {
 				"properties": {
@@ -3059,25 +3179,6 @@
 					"endsAt",
 					"createdAt",
 					"updatedAt"
-				],
-				"type": "object",
-				"additionalProperties": false
-			},
-			"EventPage": {
-				"properties": {
-					"items": {
-						"items": {
-							"$ref": "#/components/schemas/EventDto"
-						},
-						"type": "array"
-					},
-					"page": {
-						"$ref": "#/components/schemas/PageInfo"
-					}
-				},
-				"required": [
-					"items",
-					"page"
 				],
 				"type": "object",
 				"additionalProperties": false

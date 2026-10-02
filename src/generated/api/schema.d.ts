@@ -2173,8 +2173,16 @@ export interface components {
              */
             expiresAt: string | null;
             hostName: string;
-            /** Format: double */
+            /**
+             * Format: double
+             * @description Public ports; they may differ from the listen ports inside the container.
+             */
             enrollmentPort: number;
+            /**
+             * Format: double
+             * @description Public Marti port for Data Packages; the enrollment profile also sets it in ATAK.
+             */
+            martiPort: number;
             /** Format: double */
             streamingPort: number;
             /**
@@ -2919,8 +2927,58 @@ export interface components {
             service: "openmeshtak";
             timestamp: string;
         };
+        EventOverview: {
+            /**
+             * Format: double
+             * @description Members of the event, whatever their group or role.
+             */
+            memberCount: number;
+            /**
+             * Format: double
+             * @description Synchronized members that could not be resolved and wait for an administrator.
+             */
+            openSyncIssueCount: number;
+            /**
+             * Format: double
+             * @description Number of the configuration revision participants receive; `null` before the first one.
+             */
+            publishedRevision: number | null;
+            /**
+             * @description Whether an active event's current configuration differs from its published revision, so
+             *     participants do not see the changes until someone publishes. Always `false` for drafts
+             *     (activation publishes) and archived events (read-only).
+             */
+            unpublishedChanges: boolean;
+        };
         /** @enum {string} */
         EventStatus: "draft" | "active" | "archived";
+        /** @description An event in the overview list, with the facts organizers act on. */
+        EventListItemDto: {
+            id: components["schemas"]["Uuid"];
+            name: string;
+            slug: string;
+            /** @description IANA time-zone identifier used for event-local schedules, e.g. `Europe/Berlin`. */
+            timeZone: string;
+            status: components["schemas"]["EventStatus"];
+            /**
+             * Format: double
+             * @description Optimistic-concurrency version; send it back unchanged with updates.
+             */
+            version: number;
+            /** Format: date-time */
+            startsAt: string | null;
+            /** Format: date-time */
+            endsAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            overview: components["schemas"]["EventOverview"];
+        };
+        EventPage: {
+            items: components["schemas"]["EventListItemDto"][];
+            page: components["schemas"]["PageInfo"];
+        };
         EventDto: {
             id: components["schemas"]["Uuid"];
             name: string;
@@ -2941,10 +2999,6 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
-        };
-        EventPage: {
-            items: components["schemas"]["EventDto"][];
-            page: components["schemas"]["PageInfo"];
         };
         CreateEventRequest: {
             name: string;
