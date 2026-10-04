@@ -4,9 +4,10 @@ import { join } from "node:path";
 import { readInstalledLicenses, type LicensePackage } from "./installed-licenses.ts";
 
 /**
- * Writes the third-party notices and a CycloneDX SBOM into `dist/` for release artifacts
- * (LICENSING.md), so Caddy serves them next to the app. Vite bundles only part of the production
- * dependencies; covering all of them keeps the notices complete without tracing the bundle.
+ * Writes the third-party notices and a CycloneDX SBOM into `dist/` for release artifacts, which
+ * must carry the attribution that third-party licenses require, so Caddy serves them next to the
+ * app. Vite bundles only part of the production dependencies; covering all of them keeps the
+ * notices complete without tracing the bundle.
  */
 
 const outputDirectory = "dist";

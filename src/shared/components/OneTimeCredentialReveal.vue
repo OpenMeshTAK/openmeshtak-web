@@ -3,8 +3,9 @@ import { mdiContentCopy } from "@mdi/js";
 import { ref } from "vue";
 
 /**
- * Shows a newly created secret exactly once (DESIGN.md). The parent owns the value only for as long
- * as this component is visible and must drop it on `dismiss`. Copying is an explicit action.
+ * Shows a newly created secret exactly once; it cannot be retrieved again later. The parent owns
+ * the value only for as long as this component is visible and must drop it on `dismiss`.
+ * Copying is an explicit action.
  */
 const props = defineProps<{ secret: string; label: string }>();
 const emit = defineEmits<{ dismiss: [] }>();

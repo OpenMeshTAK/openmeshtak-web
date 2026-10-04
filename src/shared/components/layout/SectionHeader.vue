@@ -1,5 +1,5 @@
 <script setup lang="ts">
-/** Title, one-line explanation and actions of a section inside a view (DESIGN.md hierarchy). */
+/** Title, one-line explanation and actions of a section inside a view, below the page header. */
 defineProps<{ title: string; description?: string }>();
 </script>
 

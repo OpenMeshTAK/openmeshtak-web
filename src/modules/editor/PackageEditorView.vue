@@ -447,7 +447,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 .editor-toolbar-position--beside {
   left: calc(12px + 300px + 12px);
 }
-/* Tablets: narrower panels; phones are out of scope for authoring (WEB.md). */
+/* Tablets: narrower panels; authoring targets desktop and tablet, not phones. */
 @media (max-width: 1100px) {
   .editor-layers {
     width: 240px;

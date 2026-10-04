@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
- * Placeholder until Stage 0 has verified real browser-to-app delivery for TAK. WEB.md forbids
- * promising a delivery method that has not been tested, so the action says so explicitly.
+ * Placeholder until real browser-to-app delivery for TAK has been verified with real clients. The
+ * app must not promise a delivery method that has not been tested, so the action says so explicitly.
  */
 </script>
 

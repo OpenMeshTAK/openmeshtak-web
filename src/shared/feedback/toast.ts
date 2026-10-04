@@ -13,7 +13,7 @@ export interface ToastMessage {
 const SHORT_TIMEOUT_MS = 4000;
 const LONG_TIMEOUT_MS = 8000;
 
-/** Single queue for the whole app; `ToastHost` renders it. See DESIGN.md, "Action feedback". */
+/** Single queue for the whole app; `ToastHost` renders it. */
 const queue = ref<ToastMessage[]>([]);
 
 function push(color: ToastKind, text: string, timeout: number): void {

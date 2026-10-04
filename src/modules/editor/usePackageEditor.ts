@@ -26,7 +26,7 @@ import {
 import { useEditorHistory } from "./editor-history";
 import { moveGeometry } from "./map/move-geometry";
 
-/** What the editor shows next to the data package name (EDITOR.md: saved, saving, conflicted, invalid). */
+/** What the editor shows next to the data package name, so authors always know whether edits are saved. */
 export type SaveState = "saved" | "saving" | "error" | "conflict";
 
 export interface ObjectDetails {

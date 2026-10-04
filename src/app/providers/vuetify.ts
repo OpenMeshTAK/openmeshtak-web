@@ -4,8 +4,8 @@ import "vuetify/styles";
 import { readThemePreference } from "@/shared/composables/useThemePreference";
 
 /**
- * One OpenMeshTak theme with semantic colors (DESIGN.md). TAK team colors are event data and must
- * never be used as UI semantics such as the primary color.
+ * One OpenMeshTak theme with semantic colors (primary, success, warning, error). TAK team colors
+ * are event data and must never be used as UI semantics such as the primary color.
  */
 export const vuetify = createVuetify({
   icons: { defaultSet: "mdi", aliases, sets: { mdi } },

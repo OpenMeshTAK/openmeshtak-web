@@ -10,7 +10,7 @@ import {
   type PackageContentDto,
 } from "@/modules/data-packages/data-packages.api";
 
-/** Read-only ATAK map content drawn below the editable objects (EDITOR.md). */
+/** Read-only ATAK map content drawn below the editable objects as context. */
 interface MapContentDisplay {
   visible: boolean;
   opacity: number;

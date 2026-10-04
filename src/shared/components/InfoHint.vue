@@ -3,7 +3,7 @@ import { mdiHelpCircleOutline } from "@mdi/js";
 
 /**
  * A small (?) button that explains something on demand, so cards stay short. It opens on click or
- * tap rather than hover, because touch devices have no hover (DESIGN.md: no hover-only actions).
+ * tap rather than hover, because touch devices have no hover and no action may depend on it.
  */
 withDefaults(defineProps<{ text?: string; label?: string }>(), { text: "", label: "More information" });
 </script>

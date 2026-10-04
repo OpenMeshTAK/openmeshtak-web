@@ -3472,7 +3472,7 @@ export interface components {
         };
         /**
          * @description A true circle, which GeoJSON cannot express: centre plus radius in metres. It is never stored as
-         *     an approximated polygon (EDITOR.md) and maps to ATAK `u-d-c-c` circles.
+         *     a silently approximated polygon and maps to ATAK `u-d-c-c` circles.
          */
         CircleGeometry: {
             /** @enum {string} */

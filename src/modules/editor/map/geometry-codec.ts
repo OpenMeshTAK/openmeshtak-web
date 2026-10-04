@@ -71,7 +71,7 @@ function fromMapCircle(
 /**
  * Converts an edited map geometry back to data package geometry. Unmoved vertices keep their
  * exact original coordinates and altitude; new or moved vertices are 2D because their altitude is
- * unknown, and unknown altitude is never turned into zero (EDITOR.md).
+ * unknown, and unknown altitude is never turned into zero, which would be a real height.
  */
 export function fromMapGeometry(geometry: Geometry, original?: PackageGeometry): PackageGeometry {
   const originals = original === undefined ? [] : positionsOf(original);

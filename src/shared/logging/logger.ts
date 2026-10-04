@@ -3,7 +3,8 @@ import { sanitizeLogMetadata, type LogMetadata } from "./sanitize.js";
 
 const levelOrder: Record<LogLevel, number> = { debug: 10, info: 20, warn: 30, error: 40 };
 
-// Production builds keep only warnings and errors with minimal context (LOGGING.md).
+// Production builds keep only warnings and errors with minimal context, so personal data stays out
+// of the browser console.
 const minimumLevel: LogLevel = import.meta.env.PROD ? "warn" : "debug";
 
 function log(level: LogLevel, message: string, metadata: LogMetadata = {}): void {

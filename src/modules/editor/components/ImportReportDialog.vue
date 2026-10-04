@@ -2,7 +2,7 @@
 import { computed } from "vue";
 import type { ImportReport } from "@/modules/data-packages/data-packages.api";
 
-/** Shows every changed, retained, skipped and rejected feature so nothing disappears silently (EDITOR.md). */
+/** Shows every changed, retained, skipped and rejected feature so nothing disappears silently. */
 const props = defineProps<{ report: ImportReport | null }>();
 const open = defineModel<boolean>({ required: true });
 

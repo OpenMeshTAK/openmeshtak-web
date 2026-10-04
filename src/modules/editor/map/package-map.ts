@@ -37,7 +37,8 @@ function escapeHtml(text: string): string {
 }
 
 /**
- * OpenLayers adapter of the data package editor (EDITOR.md: map state stays behind this boundary).
+ * OpenLayers adapter of the data package editor. OpenLayers feature state stays behind this
+ * boundary so the data package model stays server-owned and independent of the map library.
  * It renders data package objects, offers select/draw/modify/snap and reports geometry changes as
  * data package GeoJSON. It never talks to the API; the editor decides what to save.
  */

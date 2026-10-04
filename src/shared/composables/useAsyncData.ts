@@ -4,8 +4,8 @@ import { describeError } from "@/shared/errors/api-problem";
 export type LoadState = "loading" | "ready" | "error";
 
 /**
- * The loading/ready/error pattern every page needs (DESIGN.md: deliberate loading and error
- * states). `load` can be called again for "Try again" buttons and after mutations.
+ * The loading/ready/error pattern every page needs, so no page is left blank while loading or
+ * after a failure. `load` can be called again for "Try again" buttons and after mutations.
  */
 export function useAsyncData<T>(fetch: () => Promise<T>, initial: T) {
   const data = ref(initial) as Ref<T>;
