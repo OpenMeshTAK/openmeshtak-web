@@ -42,7 +42,8 @@ const { version } = JSON.parse(readFileSync(new URL("./package.json", import.met
 
 /**
  * In development the Vite server proxies `/api` to Core so the browser stays same-origin, exactly
- * like the Caddy deployment. Better Auth cookies and origin checks therefore behave identically.
+ * like production, where Core serves the built app itself. Better Auth cookies and origin checks
+ * therefore behave identically.
  * Set Core's PUBLIC_ORIGIN to the Vite origin (http://localhost:5173) while developing.
  */
 export default defineConfig({

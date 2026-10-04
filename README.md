@@ -40,7 +40,7 @@ pnpm check
 
 ## Releases
 
-Web and Core are released together under one version; the Web app warns when it talks to a Core of another major or minor version. To release, set the same `version` in `package.json` of both repositories, commit, then push a tag `v<version>` in each. The release workflow verifies the project, checks that the tag matches `package.json`, publishes the multi-arch image to `ghcr.io/openmeshtak/openmeshtak-web` and creates the GitHub release with third-party notices and the SBOM. The deployment files are attached to the Core release.
+The Web app ships inside the OpenMeshTak image, where Core serves it on the same origin as the API. That image is built and released from the `openmeshtak` repository, which builds this repository at the same tag through the Docker build context `web`. Both repositories share one version, and the Web app warns when it talks to a Core of another major or minor version. To release, set the same `version` in `package.json` of both repositories, commit, push the tag `v<version>` here first and then to `openmeshtak`.
 
 ## License
 

@@ -1,3 +1,4 @@
+# The openmeshtak repository builds this app through the Docker build context "web".
 node_modules
 dist
 coverage
