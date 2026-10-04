@@ -38,6 +38,10 @@ pnpm api:generate  # regenerate the typed client
 pnpm check
 ```
 
+## Releases
+
+Web and Core are released together under one version; the Web app warns when it talks to a Core of another major or minor version. To release, set the same `version` in `package.json` of both repositories, commit, then push a tag `v<version>` in each. The release workflow verifies the project, checks that the tag matches `package.json`, publishes the multi-arch image to `ghcr.io/openmeshtak/openmeshtak-web` and creates the GitHub release with third-party notices and the SBOM. The deployment files are attached to the Core release.
+
 ## License
 
 OpenMeshTak Web is licensed under `AGPL-3.0-only`.
