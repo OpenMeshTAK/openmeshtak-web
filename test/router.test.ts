@@ -10,7 +10,7 @@ describe("route table", () => {
     ["/admin/events", "events"],
     ["/admin/events/00000000-0000-0000-0000-000000000000/data-packages", "event-editor"],
     ["/admin/user-groups", "user-groups"],
-    ["/admin/settings/service-accounts", "service-accounts"],
+    ["/admin/settings/api-clients", "api-clients"],
     ["/admin/user-groups/00000000-0000-0000-0000-000000000000", "user-group-detail"],
     ["/admin/settings/email", "email-settings"],
   ])("resolves %s to %s", (path, name) => {

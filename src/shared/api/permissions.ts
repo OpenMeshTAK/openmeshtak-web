@@ -79,10 +79,10 @@ export const permissionAreas: PermissionArea[] = [
     ],
   },
   {
-    label: "Service accounts",
-    prefix: "service-accounts.*",
+    label: "API clients",
+    prefix: "api-clients.*",
     permissions: [
-      { permission: "service-accounts.manage", label: "Manage service accounts and API keys", instanceOnly: true },
+      { permission: "api-clients.manage", label: "Manage API clients and API keys", instanceOnly: true },
     ],
   },
   {

@@ -10,27 +10,27 @@ import { useAsyncData } from "@/shared/composables/useAsyncData";
 import { useSubmission } from "@/shared/composables/useSubmission";
 import { listAllEvents } from "@/modules/events/events.api";
 import ApiKeysCard from "./components/ApiKeysCard.vue";
-import ServiceAccountStatusChip from "./components/ServiceAccountStatusChip.vue";
+import ApiClientStatusChip from "./components/ApiClientStatusChip.vue";
 import { useToast } from "@/shared/feedback/toast";
-import { getServiceAccount, updateServiceAccount, type ServiceAccountDto } from "./service-accounts.api";
+import { getApiClient, updateApiClient, type ApiClientDto } from "./api-clients.api";
 
 const route = useRoute();
-const serviceAccountId = computed(() => String(route.params.serviceAccountId));
+const apiClientId = computed(() => String(route.params.apiClientId));
 
-const form = ref({ name: "", description: "", status: "active" as Schemas["ServiceAccountStatus"] });
+const form = ref({ name: "", description: "", status: "active" as Schemas["ApiClientStatus"] });
 const grants = ref<Schemas["PermissionGrantDto"][]>([]);
 const toast = useToast();
 const saving = useSubmission();
 
-function show(account: ServiceAccountDto): ServiceAccountDto {
-  form.value = { name: account.name, description: account.description ?? "", status: account.status };
-  grants.value = structuredClone(account.permissions);
-  return account;
+function show(client: ApiClientDto): ApiClientDto {
+  form.value = { name: client.name, description: client.description ?? "", status: client.status };
+  grants.value = structuredClone(client.permissions);
+  return client;
 }
 
 const page = useAsyncData(async () => {
-  const [account, events] = await Promise.all([getServiceAccount(serviceAccountId.value), listAllEvents()]);
-  return { account: show(account), events: events.map(({ id, name }) => ({ id, name })) };
+  const [client, events] = await Promise.all([getApiClient(apiClientId.value), listAllEvents()]);
+  return { client: show(client), events: events.map(({ id, name }) => ({ id, name })) };
 }, null);
 
 async function save(): Promise<void> {
@@ -39,9 +39,9 @@ async function save(): Promise<void> {
     return;
   }
   const saved = await saving.run(async () => {
-    current.account = show(
-      await updateServiceAccount(current.account.id, {
-        version: current.account.version,
+    current.client = show(
+      await updateApiClient(current.client.id, {
+        version: current.client.version,
         name: form.value.name,
         description: form.value.description || null,
         status: form.value.status,
@@ -61,12 +61,12 @@ onMounted(page.load);
 
 <template>
   <div>
-    <v-btn :prepend-icon="mdiArrowLeft" :to="{ name: 'service-accounts' }" variant="text" class="mb-2 ms-n3">API access</v-btn>
+    <v-btn :prepend-icon="mdiArrowLeft" :to="{ name: 'api-clients' }" variant="text" class="mb-2 ms-n3">API access</v-btn>
     <v-skeleton-loader v-if="page.state.value === 'loading'" type="heading, article" />
     <ErrorState v-else-if="page.state.value === 'error'" :message="page.error.value" @retry="page.load" />
     <template v-else-if="page.data.value">
-      <ViewHeader :title="page.data.value.account.name" subtitle="Service account">
-        <template #actions><ServiceAccountStatusChip :status="page.data.value.account.status" /></template>
+      <ViewHeader :title="page.data.value.client.name" subtitle="API client">
+        <template #actions><ApiClientStatusChip :status="page.data.value.client.status" /></template>
       </ViewHeader>
 
       <v-card class="pa-5 mb-6">
@@ -84,7 +84,7 @@ onMounted(page.load);
         <v-btn color="primary" class="mt-4" :loading="saving.submitting.value" @click="save">Save changes</v-btn>
       </v-card>
 
-      <ApiKeysCard :service-account-id="serviceAccountId" />
+      <ApiKeysCard :api-client-id="apiClientId" />
     </template>
   </div>
 </template>

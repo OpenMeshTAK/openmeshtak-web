@@ -520,79 +520,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/service-accounts": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Lists service accounts ordered by creation time, oldest first. */
-        get: operations["ListServiceAccounts"];
-        put?: never;
-        /** @description Creates a service account with explicit permission grants. */
-        post: operations["CreateServiceAccount"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/service-accounts/{serviceAccountId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["GetServiceAccount"];
-        /** @description Replaces name, description, status and grants. Requires the current `version`. */
-        put: operations["UpdateServiceAccount"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/service-accounts/{serviceAccountId}/api-keys": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Lists safe API-key metadata. Key secrets are never returned after creation. */
-        get: operations["ListApiKeys"];
-        put?: never;
-        /**
-         * @description Creates an API key and returns its complete value exactly once. Creating a key while another
-         *     is active is a rotation. Requires a recent sign-in.
-         */
-        post: operations["CreateApiKey"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/service-accounts/{serviceAccountId}/api-keys/{apiKeyId}/revoke": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** @description Revokes an API key immediately. Repeating the request is harmless. */
-        post: operations["RevokeApiKey"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/events/{eventId}/members/{memberId}/profile": {
         parameters: {
             query?: never;
@@ -1908,6 +1835,79 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api-clients": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Lists API clients ordered by creation time, oldest first. */
+        get: operations["ListApiClients"];
+        put?: never;
+        /** @description Creates an API client with explicit permission grants. */
+        post: operations["CreateApiClient"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api-clients/{apiClientId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["GetApiClient"];
+        /** @description Replaces name, description, status and grants. Requires the current `version`. */
+        put: operations["UpdateApiClient"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api-clients/{apiClientId}/api-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Lists safe API-key metadata. Key secrets are never returned after creation. */
+        get: operations["ListApiKeys"];
+        put?: never;
+        /**
+         * @description Creates an API key and returns its complete value exactly once. Creating a key while another
+         *     is active is a rotation. Requires a recent sign-in.
+         */
+        post: operations["CreateApiKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api-clients/{apiClientId}/api-keys/{apiKeyId}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Revokes an API key immediately. Repeating the request is harmless. */
+        post: operations["RevokeApiKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me/account-setup": {
         parameters: {
             query?: never;
@@ -1992,7 +1992,7 @@ export interface components {
             username?: string;
         };
         /** @enum {string} */
-        Permission: "users.read" | "users.manage" | "user-groups.read" | "user-groups.manage" | "events.read" | "events.manage" | "events.reactivate" | "members.read" | "members.manage" | "members.sync" | "member-claims.create" | "channel-keys.reveal" | "data-packages.read" | "data-packages.edit" | "data-packages.publish" | "artifacts.generate" | "artifacts.download" | "member-artifacts.download" | "tak-traffic.view" | "service-accounts.manage" | "tak-server.manage" | "tak-server.admin-access" | "email.manage" | "settings.manage" | "audit.read";
+        Permission: "users.read" | "users.manage" | "user-groups.read" | "user-groups.manage" | "events.read" | "events.manage" | "events.reactivate" | "members.read" | "members.manage" | "members.sync" | "member-claims.create" | "channel-keys.reveal" | "data-packages.read" | "data-packages.edit" | "data-packages.publish" | "artifacts.generate" | "artifacts.download" | "member-artifacts.download" | "tak-traffic.view" | "api-clients.manage" | "tak-server.manage" | "tak-server.admin-access" | "email.manage" | "settings.manage" | "audit.read";
         PermissionGrantDto: {
             permission: components["schemas"]["Permission"];
             /** @description Event the grant is limited to, or `null` for an instance-wide grant. */
@@ -2173,16 +2173,8 @@ export interface components {
              */
             expiresAt: string | null;
             hostName: string;
-            /**
-             * Format: double
-             * @description Public ports; they may differ from the listen ports inside the container.
-             */
+            /** Format: double */
             enrollmentPort: number;
-            /**
-             * Format: double
-             * @description Public Marti port for Data Packages; the enrollment profile also sets it in ATAK.
-             */
-            martiPort: number;
             /** Format: double */
             streamingPort: number;
             /**
@@ -2327,84 +2319,6 @@ export interface components {
             password: string;
             token: string;
         };
-        /** @enum {string} */
-        ServiceAccountStatus: "active" | "disabled";
-        ServiceAccountDto: {
-            /** Format: uuid */
-            id: string;
-            name: string;
-            description: string | null;
-            status: components["schemas"]["ServiceAccountStatus"];
-            /**
-             * Format: double
-             * @description Optimistic-concurrency version; send it back unchanged with updates.
-             */
-            version: number;
-            permissions: components["schemas"]["PermissionGrantDto"][];
-            /** Format: date-time */
-            createdAt: string;
-            /** Format: date-time */
-            updatedAt: string;
-        };
-        ServiceAccountPage: {
-            items: components["schemas"]["ServiceAccountDto"][];
-            page: components["schemas"]["PageInfo"];
-        };
-        CreateServiceAccountRequest: {
-            name: string;
-            description?: string | null;
-            permissions: components["schemas"]["PermissionGrantDto"][];
-        };
-        UpdateServiceAccountRequest: {
-            /**
-             * Format: int32
-             * @description Version the client last read.
-             */
-            version: number;
-            name: string;
-            description: string | null;
-            /** @description Disabling an account immediately invalidates all of its API keys. */
-            status: components["schemas"]["ServiceAccountStatus"];
-            /** @description Complete replacement of the account's grants. */
-            permissions: components["schemas"]["PermissionGrantDto"][];
-        };
-        /** @enum {string} */
-        ApiKeyStatus: "active" | "expired" | "revoked";
-        ApiKeyDto: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            serviceAccountId: string;
-            name: string;
-            /** @description Recognizable, non-secret beginning of the key. */
-            displayPrefix: string;
-            status: components["schemas"]["ApiKeyStatus"];
-            /** Format: date-time */
-            expiresAt: string | null;
-            /** Format: date-time */
-            lastUsedAt: string | null;
-            /** Format: date-time */
-            revokedAt: string | null;
-            /** Format: date-time */
-            createdAt: string;
-        };
-        ApiKeyPage: {
-            items: components["schemas"]["ApiKeyDto"][];
-            page: components["schemas"]["PageInfo"];
-        };
-        CreatedApiKeyResponse: {
-            apiKey: components["schemas"]["ApiKeyDto"];
-            /** @description Complete bearer value. It is returned exactly once and cannot be retrieved again. */
-            key: string;
-        };
-        CreateApiKeyRequest: {
-            name: string;
-            /**
-             * Format: date-time
-             * @description Optional expiry instant; must lie in the future.
-             */
-            expiresAt?: string | null;
-        };
         ProfileAssignment: {
             slug: string;
             name: string;
@@ -2539,13 +2453,13 @@ export interface components {
         };
         PrincipalDto: {
             /** @enum {string} */
-            type: "user" | "service-account";
+            type: "user" | "api-client";
             /** Format: uuid */
             id: string;
             name: string;
-            /** @description Sign-in and TAK login name of a user; `null` for service accounts. */
+            /** @description Sign-in and TAK login name of a user; `null` for API clients. */
             username: string | null;
-            /** @description Whether a user can sign in with a password, which the TAK login needs; `false` for service accounts. */
+            /** @description Whether a user can sign in with a password, which the TAK login needs; `false` for API clients. */
             hasPassword: boolean;
             /** @description Effective grants, deduplicated across all sources. */
             permissions: components["schemas"]["PermissionGrantDto"][];
@@ -3888,6 +3802,84 @@ export interface components {
             /** @description Name of the combined Data Package; defaults to the event name. */
             name?: string;
             packages: components["schemas"]["CombinedExportSelection"][];
+        };
+        /** @enum {string} */
+        ApiClientStatus: "active" | "disabled";
+        ApiClientDto: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            description: string | null;
+            status: components["schemas"]["ApiClientStatus"];
+            /**
+             * Format: double
+             * @description Optimistic-concurrency version; send it back unchanged with updates.
+             */
+            version: number;
+            permissions: components["schemas"]["PermissionGrantDto"][];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        ApiClientPage: {
+            items: components["schemas"]["ApiClientDto"][];
+            page: components["schemas"]["PageInfo"];
+        };
+        CreateApiClientRequest: {
+            name: string;
+            description?: string | null;
+            permissions: components["schemas"]["PermissionGrantDto"][];
+        };
+        UpdateApiClientRequest: {
+            /**
+             * Format: int32
+             * @description Version the client last read.
+             */
+            version: number;
+            name: string;
+            description: string | null;
+            /** @description Disabling an account immediately invalidates all of its API keys. */
+            status: components["schemas"]["ApiClientStatus"];
+            /** @description Complete replacement of the account's grants. */
+            permissions: components["schemas"]["PermissionGrantDto"][];
+        };
+        /** @enum {string} */
+        ApiKeyStatus: "active" | "expired" | "revoked";
+        ApiKeyDto: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            apiClientId: string;
+            name: string;
+            /** @description Recognizable, non-secret beginning of the key. */
+            displayPrefix: string;
+            status: components["schemas"]["ApiKeyStatus"];
+            /** Format: date-time */
+            expiresAt: string | null;
+            /** Format: date-time */
+            lastUsedAt: string | null;
+            /** Format: date-time */
+            revokedAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        ApiKeyPage: {
+            items: components["schemas"]["ApiKeyDto"][];
+            page: components["schemas"]["PageInfo"];
+        };
+        CreatedApiKeyResponse: {
+            apiKey: components["schemas"]["ApiKeyDto"];
+            /** @description Complete bearer value. It is returned exactly once and cannot be retrieved again. */
+            key: string;
+        };
+        CreateApiKeyRequest: {
+            name: string;
+            /**
+             * Format: date-time
+             * @description Optional expiry instant; must lie in the future.
+             */
+            expiresAt?: string | null;
         };
         AccountSetupRequest: {
             newPassword: string;
@@ -5823,409 +5815,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SetupResponse"];
-                };
-            };
-        };
-    };
-    ListServiceAccounts: {
-        parameters: {
-            query?: {
-                limit?: number;
-                cursor?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Service accounts */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ServiceAccountPage"];
-                };
-            };
-            /** @description Invalid cursor */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Authentication required */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Access denied */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
-    CreateServiceAccount: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateServiceAccountRequest"];
-            };
-        };
-        responses: {
-            /** @description Service account created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ServiceAccountDto"];
-                };
-            };
-            /** @description Authentication required */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Access denied */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Validation failed */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
-    GetServiceAccount: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                serviceAccountId: components["schemas"]["Uuid"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Service account */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ServiceAccountDto"];
-                };
-            };
-            /** @description Authentication required */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Access denied */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
-    UpdateServiceAccount: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                serviceAccountId: components["schemas"]["Uuid"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpdateServiceAccountRequest"];
-            };
-        };
-        responses: {
-            /** @description Service account updated */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ServiceAccountDto"];
-                };
-            };
-            /** @description Authentication required */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Access denied */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Version conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Validation failed */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
-    ListApiKeys: {
-        parameters: {
-            query?: {
-                limit?: number;
-                cursor?: string;
-            };
-            header?: never;
-            path: {
-                serviceAccountId: components["schemas"]["Uuid"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description API keys */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiKeyPage"];
-                };
-            };
-            /** @description Invalid cursor */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Authentication required */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Access denied */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
-    CreateApiKey: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                serviceAccountId: components["schemas"]["Uuid"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateApiKeyRequest"];
-            };
-        };
-        responses: {
-            /** @description API key created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CreatedApiKeyResponse"];
-                };
-            };
-            /** @description Authentication required */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Access denied */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Validation failed */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Too many new API keys */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
-    RevokeApiKey: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                serviceAccountId: components["schemas"]["Uuid"];
-                apiKeyId: components["schemas"]["Uuid"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description API key revoked */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiKeyDto"];
-                };
-            };
-            /** @description Authentication required */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Access denied */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProblemDetails"];
                 };
             };
         };
@@ -11932,6 +11521,409 @@ export interface operations {
             };
             /** @description Validation failed */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListApiClients: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description API clients */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiClientPage"];
+                };
+            };
+            /** @description Invalid cursor */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateApiClient: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateApiClientRequest"];
+            };
+        };
+        responses: {
+            /** @description API client created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiClientDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetApiClient: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                apiClientId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description API client */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiClientDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateApiClient: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                apiClientId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateApiClientRequest"];
+            };
+        };
+        responses: {
+            /** @description API client updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiClientDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Version conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListApiKeys: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path: {
+                apiClientId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description API keys */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiKeyPage"];
+                };
+            };
+            /** @description Invalid cursor */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateApiKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                apiClientId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateApiKeyRequest"];
+            };
+        };
+        responses: {
+            /** @description API key created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedApiKeyResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too many new API keys */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RevokeApiKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                apiClientId: components["schemas"]["Uuid"];
+                apiKeyId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description API key revoked */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiKeyDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

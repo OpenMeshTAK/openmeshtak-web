@@ -3,7 +3,7 @@ import { sanitizeLogMetadata } from "@/shared/logging/sanitize";
 
 describe("web log sanitization", () => {
   it("redacts secret-looking fields and OpenMeshTak tokens in text", () => {
-    const key = `omtk_sa_${"a".repeat(24)}_${"b".repeat(43)}`;
+    const key = `omtk_ak_${"a".repeat(24)}_${"b".repeat(43)}`;
 
     expect(
       sanitizeLogMetadata({

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Schemas } from "@/shared/api/types";
 
-defineProps<{ status: Schemas["ServiceAccountStatus"] }>();
+defineProps<{ status: Schemas["ApiClientStatus"] }>();
 </script>
 
 <template>

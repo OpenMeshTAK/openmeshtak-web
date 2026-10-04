@@ -142,18 +142,18 @@ const routes: RouteRecordRaw[] = [
             meta: { navigation: { title: "TAK server", icon: mdiServerNetwork, permission: "tak-server.manage" } },
           },
           {
-            path: "service-accounts",
-            meta: { navigation: { title: "API access", icon: mdiKeyChain, permission: "service-accounts.manage" } },
+            path: "api-clients",
+            meta: { navigation: { title: "API access", icon: mdiKeyChain, permission: "api-clients.manage" } },
             children: [
               {
                 path: "",
-                name: "service-accounts",
-                component: () => import("@/modules/service-accounts/ServiceAccountListView.vue"),
+                name: "api-clients",
+                component: () => import("@/modules/api-clients/ApiClientListView.vue"),
               },
               {
-                path: ":serviceAccountId",
-                name: "service-account-detail",
-                component: () => import("@/modules/service-accounts/ServiceAccountDetailView.vue"),
+                path: ":apiClientId",
+                name: "api-client-detail",
+                component: () => import("@/modules/api-clients/ApiClientDetailView.vue"),
               },
             ],
           },
@@ -163,11 +163,6 @@ const routes: RouteRecordRaw[] = [
       { path: "admin/email", redirect: { name: "email-settings" } },
       { path: "admin/base-map", redirect: { name: "base-map" } },
       { path: "admin/tak-server", redirect: { name: "tak-server" } },
-      { path: "admin/service-accounts", redirect: { name: "service-accounts" } },
-      {
-        path: "admin/service-accounts/:serviceAccountId",
-        redirect: (to) => ({ name: "service-account-detail", params: { serviceAccountId: to.params.serviceAccountId } }),
-      },
     ],
   },
   { path: "/:pathMatch(.*)*", redirect: "/" },

@@ -5,11 +5,11 @@ import PermissionGrantEditor from "@/shared/components/PermissionGrantEditor.vue
 import { useSubmission } from "@/shared/composables/useSubmission";
 import { useToast } from "@/shared/feedback/toast";
 import { messagesFor } from "@/shared/errors/field-errors";
-import { createServiceAccount, type ServiceAccountDto } from "../service-accounts.api";
+import { createApiClient, type ApiClientDto } from "../api-clients.api";
 
 const props = defineProps<{ events: { id: string; name: string }[] }>();
 const open = defineModel<boolean>({ required: true });
-const emit = defineEmits<{ created: [account: ServiceAccountDto] }>();
+const emit = defineEmits<{ created: [client: ApiClientDto] }>();
 const toast = useToast();
 
 const form = ref({ name: "", description: "" });
@@ -27,7 +27,7 @@ watch(open, (isOpen) => {
 
 async function create(): Promise<void> {
   const created = await submission.run(() =>
-    createServiceAccount({
+    createApiClient({
       name: form.value.name,
       description: form.value.description || null,
       permissions: grants.value,
@@ -35,7 +35,7 @@ async function create(): Promise<void> {
   );
   if (created !== null) {
     open.value = false;
-    toast.success(`Service account ${created.value.name} was created.`);
+    toast.success(`API client ${created.value.name} was created.`);
     emit("created", created.value);
   }
 }
@@ -44,7 +44,7 @@ async function create(): Promise<void> {
 <template>
   <v-dialog v-model="open" max-width="760" scrollable>
     <v-card class="pa-2">
-      <v-card-title>New service account</v-card-title>
+      <v-card-title>New API client</v-card-title>
       <v-card-text>
         <v-alert v-if="submission.error.value" type="error" class="mb-4">{{ submission.error.value }}</v-alert>
         <v-text-field

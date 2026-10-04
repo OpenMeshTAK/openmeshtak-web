@@ -6,13 +6,13 @@ import OneTimeCredentialReveal from "@/shared/components/OneTimeCredentialReveal
 import { useAsyncData } from "@/shared/composables/useAsyncData";
 import { useSubmission } from "@/shared/composables/useSubmission";
 import { useToast } from "@/shared/feedback/toast";
-import { createApiKey, listApiKeys, revokeApiKey, type ApiKeyDto } from "../service-accounts.api";
+import { createApiKey, listApiKeys, revokeApiKey, type ApiKeyDto } from "../api-clients.api";
 
-/** API-key lifecycle of one service account: create (rotate), reveal once, revoke. */
-const props = defineProps<{ serviceAccountId: string }>();
+/** API-key lifecycle of one API client: create (rotate), reveal once, revoke. */
+const props = defineProps<{ apiClientId: string }>();
 const toast = useToast();
 
-const keys = useAsyncData(() => listApiKeys(props.serviceAccountId), [] as ApiKeyDto[]);
+const keys = useAsyncData(() => listApiKeys(props.apiClientId), [] as ApiKeyDto[]);
 const activeKeys = computed(() => keys.data.value.filter(({ status }) => status === "active").length);
 
 const dialogOpen = ref(false);
@@ -35,7 +35,7 @@ function closeDialog(): void {
 }
 
 async function create(): Promise<void> {
-  const created = await creation.run(() => createApiKey(props.serviceAccountId, { name: keyName.value }));
+  const created = await creation.run(() => createApiKey(props.apiClientId, { name: keyName.value }));
   if (created !== null) {
     revealedKey.value = created.value.key;
     await keys.load();
@@ -49,7 +49,7 @@ async function confirmRevoke(): Promise<void> {
     return;
   }
   try {
-    await revokeApiKey(props.serviceAccountId, key.id);
+    await revokeApiKey(props.apiClientId, key.id);
     toast.success(`${key.name} was revoked and stops working immediately.`);
     await keys.load();
   } catch (caught: unknown) {

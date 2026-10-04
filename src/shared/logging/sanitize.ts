@@ -2,7 +2,7 @@ const REDACTED = "[REDACTED]";
 
 const sensitiveKeyPattern =
   /(?:authorization|cookie|api-?key|password|credential|secret|token|session|csrf|psk|private-?key|claim|qr)/i;
-const openMeshTakSecretPattern = /omtk_(?:sa_[A-Za-z0-9_-]+_|bootstrap_|claim_)[A-Za-z0-9_-]+/g;
+const openMeshTakSecretPattern = /omtk_(?:ak_[A-Za-z0-9_-]+_|bootstrap_|claim_)[A-Za-z0-9_-]+/g;
 
 export type LogMetadata = Record<string, unknown>;
 
