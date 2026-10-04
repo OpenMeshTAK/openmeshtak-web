@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 /**
  * Installable app shell. Only the build output (scripts, styles, icons and index.html) is
  * precached; nothing from /api is ever cached, so authenticated responses and secret-bearing
- * downloads never land in the service worker cache (WEB.md, AGENTS.md).
+ * downloads never land in the service worker cache.
  */
 const pwa = VitePWA({
   registerType: "autoUpdate",

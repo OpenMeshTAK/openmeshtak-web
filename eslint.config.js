@@ -18,7 +18,7 @@ export default tseslint.config(
   {
     files: ["**/*.ts", "**/*.vue"],
     rules: {
-      // LOGGING.md: all diagnostics go through the sanitizing facade in src/shared/logging.
+      // All diagnostics go through the sanitizing facade in src/shared/logging.
       "no-console": "error",
       // TypeScript already resolves identifiers, including browser globals.
       "no-undef": "off",
