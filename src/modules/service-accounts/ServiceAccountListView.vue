@@ -29,7 +29,7 @@ onMounted(page.load);
 
 <template>
   <div>
-    <ViewHeader title="Service accounts" subtitle="Machine identities with their own API keys, for bots and portals. They never act as a user.">
+    <ViewHeader title="API access" subtitle="Service accounts for bots and portals, each with its own permissions and API keys. They never act as a user.">
       <template #actions>
         <v-btn color="primary" :prepend-icon="mdiPlus" @click="createOpen = true">New service account</v-btn>
       </template>

@@ -61,7 +61,7 @@ onMounted(page.load);
 
 <template>
   <div>
-    <v-btn :prepend-icon="mdiArrowLeft" :to="{ name: 'service-accounts' }" variant="text" class="mb-2 ms-n3">Service accounts</v-btn>
+    <v-btn :prepend-icon="mdiArrowLeft" :to="{ name: 'service-accounts' }" variant="text" class="mb-2 ms-n3">API access</v-btn>
     <v-skeleton-loader v-if="page.state.value === 'loading'" type="heading, article" />
     <ErrorState v-else-if="page.state.value === 'error'" :message="page.error.value" @retry="page.load" />
     <template v-else-if="page.data.value">

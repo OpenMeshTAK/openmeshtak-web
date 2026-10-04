@@ -14,7 +14,7 @@ describe("navigation from the route table", () => {
       "Dashboard",
       "Events",
       { "User management": ["Users", "User groups"] },
-      { Settings: ["Email", "Base map", "TAK server", "Service accounts"] },
+      { Settings: ["Email", "Base map", "TAK server", "API access"] },
     ]);
     expect(navigation.find((item) => item.title === "Settings")?.children.map((child) => child.path)).toEqual([
       "/admin/settings/email",

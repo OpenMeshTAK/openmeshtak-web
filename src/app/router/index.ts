@@ -143,7 +143,7 @@ const routes: RouteRecordRaw[] = [
           },
           {
             path: "service-accounts",
-            meta: { navigation: { title: "Service accounts", icon: mdiKeyChain, permission: "service-accounts.manage" } },
+            meta: { navigation: { title: "API access", icon: mdiKeyChain, permission: "service-accounts.manage" } },
             children: [
               {
                 path: "",
