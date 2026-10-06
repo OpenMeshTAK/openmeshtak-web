@@ -110,6 +110,8 @@ function close(): void {
               <tbody>
                 <tr><td>Address</td><td><code>{{ enrollment.hostName }}</code></td></tr>
                 <tr><td>Port</td><td><code>{{ enrollment.streamingPort }}</code> (SSL)</td></tr>
+                <tr v-if="enrollment.enrollmentPort !== 8446"><td>Enrollment port</td><td><code>{{ enrollment.enrollmentPort }}</code></td></tr>
+                <tr v-if="enrollment.martiPort !== 8443"><td>Secure API port</td><td><code>{{ enrollment.martiPort }}</code></td></tr>
                 <tr><td>Username</td><td><code>{{ enrollment.username }}</code></td></tr>
                 <tr><td>Password</td><td>Your OpenMeshTak password</td></tr>
               </tbody>

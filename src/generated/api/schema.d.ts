@@ -2173,8 +2173,16 @@ export interface components {
              */
             expiresAt: string | null;
             hostName: string;
-            /** Format: double */
+            /**
+             * Format: double
+             * @description Public ports; they may differ from the listen ports inside the container.
+             */
             enrollmentPort: number;
+            /**
+             * Format: double
+             * @description Public Marti port for Data Packages; the enrollment profile also sets it in ATAK.
+             */
+            martiPort: number;
             /** Format: double */
             streamingPort: number;
             /**

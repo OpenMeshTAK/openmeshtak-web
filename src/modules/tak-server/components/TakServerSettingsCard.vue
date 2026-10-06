@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { fieldErrors, messagesFor } from "@/shared/errors/field-errors";
 import { useToast } from "@/shared/feedback/toast";
 import { saveTakServerSettings, type TakServerSettingsChanges, type TakServerSettingsDto } from "../tak-server.api";
@@ -12,6 +12,14 @@ const toast = useToast();
 const form = ref<TakServerSettingsChanges>(formOf(props.settings));
 const saving = ref(false);
 const errors = ref<Record<string, string>>({});
+
+/**
+ * Non-standard public ports change how devices connect. ATAK Quick Connect expects enrollment on
+ * 8446 and CoT on 8089, so changing those breaks the usual setup; a different Data Package port
+ * reaches ATAK through the enrollment profile, which sets ATAK's `apiSecureServerPort`.
+ */
+const quickConnectChanged = computed(() => form.value.enrollmentPort !== 8446 || form.value.streamingPort !== 8089);
+const martiChanged = computed(() => form.value.martiPort !== 8443);
 
 function formOf(settings: TakServerSettingsDto): TakServerSettingsChanges {
   return {
@@ -55,7 +63,9 @@ async function save(): Promise<void> {
     <div class="d-flex align-center mb-4">
       <div class="flex-grow-1">
         <div class="text-subtitle-1 font-weight-medium">Server</div>
-        <div class="text-body-2 text-medium-emphasis">Devices connect to these ports directly, not through the Web proxy.</div>
+        <div class="text-body-2 text-medium-emphasis">
+          Public ports that devices connect to directly, not through the Web proxy. QR codes and profiles use them.
+        </div>
       </div>
       <v-switch v-model="form.enabled" color="primary" inset hide-details label="Enabled" />
     </div>
@@ -77,6 +87,16 @@ async function save(): Promise<void> {
       </v-col>
       <v-col cols="12" sm="4">
         <v-text-field v-model.number="form.streamingPort" type="number" label="Streaming port" :error-messages="messagesFor(errors, 'streamingPort')" />
+      </v-col>
+      <v-col v-if="quickConnectChanged || martiChanged" cols="12">
+        <v-alert v-if="quickConnectChanged" type="warning" density="compact" class="mb-2">
+          ATAK Quick Connect expects enrollment on 8446 and streaming on 8089. Other ports mean participants must enter them
+          by hand. Prefer a separate public address over changing them.
+        </v-alert>
+        <v-alert v-if="martiChanged" type="info" density="compact">
+          ATAK learns a different Data Package port from its enrollment profile. The setting applies to every server in the
+          app, and iTAK is not verified yet. Publish the same port in Docker.
+        </v-alert>
       </v-col>
       <v-col cols="12" sm="6">
         <v-text-field
