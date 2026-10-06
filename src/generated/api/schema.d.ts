@@ -2100,10 +2100,33 @@ export interface components {
             /** @description `null` until the server first starts or a certificate is added. */
             serverCertificate: components["schemas"]["TakServerCertificateDto"] | null;
             /**
+             * Format: date-time
+             * @description When the public host name or a port last changed after setup; `null` if never. Apps enrolled
+             *     before it may still use the old endpoint.
+             */
+            endpointChangedAt: string | null;
+            /**
+             * Format: int32
+             * @description Valid client certificates. Changing the host name or a port while this is above 0 requires
+             *     `endpointChange` in the update, because those apps must enroll again.
+             */
+            validClientCertificates: number;
+            /**
+             * Format: int32
+             * @description Valid client certificates issued before `endpointChangedAt`; their apps may still point to the
+             *     old endpoint and must enroll again.
+             */
+            clientCertificatesToReEnroll: number;
+            /**
              * Format: double
              * @description Optimistic-concurrency version; 0 until first saved.
              */
             version: number;
+        };
+        /** @description The administrator's decision for a host name or port change that affects devices. */
+        TakEndpointChangeConfirmation: {
+            /** @description Email users with enrolled apps that they must set them up again; otherwise only warn here. */
+            notifyAffectedUsers: boolean;
         };
         UpdateTakServerSettingsRequest: {
             /** Format: int32 */
@@ -2118,6 +2141,11 @@ export interface components {
             streamingPort: number;
             /** Format: int32 */
             clientCertificateDays: number;
+            /**
+             * @description Required when this update moves a port to a non-standard value, or changes the host name or a
+             *     port while apps are enrolled. Core never changes a public port on its own.
+             */
+            endpointChange?: components["schemas"]["TakEndpointChangeConfirmation"];
         };
         AddTakServerCertificateRequest: {
             /** @description Full chain in PEM format, server certificate first, e.g. the `fullchain.pem` of Let's Encrypt. */
@@ -2209,6 +2237,11 @@ export interface components {
             /** Format: date-time */
             revokedAt: string | null;
             revocationReason: string | null;
+            /**
+             * @description Issued before the TAK server's host name or a port last changed; the app may still use the old
+             *     endpoint and must enroll again.
+             */
+            issuedForOldEndpoint: boolean;
         };
         RevokeTakCertificateRequest: {
             reason?: string | null;

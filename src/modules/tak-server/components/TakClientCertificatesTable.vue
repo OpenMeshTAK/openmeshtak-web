@@ -39,6 +39,16 @@ function confirm(): void {
             <v-chip size="small" variant="tonal" :color="statusColor[certificate.status]" class="text-capitalize">
               {{ certificate.status }}
             </v-chip>
+            <v-chip
+              v-if="certificate.status === 'valid' && certificate.issuedForOldEndpoint"
+              size="small"
+              variant="tonal"
+              color="warning"
+              class="ml-1"
+              title="Set up before the TAK server address or ports changed; connect the app again."
+            >
+              Old address
+            </v-chip>
           </td>
           <td class="d-none d-md-table-cell">{{ dateFormat.format(new Date(certificate.notAfter)) }}</td>
           <td class="text-right">
