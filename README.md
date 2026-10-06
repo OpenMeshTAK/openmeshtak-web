@@ -1,7 +1,19 @@
 # OpenMeshTak Web
 
-The participant and administration web application of OpenMeshTak. It is a client of the
-OpenMeshTak Core API and contains no authorization or profile-resolution rules of its own.
+OpenMeshTak Web is the dashboard-first PWA for participants, administrators and mission editors. It is a client of the OpenMeshTak Core API and contains no authorization, profile-resolution, format-conversion or package-generation rules of its own.
+
+OpenMeshTak is under active development. Provisioning actions rely on Core's tested delivery-capability data and must not be interpreted as unverified TAK, iTAK or Meshtastic compatibility claims.
+
+## Capabilities
+
+- focused participant dashboard for active events and provisioning artifacts
+- first-run setup, account security, passkeys and participant claims
+- event, member, group, role, permission and API-client administration
+- TAK server, base-map, email and Meshtastic configuration
+- channel audience, key-holder and secret-handout workflows
+- ATAK-focused mission map editing and Data Package composition
+- read-only live TAK traffic view for authorized users
+- responsive Vue PWA for desktop, tablet and focused phone workflows
 
 ## Requirements
 
@@ -38,9 +50,13 @@ pnpm api:generate  # regenerate the typed client
 pnpm check
 ```
 
-## Releases
+Create a production build with:
 
-The Web app ships inside the OpenMeshTak image, where Core serves it on the same origin as the API. That image is built and released from the `openmeshtak` repository, which builds this repository at the same tag through the Docker build context `web`. Both repositories share one version, and the Web app warns when it talks to a Core of another major or minor version. To release, set the same `version` in `package.json` of both repositories, commit, push the tag `v<version>` here first and then to `openmeshtak`.
+```sh
+pnpm build
+```
+
+The production Web application is served by Core on the same origin as the API. The Core Docker build consumes this repository through its `web` build context.
 
 ## License
 
