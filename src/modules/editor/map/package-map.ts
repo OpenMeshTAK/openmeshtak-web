@@ -36,6 +36,22 @@ function escapeHtml(text: string): string {
   return text.replace(/[&<>"']/g, (character) => `&#${String(character.charCodeAt(0))};`);
 }
 
+export function createBaseMapSource(baseMap: {
+  tileUrlTemplate: string;
+  attribution: string;
+  maxZoom: number;
+}): XYZ {
+  return new XYZ({
+    url: baseMap.tileUrlTemplate,
+    // Public providers such as OpenStreetMap reject anonymous browser tile traffic. Send only the
+    // installation origin cross-site, even when the document's global policy is more restrictive.
+    referrerPolicy: "strict-origin-when-cross-origin",
+    // Text only: OpenLayers renders attributions as HTML, so the configured text is escaped.
+    attributions: escapeHtml(baseMap.attribution),
+    maxZoom: baseMap.maxZoom,
+  });
+}
+
 /**
  * OpenLayers adapter of the data package editor. OpenLayers feature state stays behind this
  * boundary so the data package model stays server-owned and independent of the map library.
@@ -272,14 +288,7 @@ export class PackageMap {
 
   /** The online base map from the installation settings, with the provider's attribution. */
   setBaseMap(baseMap: { tileUrlTemplate: string; attribution: string; maxZoom: number }): void {
-    this.baseLayer.setSource(
-      new XYZ({
-        url: baseMap.tileUrlTemplate,
-        // Text only: OpenLayers renders attributions as HTML, so the configured text is escaped.
-        attributions: escapeHtml(baseMap.attribution),
-        maxZoom: baseMap.maxZoom,
-      }),
-    );
+    this.baseLayer.setSource(createBaseMapSource(baseMap));
   }
 
   /** Live TAK positions and markers, drawn above all package content. */
