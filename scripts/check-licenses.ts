@@ -33,7 +33,15 @@ const reviewedExceptions = new Map<string, Set<string>>([
   ["(MIT AND Zlib)", new Set(["pako@2.2.0"])],
   ["MIT AND BSD-3-Clause", new Set(["zstddec@0.2.0"])],
   ["Python-2.0", new Set(["argparse@2.0.1"])],
-  ["MPL-2.0", new Set(["lightningcss@1.33.0", "lightningcss-win32-x64-msvc@1.33.0", "lightningcss-linux-x64-gnu@1.33.0"])],
+  [
+    "MPL-2.0",
+    new Set([
+      "lightningcss@1.33.0",
+      "lightningcss-win32-x64-msvc@1.33.0",
+      "lightningcss-linux-x64-gnu@1.33.0",
+      "lightningcss-linux-x64-musl@1.33.0",
+    ]),
+  ],
   ["(MIT OR CC0-1.0)", new Set(["type-fest@4.41.0", "type-fest@0.16.0"])],
   // Browserslist data pulled in by workbox-build (vite-plugin-pwa) at build time only (reviewed 2026-10-06).
   ["CC-BY-4.0", new Set(["caniuse-lite@1.0.30001814"])],
