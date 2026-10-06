@@ -2,6 +2,7 @@
 import { mdiDownload, mdiKeyAlert, mdiOpenInNew, mdiRadioTower } from "@mdi/js";
 import { computed, ref, watch } from "vue";
 import type { Schemas } from "@/shared/api/types";
+import DownloadQrButton from "@/shared/components/DownloadQrButton.vue";
 import InfoHint from "@/shared/components/InfoHint.vue";
 import { saveFile } from "@/shared/files/save-file";
 import { useToast } from "@/shared/feedback/toast";
@@ -91,16 +92,17 @@ async function download(): Promise<void> {
 
       <div class="download-row">
         <v-checkbox v-model="acknowledged" :label="acknowledgement" density="compact" hide-details />
-        <v-btn
-          color="primary"
-          :prepend-icon="mdiDownload"
-          :disabled="!acknowledged"
-          :loading="downloading"
-          class="download-row__action"
-          @click="download"
-        >
-          Download settings file
-        </v-btn>
+        <div class="download-row__actions">
+          <v-btn color="primary" :prepend-icon="mdiDownload" :disabled="!acknowledged" :loading="downloading" @click="download">
+            Download settings file
+          </v-btn>
+          <DownloadQrButton
+            :disabled="!acknowledged"
+            :request="{ kind: 'device-profile', eventId: profile.eventId, memberId: profile.memberId }"
+            file-label="the Meshtastic settings file"
+            secret-notice="The file contains channel keys. Scan it only with the phone that sets up this radio."
+          />
+        </div>
       </div>
       <v-alert type="warning" density="compact" :icon="mdiKeyAlert" class="mt-3">
         <div class="d-flex align-center ga-1">
@@ -127,8 +129,15 @@ async function download(): Promise<void> {
   gap: 8px 16px;
 }
 
+.download-row__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 @media (max-width: 599px) {
-  .download-row__action {
+  .download-row__actions,
+  .download-row__actions > * {
     width: 100%;
   }
 }

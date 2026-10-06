@@ -2,6 +2,7 @@
 import { mdiDownload } from "@mdi/js";
 import { computed, ref } from "vue";
 import { useDisplay } from "vuetify";
+import DownloadQrButton from "@/shared/components/DownloadQrButton.vue";
 import QrCode from "@/shared/components/QrCode.vue";
 import { isApiProblem } from "@/shared/errors/api-problem";
 import { useToast } from "@/shared/feedback/toast";
@@ -97,9 +98,12 @@ function close(): void {
                 <tr><td>Password</td><td>Your OpenMeshTak password</td></tr>
               </tbody>
             </v-table>
-            <v-btn href="/api/v1/me/tak-connection-package" download color="primary" :prepend-icon="mdiDownload">
-              Download connection package
-            </v-btn>
+            <div class="d-flex flex-wrap ga-2">
+              <v-btn href="/api/v1/me/tak-connection-package" download color="primary" :prepend-icon="mdiDownload">
+                Download connection package
+              </v-btn>
+              <DownloadQrButton :request="{ kind: 'tak-connection-package' }" file-label="the connection package" />
+            </div>
           </v-window-item>
 
           <v-window-item value="login">

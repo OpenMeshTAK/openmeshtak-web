@@ -3,10 +3,14 @@ import { mdiDownload, mdiMapOutline } from "@mdi/js";
 import { onMounted, ref, watch } from "vue";
 import { useDisplay } from "vuetify";
 import type { Schemas } from "@/shared/api/types";
+import DownloadQrButton from "@/shared/components/DownloadQrButton.vue";
 import { describeError } from "@/shared/errors/api-problem";
 import { fetchMemberDataPackages, memberDataPackageUrl } from "../dashboard.api";
 
-/** The published Data Packages this member receives, each as a manual ATAK Data Package download. */
+/**
+ * The published Data Packages this member receives, each as a manual ATAK Data Package download or
+ * as a QR code that downloads it straight on the phone.
+ */
 const props = defineProps<{ eventId: string; memberId: string }>();
 
 const { xs } = useDisplay();
@@ -49,15 +53,22 @@ onMounted(load);
     >
       <!-- On phones the button sits below the name so long package names keep their width. -->
       <template v-if="!xs" #append>
-        <v-btn
-          :href="memberDataPackageUrl(eventId, memberId, dataPackage.id)"
-          download
-          variant="tonal"
-          size="small"
-          :prepend-icon="mdiDownload"
-        >
-          Download .zip
-        </v-btn>
+        <div class="d-flex ga-2">
+          <DownloadQrButton
+            size="small"
+            :request="{ kind: 'member-data-package', eventId, memberId, packageId: dataPackage.id }"
+            :file-label="dataPackage.name"
+          />
+          <v-btn
+            :href="memberDataPackageUrl(eventId, memberId, dataPackage.id)"
+            download
+            variant="tonal"
+            size="small"
+            :prepend-icon="mdiDownload"
+          >
+            Download .zip
+          </v-btn>
+        </div>
       </template>
       <v-btn
         v-if="xs"
@@ -70,6 +81,13 @@ onMounted(load);
       >
         Download .zip
       </v-btn>
+      <DownloadQrButton
+        v-if="xs"
+        block
+        class="mt-2"
+        :request="{ kind: 'member-data-package', eventId, memberId, packageId: dataPackage.id }"
+        :file-label="dataPackage.name"
+      />
     </v-list-item>
   </v-list>
 </template>
