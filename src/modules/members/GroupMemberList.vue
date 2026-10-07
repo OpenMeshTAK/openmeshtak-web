@@ -57,38 +57,37 @@ function shift(index: number, direction: -1 | 1): void {
         chosen-class="drag-chosen"
         @end="dropped"
       >
-        <template v-for="(member, index) in ordered" :key="member.id">
-          <v-divider v-if="index > 0" />
-          <v-list-item>
-            <template #prepend>
-              <v-icon v-if="canManage" :icon="mdiDragVertical" class="member-handle mr-1" aria-hidden="true" />
-              <v-avatar color="primary" variant="tonal" size="36" class="mr-3 font-weight-medium">{{ member.shortName ?? "—" }}</v-avatar>
-            </template>
-            <v-list-item-title>{{ member.callsign }}</v-list-item-title>
-            <v-list-item-subtitle>{{ member.displayName }} · {{ member.eventRole.name }}</v-list-item-subtitle>
-            <template #append>
-              <slot name="actions" :member="member" />
-              <v-menu v-if="canManage">
-                <template #activator="{ props: menu }">
-                  <v-btn v-bind="menu" :icon="mdiDotsVertical" variant="text" size="small" :aria-label="`Order of ${member.callsign}`" />
-                </template>
-                <v-list density="compact">
-                  <v-list-item title="Move up" :prepend-icon="mdiArrowUp" :disabled="index === 0" @click="shift(index, -1)" />
-                  <v-list-item title="Move down" :prepend-icon="mdiArrowDown" :disabled="index === ordered.length - 1" @click="shift(index, 1)" />
-                  <v-divider class="my-1" />
-                  <v-list-subheader>Move to group</v-list-subheader>
-                  <v-list-item
-                    v-for="group in groups.filter(({ id }) => id !== groupId)"
-                    :key="group.id"
-                    :title="group.name"
-                    :prepend-icon="mdiSwapHorizontal"
-                    @click="emit('move', member, group.id)"
-                  />
-                </v-list>
-              </v-menu>
-            </template>
-          </v-list-item>
-        </template>
+        <!-- Only list items may be children here: Sortable counts every child element, so a divider
+             between items would shift the drop index and save the wrong order. -->
+        <v-list-item v-for="(member, index) in ordered" :key="member.id" class="member-row">
+          <template #prepend>
+            <v-icon v-if="canManage" :icon="mdiDragVertical" class="member-handle mr-1" aria-hidden="true" />
+            <v-avatar color="primary" variant="tonal" size="36" class="mr-3 font-weight-medium">{{ member.shortName ?? "—" }}</v-avatar>
+          </template>
+          <v-list-item-title>{{ member.callsign }}</v-list-item-title>
+          <v-list-item-subtitle>{{ member.displayName }} · {{ member.eventRole.name }}</v-list-item-subtitle>
+          <template #append>
+            <slot name="actions" :member="member" />
+            <v-menu v-if="canManage">
+              <template #activator="{ props: menu }">
+                <v-btn v-bind="menu" :icon="mdiDotsVertical" variant="text" size="small" :aria-label="`Order of ${member.callsign}`" />
+              </template>
+              <v-list density="compact">
+                <v-list-item title="Move up" :prepend-icon="mdiArrowUp" :disabled="index === 0" @click="shift(index, -1)" />
+                <v-list-item title="Move down" :prepend-icon="mdiArrowDown" :disabled="index === ordered.length - 1" @click="shift(index, 1)" />
+                <v-divider class="my-1" />
+                <v-list-subheader>Move to group</v-list-subheader>
+                <v-list-item
+                  v-for="group in groups.filter(({ id }) => id !== groupId)"
+                  :key="group.id"
+                  :title="group.name"
+                  :prepend-icon="mdiSwapHorizontal"
+                  @click="emit('move', member, group.id)"
+                />
+              </v-list>
+            </v-menu>
+          </template>
+        </v-list-item>
       </VueDraggable>
       <p v-if="ordered.length === 0" class="text-body-2 text-medium-emphasis pa-5 mb-0">No members in this group yet.</p>
     </v-list>
@@ -98,5 +97,9 @@ function shift(index: number, direction: -1 | 1): void {
 <style scoped>
 .member-handle {
   cursor: grab;
+}
+
+.member-row + .member-row {
+  border-top: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 </style>
