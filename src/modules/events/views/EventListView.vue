@@ -8,6 +8,7 @@ import {
   mdiMagnify,
   mdiMapLegend,
   mdiPackageVariantClosed,
+  mdiRadioTower,
 } from "@mdi/js";
 import { computed, onMounted, ref } from "vue";
 import { useRouter, type RouteLocationRaw } from "vue-router";
@@ -112,6 +113,7 @@ function quickLinks(event: EventDto): QuickLink[] {
       { label: "Map editor", icon: mdiMapLegend, to: { name: "event-editor", params: { eventId: event.id } } },
     );
   }
+  links.push({ label: "Meshtastic", icon: mdiRadioTower, to: tab("meshtastic") });
   if (event.status === "active" && session.can("tak-traffic.view", event.id)) {
     links.push({ label: "Live TAK", icon: mdiAccessPointNetwork, to: { name: "event-live", params: { eventId: event.id } } });
   }
