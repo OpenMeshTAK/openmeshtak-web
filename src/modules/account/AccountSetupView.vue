@@ -4,6 +4,7 @@ import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import { authClient } from "@/modules/auth/auth-client";
 import { useSession } from "@/modules/auth/session";
+import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import { describeError, isApiProblem } from "@/shared/errors/api-problem";
 import { useToast } from "@/shared/feedback/toast";
 import { normalizeUsernameInput, USERNAME_HINT, usernameRule } from "@/shared/forms/username";
@@ -27,6 +28,8 @@ const repeated = ref("");
 const reveal = ref(false);
 const saving = ref(false);
 const error = ref<string | null>(null);
+const confirmSignOut = ref(false);
+const signingOut = ref(false);
 
 const passwordProblem = computed(() => {
   if (password.value !== "" && password.value.length < MINIMUM_LENGTH) {
@@ -56,6 +59,23 @@ async function addEmail(): Promise<void> {
     toast.warning("Your account is ready, but the email address could not be saved. Add it later on your account page.");
   } else {
     toast.info(`Open the link sent to ${address} to confirm your email address.`);
+  }
+}
+
+/**
+ * Leaving is allowed, but the link that opened this session was single-use: without a password
+ * the person needs a new link to come back, so the dialog says so before signing out.
+ */
+async function signOut(): Promise<void> {
+  signingOut.value = true;
+  try {
+    await session.signOut();
+    await router.replace({ name: "sign-in" });
+  } catch (caught: unknown) {
+    toast.error(caught);
+  } finally {
+    signingOut.value = false;
+    confirmSignOut.value = false;
   }
 }
 
@@ -132,6 +152,12 @@ async function submit(): Promise<void> {
       <v-btn type="submit" color="primary" size="large" block class="mt-6" :loading="saving" :disabled="!ready">
         Finish setup
       </v-btn>
+      <v-btn variant="text" block class="mt-2" :disabled="saving" @click="confirmSignOut = true">Cancel and sign out</v-btn>
     </v-form>
+
+    <ConfirmDialog v-model="confirmSignOut" title="Sign out without finishing?" confirm-label="Sign out" :loading="signingOut" @confirm="signOut">
+      Your account has no password yet, and the link you used works only once. To set up your
+      account later, ask for a new link.
+    </ConfirmDialog>
   </v-card>
 </template>
