@@ -7,10 +7,13 @@ const { smAndUp } = useDisplay();
 </script>
 
 <template>
-  <!-- Bottom right on larger screens; centered above the floating bottom navigation on phones. -->
+  <!-- Bottom right on larger screens; centered above the floating bottom navigation on phones.
+       Up to three toasts stack; further ones wait instead of pushing out unread errors. -->
   <v-snackbar-queue
     v-model="queue"
     :location="smAndUp ? 'bottom end' : 'bottom'"
+    :total-visible="3"
+    display-strategy="hold"
     closable
     close-text="Dismiss"
     content-class="omtk-toast"
