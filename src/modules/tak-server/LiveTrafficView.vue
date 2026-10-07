@@ -1,24 +1,24 @@
 <script setup lang="ts">
 import { mdiArrowLeft, mdiCrosshairsGps } from "@mdi/js";
+import type { Socket } from "socket.io-client";
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import ErrorState from "@/shared/components/ErrorState.vue";
 import { describeError, isApiProblem } from "@/shared/errors/api-problem";
+import { connectRealtime } from "@/shared/realtime/realtime";
 import { listDataPackages } from "@/modules/data-packages/data-packages.api";
 import { topFirst } from "@/modules/data-packages/package-order";
 import PackageMapView from "@/modules/editor/components/PackageMapView.vue";
 import { mapContentItems } from "@/modules/editor/map/map-content";
 import { usePackageEditor, type PackageEditor } from "@/modules/editor/usePackageEditor";
 import TrafficRecordingCard from "./components/TrafficRecordingCard.vue";
-import { getLiveTakTraffic, type LiveTakTrafficDto } from "./tak-server.api";
+import type { LiveTakTrafficDto } from "./tak-server.api";
 
 /**
  * Read-only event map with the live TAK traffic of the built-in server on top: the event's Data
- * Packages as in the editor, plus current positions and markers, refreshed every few seconds.
+ * Packages as in the editor, plus current positions and markers pushed by Core as they change.
  * Nothing here edits; users without access to the packages still see the live layer.
  */
-const REFRESH_MS = 3000;
-
 const route = useRoute();
 const router = useRouter();
 const eventId = String(route.params.eventId);
@@ -28,7 +28,8 @@ const traffic = ref<LiveTakTrafficDto>({ connections: [], items: [] });
 const state = ref<"loading" | "ready" | "error">("loading");
 const error = ref("");
 const mapView = ref<InstanceType<typeof PackageMapView> | null>(null);
-let timer: ReturnType<typeof setInterval> | undefined;
+const connected = ref(false);
+let socket: Socket | null = null;
 
 const ordered = computed(() => {
   const loaded = editors.value.flatMap((editor) => (editor.dataPackage.value === null ? [] : [{ editor, dataPackage: editor.dataPackage.value }]));
@@ -70,22 +71,34 @@ async function loadPackages(): Promise<void> {
   }
 }
 
-async function refresh(): Promise<void> {
-  try {
-    traffic.value = await getLiveTakTraffic(eventId);
-  } catch (caught: unknown) {
-    error.value = describeError(caught);
-    state.value = "error";
-    clearInterval(timer);
-  }
+/** Core sends a full snapshot on connect and whenever the event's traffic changes. */
+function watchTraffic(): void {
+  socket = connectRealtime("/tak-traffic", { eventId });
+  socket.on("traffic", (snapshot: LiveTakTrafficDto) => {
+    traffic.value = snapshot;
+  });
+  socket.on("connect", () => {
+    connected.value = true;
+  });
+  socket.on("disconnect", () => {
+    connected.value = false;
+  });
+  socket.on("connect_error", (connectError: Error) => {
+    connected.value = false;
+    if (connectError.message === "Access denied") {
+      error.value = "You cannot watch the live TAK traffic of this event.";
+      state.value = "error";
+      socket?.disconnect();
+    }
+  });
 }
 
 onMounted(async () => {
   try {
-    await Promise.all([loadPackages(), refresh()]);
+    watchTraffic();
+    await loadPackages();
     if (state.value !== "error") {
       state.value = "ready";
-      timer = setInterval(() => void refresh(), REFRESH_MS);
     }
   } catch (caught: unknown) {
     error.value = describeError(caught);
@@ -93,7 +106,7 @@ onMounted(async () => {
   }
 });
 
-onBeforeUnmount(() => clearInterval(timer));
+onBeforeUnmount(() => socket?.disconnect());
 </script>
 
 <template>
@@ -103,7 +116,7 @@ onBeforeUnmount(() => clearInterval(timer));
       <div class="flex-grow-1">
         <div class="text-title-medium font-weight-medium">Live TAK traffic</div>
         <div class="text-body-small text-medium-emphasis">
-          {{ traffic.connections.length }} connected · {{ traffic.items.length }} items · refreshes every {{ REFRESH_MS / 1000 }} s
+          {{ traffic.connections.length }} connected · {{ traffic.items.length }} items · {{ connected ? "live" : "reconnecting…" }}
         </div>
       </div>
     </header>

@@ -1,6 +1,7 @@
 import createClient from "openapi-fetch";
 import type { paths } from "@/generated/api/schema";
 import { ApiProblem } from "@/shared/errors/api-problem";
+import { TAB_HEADER, TAB_ID } from "@/shared/realtime/realtime";
 import { stepUpMiddleware } from "./step-up";
 
 /**
@@ -15,6 +16,13 @@ export const api = createClient<paths>({
   fetch: (request) => globalThis.fetch(request),
 });
 api.use(stepUpMiddleware);
+// Lets this tab recognise live notices about its own changes.
+api.use({
+  onRequest({ request }) {
+    request.headers.set(TAB_HEADER, TAB_ID);
+    return request;
+  },
+});
 
 interface ApiResult<T> {
   data?: T;

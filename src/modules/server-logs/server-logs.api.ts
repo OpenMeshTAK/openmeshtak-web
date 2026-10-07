@@ -1,6 +1,7 @@
-import { io, type Socket } from "socket.io-client";
+import type { Socket } from "socket.io-client";
 import { api, unwrap } from "@/shared/api/client";
 import type { Schemas } from "@/shared/api/types";
+import { connectRealtime } from "@/shared/realtime/realtime";
 
 export type ServerLogEntryDto = Schemas["ServerLogEntryDto"];
 export type ServerLogLevel = Schemas["ServerLogLevel"];
@@ -16,5 +17,5 @@ export function listServerLogs(after?: number): Promise<ServerLogPage> {
  * socket reconnects by itself after network or server interruptions.
  */
 export function connectServerLogStream(): Socket {
-  return io("/server-logs", { path: "/api/realtime", withCredentials: true });
+  return connectRealtime("/server-logs");
 }

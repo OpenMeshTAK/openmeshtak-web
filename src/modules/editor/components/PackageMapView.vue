@@ -4,7 +4,7 @@ import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type { PackageGeometry, PackageLayerDto, PackageObjectDto } from "@/modules/data-packages/data-packages.api";
 import type { LiveMapItem } from "../map/live-layer";
 import type { MapContentItem } from "../map/map-content";
-import { PackageMap, type EditorTool } from "../map/package-map";
+import { PackageMap, type EditorTool, type RemoteSelection } from "../map/package-map";
 import { loadBaseMap } from "@/modules/map-settings/map-settings.api";
 
 const props = withDefaults(defineProps<{
@@ -15,8 +15,10 @@ const props = withDefaults(defineProps<{
   /** Live TAK positions and markers drawn above everything else. */
   live?: LiveMapItem[];
   selectedId: string | null;
+  /** Objects other editors have selected, outlined in their color. */
+  remoteSelections?: RemoteSelection[];
   tool: EditorTool;
-}>(), { contents: () => [], live: () => [] });
+}>(), { contents: () => [], live: () => [], remoteSelections: () => [] });
 const emit = defineEmits<{
   drawn: [geometry: PackageGeometry];
   modified: [objectId: string, geometry: PackageGeometry];
@@ -41,6 +43,7 @@ onMounted(() => {
   map.setContent(props.layers, props.objects);
   map.setMapContent(props.contents, props.layers);
   map.setLiveItems(props.live);
+  map.setRemoteSelections(props.remoteSelections);
   void loadBaseMap().then((baseMap) => map?.setBaseMap(baseMap));
   map.setTool(props.tool);
   map.highlight(props.selectedId);
@@ -59,6 +62,7 @@ watch(
   ([contents, layers]) => map?.setMapContent(contents, layers),
 );
 watch(() => props.live, (items) => map?.setLiveItems(items));
+watch(() => props.remoteSelections, (selections) => map?.setRemoteSelections(selections));
 watch(() => props.tool, (tool) => map?.setTool(tool));
 watch(() => props.selectedId, (objectId) => map?.highlight(objectId));
 

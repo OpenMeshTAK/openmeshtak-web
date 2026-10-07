@@ -7,6 +7,7 @@ import {
   deleteLayer,
   deleteObject,
   getDataPackage,
+  getObject,
   listContents,
   deleteContent,
   updateContent,
@@ -69,9 +70,26 @@ interface ObjectState {
   tak: TakMarker | null;
 }
 
+/** What another tab or person changed in this package, as announced by Core. */
+export interface RemotePackageChange {
+  /** Route below the package, e.g. `objects/<id>`, `layers` or empty for the package itself. */
+  path: string;
+  method: string;
+  createdId: string | null;
+}
+
+// Core validated the IDs before announcing the change.
+const OBJECT_PATH = /^objects\/([^/]+)$/;
+const LAYER_PATH = /^layers(?:\/[^/]+)?$/;
+const PACKAGE_DETAILS_PATH = /^(?:|revisions|audience|tak-delivery)$/;
+
 /**
  * Editor state for one data package draft. Every change is saved immediately through the API with the
  * object's version, so a concurrent edit surfaces as a conflict instead of being overwritten.
+ *
+ * Several people may edit at once. Changes from elsewhere are applied per object or layer, so the
+ * local undo history survives. The other person's change wins: undo steps of this tab that would
+ * overwrite it are dropped, steps for everything else stay.
  */
 export function usePackageEditor(eventId: string, packageId: string) {
   const path = { eventId, packageId };
@@ -115,8 +133,8 @@ export function usePackageEditor(eventId: string, packageId: string) {
     objectHandles.clear();
   }
 
-  function recordHistory(label: string, undo: () => Promise<boolean>, redo: () => Promise<boolean>): void {
-    history.record({ label, undo, redo });
+  function recordHistory(label: string, touches: readonly EntityHandle[], undo: () => Promise<boolean>, redo: () => Promise<boolean>): void {
+    history.record({ label, undo, redo, touches });
   }
 
   async function load(): Promise<void> {
@@ -152,8 +170,8 @@ export function usePackageEditor(eventId: string, packageId: string) {
     } catch (caught: unknown) {
       if (isApiProblem(caught, "VERSION_CONFLICT")) {
         saveState.value = "conflict";
-        toast.warning("Someone else changed this data package. The latest version was loaded.");
-        await load();
+        toast.warning("Someone else changed this just before you. Their version is shown; your change was not saved.");
+        await syncAll().catch(() => load());
         saveState.value = "saved";
       } else {
         saveState.value = "error";
@@ -326,7 +344,7 @@ export function usePackageEditor(eventId: string, packageId: string) {
       objects.value = [...objects.value, created];
       selectedId.value = created.id;
       const state = objectStateOf(created);
-      recordHistory("Add object", () => removeObjectByHandle(state.handle), () => createObjectFromState(state));
+      recordHistory("Add object", [state.handle, state.layer], () => removeObjectByHandle(state.handle), () => createObjectFromState(state));
     }
   }
 
@@ -355,7 +373,7 @@ export function usePackageEditor(eventId: string, packageId: string) {
     if (updated !== null) {
       replaceObject(updated);
       const after = objectStateOf(updated);
-      recordHistory("Edit object", () => applyObjectState(before), () => applyObjectState(after));
+      recordHistory("Edit object", [before.handle, before.layer, after.layer], () => applyObjectState(before), () => applyObjectState(after));
     } else {
       // Put the map back to the saved geometry, e.g. after an invalid edit.
       objects.value = [...objects.value];
@@ -381,7 +399,7 @@ export function usePackageEditor(eventId: string, packageId: string) {
       objects.value = [...objects.value, copy];
       selectedId.value = copy.id;
       const state = objectStateOf(copy);
-      recordHistory("Duplicate object", () => removeObjectByHandle(state.handle), () => createObjectFromState(state));
+      recordHistory("Duplicate object", [state.handle, state.layer], () => removeObjectByHandle(state.handle), () => createObjectFromState(state));
     }
   }
 
@@ -422,7 +440,7 @@ export function usePackageEditor(eventId: string, packageId: string) {
       objects.value = [...objects.value, created];
       selectedId.value = created.id;
       const state = objectStateOf(created);
-      recordHistory("Paste object", () => removeObjectByHandle(state.handle), () => createObjectFromState(state));
+      recordHistory("Paste object", [state.handle, state.layer], () => removeObjectByHandle(state.handle), () => createObjectFromState(state));
     }
   }
 
@@ -433,7 +451,7 @@ export function usePackageEditor(eventId: string, packageId: string) {
     }
     const state = objectStateOf(object);
     if (await removeObjectByHandle(state.handle)) {
-      recordHistory("Delete object", () => createObjectFromState(state), () => removeObjectByHandle(state.handle));
+      recordHistory("Delete object", [state.handle, state.layer], () => createObjectFromState(state), () => removeObjectByHandle(state.handle));
     }
   }
 
@@ -455,7 +473,7 @@ export function usePackageEditor(eventId: string, packageId: string) {
       layers.value = [...layers.value, created];
       activeLayerId.value = created.id;
       const state = layerStateOf(created);
-      recordHistory("Add layer", () => removeLayerByHandle(state.handle), () => createLayerFromState(state));
+      recordHistory("Add layer", [state.handle], () => removeLayerByHandle(state.handle), () => createLayerFromState(state));
     }
   }
 
@@ -476,7 +494,7 @@ export function usePackageEditor(eventId: string, packageId: string) {
       locked: changes.locked ?? current.locked,
     };
     if (await applyLayerState(after)) {
-      recordHistory("Edit layer", () => applyLayerState(before), () => applyLayerState(after));
+      recordHistory("Edit layer", [before.handle], () => applyLayerState(before), () => applyLayerState(after));
     }
   }
 
@@ -493,7 +511,7 @@ export function usePackageEditor(eventId: string, packageId: string) {
       { ...before[1]!, sortOrder: layer.sortOrder },
     ];
     if (await applyLayerStates(after)) {
-      recordHistory("Move layer", () => applyLayerStates([...before].reverse()), () => applyLayerStates(after));
+      recordHistory("Move layer", before.map(({ handle }) => handle), () => applyLayerStates([...before].reverse()), () => applyLayerStates(after));
     }
   }
 
@@ -517,7 +535,7 @@ export function usePackageEditor(eventId: string, packageId: string) {
     const before = changed.map(({ layer }) => layerStateOf(layer));
     const after = changed.map(({ layer, sortOrder }) => ({ ...layerStateOf(layer), sortOrder }));
     if (after.length > 0 && (await applyLayerStates(after))) {
-      recordHistory("Reorder layers", () => applyLayerStates([...before].reverse()), () => applyLayerStates(after));
+      recordHistory("Reorder layers", before.map(({ handle }) => handle), () => applyLayerStates([...before].reverse()), () => applyLayerStates(after));
     }
   }
 
@@ -560,6 +578,7 @@ export function usePackageEditor(eventId: string, packageId: string) {
     if (await removeLayerByHandle(layerState.handle)) {
       recordHistory(
         "Delete layer",
+        [layerState.handle, ...objectStates.map(({ handle }) => handle)],
         async () => {
           if (!(await createLayerFromState(layerState))) {
             return false;
@@ -573,6 +592,132 @@ export function usePackageEditor(eventId: string, packageId: string) {
         },
         () => removeLayerByHandle(layerState.handle),
       );
+    }
+  }
+
+  // ---- Changes from other editors ----------------------------------------------------------------
+
+  /** Drops this tab's undo steps for entities someone else changed or removed. */
+  function forgetHistoryOf(objectIds: readonly string[], layerIds: readonly string[]): void {
+    const handles = new Set<object>();
+    for (const id of objectIds) {
+      const handle = objectHandles.get(id);
+      if (handle !== undefined) {
+        handles.add(handle);
+      }
+    }
+    for (const id of layerIds) {
+      const handle = layerHandles.get(id);
+      if (handle !== undefined) {
+        handles.add(handle);
+      }
+    }
+    if (handles.size > 0 && history.dropTouching(handles) > 0) {
+      toast.info("Someone else changed something you edited. Your undo steps for it were removed.");
+    }
+  }
+
+  function mergeObjects(remote: PackageObjectDto[]): void {
+    const local = new Map(objects.value.map((object) => [object.id, object]));
+    const remoteIds = new Set(remote.map(({ id }) => id));
+    const changed = remote.filter((object) => {
+      const existing = local.get(object.id);
+      return existing !== undefined && existing.version !== object.version;
+    });
+    const removed = objects.value.filter(({ id }) => !remoteIds.has(id));
+    forgetHistoryOf([...changed, ...removed].map(({ id }) => id), []);
+    objects.value = remote;
+    for (const object of remote) {
+      handleFor(objectHandles, object.id);
+    }
+    if (selectedId.value !== null && !remoteIds.has(selectedId.value)) {
+      selectedId.value = null;
+    }
+  }
+
+  function mergeLayers(remote: PackageLayerDto[]): void {
+    const local = new Map(layers.value.map((layer) => [layer.id, layer]));
+    const remoteIds = new Set(remote.map(({ id }) => id));
+    const changed = remote.filter((layer) => {
+      const existing = local.get(layer.id);
+      return existing !== undefined && existing.version !== layer.version;
+    });
+    const removed = layers.value.filter(({ id }) => !remoteIds.has(id));
+    forgetHistoryOf([], [...changed, ...removed].map(({ id }) => id));
+    layers.value = remote;
+    for (const layer of remote) {
+      handleFor(layerHandles, layer.id);
+    }
+    if (activeLayerId.value !== null && !remoteIds.has(activeLayerId.value)) {
+      activeLayerId.value = sortedLayers.value.at(-1)?.id ?? null;
+    }
+  }
+
+  /** Loads one object that changed elsewhere; a missing one was deleted. */
+  async function syncObject(objectId: string): Promise<void> {
+    try {
+      const remote = await getObject(path, objectId);
+      const existing = objects.value.find(({ id }) => id === objectId);
+      if (existing === undefined) {
+        objects.value = [...objects.value, remote];
+        handleFor(objectHandles, remote.id);
+      } else if (existing.version !== remote.version) {
+        forgetHistoryOf([objectId], []);
+        replaceObject(remote);
+      }
+    } catch (caught: unknown) {
+      if (!isApiProblem(caught) || caught.status !== 404) {
+        throw caught;
+      }
+      if (objects.value.some(({ id }) => id === objectId)) {
+        forgetHistoryOf([objectId], []);
+        objects.value = objects.value.filter(({ id }) => id !== objectId);
+        if (selectedId.value === objectId) {
+          selectedId.value = null;
+        }
+      }
+    }
+  }
+
+  /** Layers changed elsewhere; deleting a layer also deletes its objects. */
+  async function syncLayers(): Promise<void> {
+    const remote = await listLayers(path);
+    const remoteIds = new Set(remote.map(({ id }) => id));
+    const layerRemoved = layers.value.some(({ id }) => !remoteIds.has(id));
+    mergeLayers(remote);
+    if (layerRemoved) {
+      mergeObjects(await listObjects(path));
+    }
+  }
+
+  /** Brings everything up to date without discarding undo steps for unchanged entities. */
+  async function syncAll(): Promise<void> {
+    const [remotePackage, remoteLayers, remoteObjects, remoteContents] = await Promise.all([
+      getDataPackage(path),
+      listLayers(path),
+      listObjects(path),
+      listContents(path),
+    ]);
+    dataPackage.value = remotePackage;
+    mergeLayers(remoteLayers);
+    mergeObjects(remoteObjects);
+    contents.value = remoteContents;
+  }
+
+  /** Applies a change another tab or person saved, loading only what it touched. */
+  async function applyRemoteChange(change: RemotePackageChange): Promise<void> {
+    const objectId = OBJECT_PATH.exec(change.path)?.[1] ?? (change.path === "objects" ? change.createdId : null);
+    if (objectId !== null) {
+      await syncObject(objectId);
+    } else if (LAYER_PATH.test(change.path)) {
+      await syncLayers();
+    } else if (change.path.startsWith("contents")) {
+      contents.value = await listContents(path);
+    } else if (PACKAGE_DETAILS_PATH.test(change.path)) {
+      dataPackage.value = await getDataPackage(path);
+    } else {
+      // Imports and other bulk changes.
+      await syncAll();
     }
   }
 
@@ -609,6 +754,8 @@ export function usePackageEditor(eventId: string, packageId: string) {
     redo: history.redo,
     clearHistory,
     load,
+    applyRemoteChange,
+    syncAll,
     addObject,
     changeObject,
     duplicateObject,

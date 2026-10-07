@@ -92,3 +92,30 @@ export function objectStyle(feature: FeatureLike, resolution: number, selected: 
     ? [new Style({ stroke: new Stroke({ color: "rgba(255, 255, 255, 0.9)", width: width + 4 }) }), main]
     : [main];
 }
+
+/**
+ * Marks an object another editor has selected: a dashed outline in their color and their name,
+ * drawn above the object's own style so it stays visible on any base map.
+ */
+export function remoteSelectionStyle(feature: FeatureLike, editor: { color: string; name: string }): Style {
+  const kind = String(feature.get("kind"));
+  const style = feature.get("objectStyle") as PackageObjectStyle;
+  return new Style({
+    zIndex: objectPriority(feature) + 1,
+    stroke: new Stroke({ color: editor.color, width: style.strokeWidth + 4, lineDash: [8, 6] }),
+    ...(kind === "point"
+      ? { image: new Circle({ radius: 14, stroke: new Stroke({ color: editor.color, width: 3, lineDash: [5, 4] }), declutterMode: "none" }) }
+      : {}),
+    text: new Text({
+      text: editor.name,
+      font: "600 11px Roboto, Arial, sans-serif",
+      fill: new Fill({ color: "#FFFFFF" }),
+      backgroundFill: new Fill({ color: editor.color }),
+      padding: [2, 5, 2, 5],
+      placement: "point",
+      textBaseline: "bottom",
+      offsetY: kind === "point" ? -18 : 0,
+      overflow: true,
+    }),
+  });
+}

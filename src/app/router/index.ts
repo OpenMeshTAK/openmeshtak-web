@@ -13,6 +13,7 @@ import {
 import { createRouter, createWebHistory, type RouteRecordRaw } from "vue-router";
 import { useSession } from "@/modules/auth/session";
 import { isSetupComplete } from "@/modules/setup/setup.api";
+import { untilCoreAnswers } from "@/shared/connection/core-connection";
 import type { RouteNavigation } from "./navigation";
 
 declare module "vue-router" {
@@ -183,7 +184,8 @@ export const router = createRouter({ history: createWebHistory(), routes });
  * conveniences for the user; Core enforces authentication and authorization on every request.
  */
 router.beforeEach(async (to) => {
-  const setupComplete = await isSetupComplete();
+  // While Core is starting or unreachable, the app shows a connecting screen and keeps trying.
+  const setupComplete = await untilCoreAnswers(isSetupComplete);
   if (!setupComplete) {
     return to.name === "setup" ? true : { name: "setup" };
   }
@@ -196,7 +198,7 @@ router.beforeEach(async (to) => {
   }
 
   const session = useSession();
-  await session.ensureLoaded();
+  await untilCoreAnswers(session.ensureLoaded);
   if (session.state.status !== "authenticated") {
     return { name: "sign-in", query: { redirect: to.fullPath } };
   }

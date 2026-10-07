@@ -17,9 +17,16 @@ import type { PackageGeometry, PackageLayerDto, PackageObjectDto } from "@/modul
 import { fromMapGeometry, toMapGeometry } from "./geometry-codec";
 import { createLiveLayer, type LiveMapItem } from "./live-layer";
 import { mapContentExtent, mapContentLayer, type MapContentItem } from "./map-content";
-import { objectPriority, objectStyle } from "./object-style";
+import { objectPriority, objectStyle, remoteSelectionStyle } from "./object-style";
 
 export type EditorTool = "select" | "point" | "line" | "polygon" | "circle";
+
+/** An object another editor has selected. */
+export interface RemoteSelection {
+  objectId: string;
+  color: string;
+  name: string;
+}
 
 export interface PackageMapCallbacks {
   onDrawn: (geometry: PackageGeometry) => void;
@@ -73,6 +80,8 @@ export class PackageMap {
   private draw: Draw | null = null;
   private originals = new Map<string, PackageGeometry>();
   private selectedId: string | null = null;
+  /** Objects other editors have selected, with their color and name. */
+  private remoteSelections = new Map<string, RemoteSelection>();
   /** Last pointer position over the map in WGS84, used for pasting at the cursor. */
   private pointer: number[] | null = null;
   private readonly live = createLiveLayer();
@@ -82,7 +91,11 @@ export class PackageMap {
   constructor(target: HTMLElement, private readonly callbacks: PackageMapCallbacks) {
     const vectorLayer = new VectorLayer({
       source: this.source,
-      style: (feature, resolution) => objectStyle(feature, resolution, feature.getId() === this.selectedId),
+      style: (feature, resolution) => {
+        const own = objectStyle(feature, resolution, feature.getId() === this.selectedId);
+        const remote = this.remoteSelections.get(String(feature.getId()));
+        return remote === undefined ? own : [...own, remoteSelectionStyle(feature, remote)];
+      },
       // Overlapping labels are hidden instead of piling up; markers always stay visible.
       declutter: true,
     });
@@ -289,6 +302,12 @@ export class PackageMap {
   /** The online base map from the installation settings, with the provider's attribution. */
   setBaseMap(baseMap: { tileUrlTemplate: string; attribution: string; maxZoom: number }): void {
     this.baseLayer.setSource(createBaseMapSource(baseMap));
+  }
+
+  /** Shows which objects other editors have selected. */
+  setRemoteSelections(selections: readonly RemoteSelection[]): void {
+    this.remoteSelections = new Map(selections.map((selection) => [selection.objectId, selection]));
+    this.source.changed();
   }
 
   /** Live TAK positions and markers, drawn above all package content. */

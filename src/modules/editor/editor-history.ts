@@ -1,4 +1,4 @@
-import { computed, ref } from "vue";
+import { computed, ref, toRaw } from "vue";
 
 let historySequence = 0;
 
@@ -6,6 +6,8 @@ export interface EditorHistoryAction {
   label: string;
   undo: () => Promise<boolean>;
   redo: () => Promise<boolean>;
+  /** The objects and layers the step changes, as stable handles; see `dropTouching`. */
+  touches?: readonly object[];
 }
 
 interface HistoryEntry extends EditorHistoryAction {
@@ -32,6 +34,20 @@ export function useEditorHistory() {
   function clear(): void {
     undoStack.value = [];
     redoStack.value = [];
+  }
+
+  /**
+   * Forgets the steps that change any of `handles`, e.g. because someone else just changed that
+   * object: undoing them would overwrite the other person's work. Steps for other objects stay.
+   * Returns how many steps were dropped.
+   */
+  function dropTouching(handles: ReadonlySet<object>): number {
+    // The stacks are reactive, so stored handles come back as proxies of the original objects.
+    const keep = (entry: HistoryEntry) => !(entry.touches ?? []).some((handle) => handles.has(toRaw(handle)));
+    const before = undoStack.value.length + redoStack.value.length;
+    undoStack.value = undoStack.value.filter(keep);
+    redoStack.value = redoStack.value.filter(keep);
+    return before - undoStack.value.length - redoStack.value.length;
   }
 
   async function move(from: "undo" | "redo"): Promise<void> {
@@ -62,6 +78,7 @@ export function useEditorHistory() {
     redoSequence,
     record,
     clear,
+    dropTouching,
     undo: () => move("undo"),
     redo: () => move("redo"),
   };

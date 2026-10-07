@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { saveFile } from "@/shared/files/save-file";
 import { mdiArrowLeft, mdiCloudCheckOutline, mdiCloudUploadOutline, mdiDownload, mdiPublish, mdiUpload } from "@mdi/js";
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import ErrorState from "@/shared/components/ErrorState.vue";
 import { useToast } from "@/shared/feedback/toast";
@@ -30,6 +30,8 @@ import { mapContentItems } from "./map/map-content";
 import ObjectInspector from "./components/ObjectInspector.vue";
 import type { EditorTool } from "./map/package-map";
 import { readLayersOpen, storeLayersOpen } from "./editor-preferences";
+import EditorPresence from "./components/EditorPresence.vue";
+import { usePackageChangeSync, type PackageChangeNotice } from "./usePackageChangeSync";
 import { usePackageEditor } from "./usePackageEditor";
 
 const route = useRoute();
@@ -270,7 +272,66 @@ onMounted(async () => {
   await editor.load();
 });
 
-onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
+// Live collaboration: changes others save to this package are applied per object or layer once
+// this tab's own saves are done, so the undo history stays. Others' selections show on the map.
+let changeTimer: ReturnType<typeof setTimeout> | undefined;
+let pendingChanges: PackageChangeNotice[] = [];
+let catchUpPending = false;
+
+function applyWhenIdle(): void {
+  clearTimeout(changeTimer);
+  changeTimer = setTimeout(() => {
+    if (editor.saveState.value === "saving") {
+      applyWhenIdle();
+      return;
+    }
+    const changes = pendingChanges;
+    const catchUp = catchUpPending;
+    pendingChanges = [];
+    catchUpPending = false;
+    void (async () => {
+      try {
+        if (catchUp) {
+          await editor.syncAll();
+        }
+        for (const change of changes) {
+          await editor.applyRemoteChange(change);
+        }
+      } catch (caught: unknown) {
+        toast.error(caught);
+      }
+    })();
+  }, 150);
+}
+
+const packageSync = usePackageChangeSync(
+  eventId,
+  (change) => {
+    if (change.packageId === editor.path.packageId) {
+      pendingChanges.push(change);
+      applyWhenIdle();
+    }
+  },
+  () => {
+    catchUpPending = true;
+    applyWhenIdle();
+  },
+);
+const otherEditors = computed(() => packageSync.others.value.filter(({ packageId }) => packageId === editor.path.packageId));
+const remoteSelections = computed(() =>
+  otherEditors.value.flatMap(({ objectId, color, name }) => (objectId === null ? [] : [{ objectId, color, name }])),
+);
+function objectNameOf(objectId: string): string | null {
+  return editor.objects.value.find(({ id }) => id === objectId)?.name ?? null;
+}
+watch(editor.selectedId, (objectId) => packageSync.reportSelection(editor.path.packageId, objectId), { immediate: true });
+onMounted(packageSync.start);
+
+onBeforeUnmount(() => {
+  window.removeEventListener("keydown", onKeydown);
+  packageSync.stop();
+  clearTimeout(changeTimer);
+});
 </script>
 
 <template>
@@ -289,6 +350,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
           {{ editor.dataPackage.value?.latestRevision ? `Revision ${editor.dataPackage.value.latestRevision} published` : "Not published yet" }}
         </div>
       </div>
+      <EditorPresence :editors="otherEditors" :object-name="objectNameOf" />
       <v-chip :color="saveLabel.color" :prepend-icon="saveLabel.icon" size="small" variant="tonal" role="status">
         {{ saveLabel.text }}
       </v-chip>
@@ -318,6 +380,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
         :objects="editor.objects.value"
         :contents="mapContentItems(editor.path, editor.contents.value)"
         :selected-id="editor.selectedId.value"
+        :remote-selections="remoteSelections"
         :tool="tool"
         @drawn="onDrawn"
         @modified="(id, geometry) => editor.changeObject(id, { geometry })"

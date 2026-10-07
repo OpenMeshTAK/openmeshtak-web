@@ -11,6 +11,7 @@ const dataPackageApi = vi.hoisted(() => ({
   deleteLayer: vi.fn(),
   deleteObject: vi.fn(),
   getDataPackage: vi.fn(),
+  getObject: vi.fn(),
   listLayers: vi.fn(),
   listObjects: vi.fn(),
   listContents: vi.fn(),
@@ -137,6 +138,28 @@ describe("package editor history", () => {
     await editor.redo();
     expect(editor.objects.value.map(({ id }) => id)).toEqual(["object-2"]);
     expect(editor.selectedId.value).toBe("object-2");
+  });
+
+  it("keeps undo steps for other objects when someone else changes one", async () => {
+    const editor = usePackageEditor("event-1", "package-1");
+    await editor.load();
+    await editor.addObject({ type: "Point", coordinates: [10, 50] });
+    await editor.addObject({ type: "Point", coordinates: [11, 51] });
+    await editor.changeObject("object-1", { name: "Alpha" });
+    await editor.changeObject("object-2", { name: "Bravo" });
+
+    const remote = { ...editor.objects.value[0]!, name: "Changed elsewhere", version: 99 };
+    dataPackageApi.getObject.mockResolvedValue(remote);
+    await editor.applyRemoteChange({ path: "objects/object-1", method: "PUT", createdId: null });
+    expect(editor.objects.value[0]?.name).toBe("Changed elsewhere");
+
+    // Only the steps for object-2 remain: undoing reverts its rename, then its creation.
+    await editor.undo();
+    expect(editor.objects.value.find(({ id }) => id === "object-2")?.name).toBe("Point 2");
+    await editor.undo();
+    expect(editor.objects.value.map(({ id }) => id)).toEqual(["object-1"]);
+    expect(editor.canUndo.value).toBe(false);
+    expect(editor.objects.value[0]?.name).toBe("Changed elsewhere");
   });
 
   it("restores object edits and deletions across recreated ids", async () => {

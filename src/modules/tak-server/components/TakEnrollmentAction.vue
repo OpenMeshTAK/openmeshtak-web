@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { mdiDownload } from "@mdi/js";
-import { computed, ref, watch } from "vue";
+import type { Socket } from "socket.io-client";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useDisplay } from "vuetify";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import DownloadQrButton from "@/shared/components/DownloadQrButton.vue";
 import QrCode from "@/shared/components/QrCode.vue";
 import { isApiProblem } from "@/shared/errors/api-problem";
+import { connectRealtime } from "@/shared/realtime/realtime";
 import { useToast } from "@/shared/feedback/toast";
 import { useSession } from "@/modules/auth/session";
 import { createTakEnrollment, listMyTakCertificates, revokeMyTakCertificate, type TakEnrollmentDto } from "../tak-server.api";
@@ -83,6 +85,39 @@ async function revokeItakPackage(): Promise<void> {
   }
 }
 
+// While the dialog is open, Core tells this tab when one of the user's TAK apps enrolls.
+const appEnrolled = ref(false);
+let certificates: Socket | null = null;
+
+function listenForEnrollment(): void {
+  certificates?.disconnect();
+  certificates = connectRealtime("/my-tak-certificates");
+  certificates.on("issued", ({ clientUid }: { clientUid: string | null }) => {
+    // Downloading an iTAK package also issues a certificate; only a real enrollment counts here.
+    if (clientUid?.startsWith("ITAK-PACKAGE-") !== true) {
+      appEnrolled.value = true;
+    }
+  });
+}
+
+function stopListening(): void {
+  certificates?.disconnect();
+  certificates = null;
+}
+
+watch(
+  () => enrollment.value !== null,
+  (open) => {
+    appEnrolled.value = false;
+    if (open) {
+      listenForEnrollment();
+    } else {
+      stopListening();
+    }
+  },
+);
+onBeforeUnmount(stopListening);
+
 watch(client, () => {
   if (method.value === "qr" && !qrAvailable.value) method.value = "package";
 });
@@ -134,6 +169,9 @@ function close(): void {
       </v-tabs>
       <v-divider />
       <v-card-text>
+        <v-alert v-if="appEnrolled" type="success" density="compact" class="mb-4">
+          Your TAK app is set up and received its certificate. You can close this dialog.
+        </v-alert>
         <v-alert v-if="!qrAvailable" type="info" density="compact" class="mb-4">
           QR setup needs a publicly trusted TAK server certificate. Import the {{ client === "atak" ? "ATAK" : "iTAK" }}
           connection package instead so the app receives the required trust material.

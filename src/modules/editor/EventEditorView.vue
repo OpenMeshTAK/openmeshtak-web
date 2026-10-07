@@ -9,7 +9,7 @@ import {
   mdiPublish,
   mdiUpload,
 } from "@mdi/js";
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import EmptyState from "@/shared/components/EmptyState.vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
@@ -37,6 +37,7 @@ import {
 } from "@/modules/data-packages/data-packages.api";
 import { getEvent, type EventDto } from "@/modules/events/events.api";
 import EditorContextMenu, { type ContextTarget } from "./components/EditorContextMenu.vue";
+import EditorPresence from "./components/EditorPresence.vue";
 import EditorToolbar from "./components/EditorToolbar.vue";
 import EventPackageTree from "./components/EventPackageTree.vue";
 import ImportReportDialog from "./components/ImportReportDialog.vue";
@@ -48,6 +49,7 @@ import { mapContentItems } from "./map/map-content";
 import { readLayersOpen, storeLayersOpen } from "./editor-preferences";
 import type { EventPackageBranch } from "./event-editor.types";
 import type { EditorTool } from "./map/package-map";
+import { usePackageChangeSync, type PackageChangeNotice } from "./usePackageChangeSync";
 import { usePackageEditor, type PackageEditor, type SaveState } from "./usePackageEditor";
 
 const route = useRoute();
@@ -538,11 +540,97 @@ function onKeydown(keyEvent: KeyboardEvent): void {
   }
 }
 
+/*
+ * Live collaboration: Core announces every saved change to this event's Data Packages. Changes
+ * from other tabs or people are applied per object or layer, so this tab's undo history stays;
+ * the package list is synchronized when packages were added, copied, deleted or reordered.
+ * Changes wait until this tab's own saves are done. Who else is editing appears in the header
+ * and their selection on the map.
+ */
+let changeTimer: ReturnType<typeof setTimeout> | undefined;
+let pendingChanges: PackageChangeNotice[] = [];
+
+function queueChange(change: PackageChangeNotice): void {
+  pendingChanges.push(change);
+  clearTimeout(changeTimer);
+  changeTimer = setTimeout(() => void applyRemoteChanges(), 150);
+}
+
+async function syncPackageList(): Promise<void> {
+  const packages = await listDataPackages(eventId);
+  const ids = new Set(packages.map(({ id }) => id));
+  const kept = editors.value.filter(({ path }) => ids.has(path.packageId));
+  for (const editor of kept) {
+    editor.dataPackage.value = packages.find(({ id }) => id === editor.path.packageId) ?? editor.dataPackage.value;
+  }
+  const added = await Promise.all(packages.filter(({ id }) => editorFor(id) === null).map(({ id }) => makeEditor(id)));
+  editors.value = [...kept, ...added];
+  if (activePackageId.value !== null && !ids.has(activePackageId.value)) {
+    activePackageId.value = editors.value[0]?.path.packageId ?? null;
+  }
+}
+
+async function applyRemoteChanges(): Promise<void> {
+  if (editors.value.some(({ saveState }) => saveState.value === "saving")) {
+    changeTimer = setTimeout(() => void applyRemoteChanges(), 300);
+    return;
+  }
+  const changes = pendingChanges;
+  pendingChanges = [];
+  try {
+    let listSynced = false;
+    for (const change of changes) {
+      const editor = change.packageId === null ? null : editorFor(change.packageId);
+      if (editor !== null) {
+        await editor.applyRemoteChange(change);
+      } else if (!listSynced) {
+        await syncPackageList();
+        listSynced = true;
+      }
+    }
+    if (selectedId.value !== null && editorForObject(selectedId.value) === null) {
+      selectObject(null);
+    }
+  } catch (caught: unknown) {
+    toast.error(caught);
+  }
+}
+
+// After an interruption, catch up on everything that may have changed meanwhile.
+async function catchUp(): Promise<void> {
+  try {
+    await syncPackageList();
+    await Promise.all(editors.value.map((editor) => editor.syncAll()));
+  } catch (caught: unknown) {
+    toast.error(caught);
+  }
+}
+
+const packageSync = usePackageChangeSync(eventId, queueChange, () => void catchUp());
+
+function objectNameOf(objectId: string): string | null {
+  return editorForObject(objectId)?.objects.value.find(({ id }) => id === objectId)?.name ?? null;
+}
+const otherEditors = packageSync.others;
+/** Objects other people have selected, drawn with their color on the map. */
+const remoteSelections = computed(() =>
+  otherEditors.value.flatMap(({ objectId, color, name }) => (objectId === null ? [] : [{ objectId, color, name }])),
+);
+watch(selectedId, (objectId) => {
+  const editor = objectId === null ? null : editorForObject(objectId);
+  packageSync.reportSelection(editor?.path.packageId ?? activePackageId.value, objectId);
+});
+
 onMounted(async () => {
   window.addEventListener("keydown", onKeydown);
   await load();
+  packageSync.start();
 });
-onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
+onBeforeUnmount(() => {
+  window.removeEventListener("keydown", onKeydown);
+  packageSync.stop();
+  clearTimeout(changeTimer);
+});
 </script>
 
 <template>
@@ -561,6 +649,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
           {{ branches.length }} packages · {{ layers.length }} layers · {{ objects.length }} items
         </div>
       </div>
+      <EditorPresence :editors="otherEditors" :object-name="objectNameOf" />
       <v-chip :color="saveLabel.color" :prepend-icon="saveLabel.icon" size="small" variant="tonal" role="status">
         {{ saveLabel.text }}
       </v-chip>
@@ -613,6 +702,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
         :objects="objects"
         :contents="mapContents"
         :selected-id="selectedId"
+        :remote-selections="remoteSelections"
         :tool="tool"
         @drawn="onDrawn"
         @modified="changeGeometry"

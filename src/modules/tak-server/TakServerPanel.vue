@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted } from "vue";
+import { useLiveNotices } from "@/shared/realtime/useLiveNotices";
 import ErrorState from "@/shared/components/ErrorState.vue";
 import InfoHint from "@/shared/components/InfoHint.vue";
 import ViewHeader from "@/shared/components/layout/ViewHeader.vue";
@@ -61,6 +62,27 @@ async function revoke(certificate: TakClientCertificateDto): Promise<void> {
     toast.error(caught);
   }
 }
+
+// Enrollments, revocations and certificate issuances elsewhere show up while the page is open.
+useLiveNotices("/tak-server", "certificates", () => {
+  listClientCertificates()
+    .then((certificates) => {
+      page.data.value = { ...page.data.value, certificates };
+    })
+    .catch(() => undefined);
+});
+useLiveNotices(
+  "/tak-server",
+  "acme",
+  () => {
+    Promise.all([getTakAcmeSettings(), getTakServerSettings()])
+      .then(([acme, settings]) => {
+        page.data.value = { ...page.data.value, acme, settings };
+      })
+      .catch(() => undefined);
+  },
+  { delayMs: 100 },
+);
 
 onMounted(page.load);
 </script>

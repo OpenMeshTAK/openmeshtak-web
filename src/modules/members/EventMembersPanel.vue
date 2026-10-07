@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { mdiAccountGroup, mdiAccountMultiple, mdiAccountPlus, mdiClose, mdiMagnify } from "@mdi/js";
 import { computed, onMounted, ref } from "vue";
+import { useLiveNotices } from "@/shared/realtime/useLiveNotices";
 import type { Schemas } from "@/shared/api/types";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import EmptyState from "@/shared/components/EmptyState.vue";
@@ -157,23 +158,40 @@ const canClaim = computed(
   () => props.event.status === "active" && session.can("member-claims.create", props.event.id),
 );
 
+async function fetchAll(): Promise<void> {
+  const [loadedMembers, loadedRoles, loadedGroups] = await Promise.all([
+    listMembers(props.event.id),
+    listRoles(props.event.id),
+    listGroups(props.event.id),
+  ]);
+  members.value = loadedMembers;
+  roles.value = loadedRoles;
+  groups.value = loadedGroups;
+}
+
 async function load(): Promise<void> {
   state.value = "loading";
   try {
-    const [loadedMembers, loadedRoles, loadedGroups] = await Promise.all([
-      listMembers(props.event.id),
-      listRoles(props.event.id),
-      listGroups(props.event.id),
-    ]);
-    members.value = loadedMembers;
-    roles.value = loadedRoles;
-    groups.value = loadedGroups;
+    await fetchAll();
     state.value = "ready";
   } catch (caught: unknown) {
     loadError.value = describeError(caught);
     state.value = "error";
   }
 }
+
+// Members added or changed elsewhere, e.g. by an integration, appear without reloading the page.
+useLiveNotices(
+  "/event-members",
+  "changed",
+  () => {
+    emit("issuesChanged");
+    if (state.value === "ready") {
+      fetchAll().catch(() => undefined);
+    }
+  },
+  { auth: () => ({ eventId: props.event.id }), ignoreOwnTab: true },
+);
 
 async function onAdded(outcome: "member" | "sync-issue"): Promise<void> {
   if (outcome === "member") {

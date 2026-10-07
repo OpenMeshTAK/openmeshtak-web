@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { defineComponent } from "vue";
 import { createVuetify } from "vuetify";
 import { VApp } from "vuetify/components";
-import VersionMismatchBar from "@/shared/version/VersionMismatchBar.vue";
 import { isCompatibleCoreVersion } from "@/shared/version/version-compatibility";
 
 describe("isCompatibleCoreVersion", () => {
@@ -30,9 +29,16 @@ describe("version mismatch bar", () => {
     vi.unstubAllGlobals();
   });
 
-  async function mountWithCoreVersion(version: string) {
+  function serveCoreVersion(version: string): void {
     const health = { status: "ok", service: "openmeshtak", version, timestamp: new Date().toISOString() };
     vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(new Response(JSON.stringify(health), { headers: { "Content-Type": "application/json" } }))));
+  }
+
+  // The version seen first is remembered per page load, so every test starts with fresh modules.
+  async function mountWithCoreVersion(version: string) {
+    vi.resetModules();
+    const { default: VersionMismatchBar } = await import("@/shared/version/VersionMismatchBar.vue");
+    serveCoreVersion(version);
     // The system bar is a layout component and needs the surrounding v-app.
     const wrapper = mount(defineComponent({ components: { VApp, VersionMismatchBar }, template: "<v-app><VersionMismatchBar /></v-app>" }), {
       global: { plugins: [createVuetify()] },
@@ -49,5 +55,15 @@ describe("version mismatch bar", () => {
   it("stays hidden for a compatible Core", async () => {
     const wrapper = await mountWithCoreVersion(__APP_VERSION__);
     expect(wrapper.text()).toBe("");
+  });
+
+  it("offers a reload when the server was updated while the page was open", async () => {
+    const wrapper = await mountWithCoreVersion(__APP_VERSION__);
+    const { checkCoreVersion } = await import("@/shared/version/core-version");
+    serveCoreVersion("9.9.1");
+    await checkCoreVersion();
+    await flushPromises();
+    expect(wrapper.text()).toContain("OpenMeshTak was updated to 9.9.1");
+    expect(wrapper.text()).toContain("Reload");
   });
 });

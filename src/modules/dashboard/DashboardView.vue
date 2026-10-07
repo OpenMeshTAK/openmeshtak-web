@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { mdiCalendarBlank } from "@mdi/js";
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import type { Schemas } from "@/shared/api/types";
 import EmptyState from "@/shared/components/EmptyState.vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
 import ViewContent from "@/shared/components/layout/ViewContent.vue";
 import ViewHeader from "@/shared/components/layout/ViewHeader.vue";
 import { describeError } from "@/shared/errors/api-problem";
+import { useToast } from "@/shared/feedback/toast";
+import { useLiveNotices } from "@/shared/realtime/useLiveNotices";
 import { useSession } from "@/modules/auth/session";
 import ProfileSummary from "@/shared/components/ProfileSummary.vue";
 import ChannelHandoutsCard from "./components/ChannelHandoutsCard.vue";
@@ -66,6 +68,23 @@ async function selectEvent(eventId: string): Promise<void> {
     state.value = "error";
   }
 }
+
+// When organizers publish a new setup or change this member, the dashboard updates by itself.
+const toast = useToast();
+const liveUpdates = useLiveNotices(
+  "/my-event",
+  "updated",
+  () => {
+    if (state.value !== "ready" || selected.value === null) {
+      return;
+    }
+    loadProfile()
+      .then(() => toast.info("Your event setup was updated."))
+      .catch(() => undefined);
+  },
+  { auth: () => (selectedEventId.value === null ? null : { eventId: selectedEventId.value }), delayMs: 1000 },
+);
+watch(selectedEventId, () => liveUpdates.reconnect());
 
 onMounted(load);
 </script>

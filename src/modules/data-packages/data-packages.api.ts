@@ -107,6 +107,10 @@ export function listObjects(path: PackagePath): Promise<PackageObjectDto[]> {
   );
 }
 
+export function getObject(path: PackagePath, objectId: string): Promise<PackageObjectDto> {
+  return unwrap(api.GET("/events/{eventId}/data-packages/{packageId}/objects/{objectId}", { params: { path: { ...path, objectId } } }));
+}
+
 export function createObject(path: PackagePath, body: Schemas["CreatePackageObjectRequest"]): Promise<PackageObjectDto> {
   return unwrap(api.POST("/events/{eventId}/data-packages/{packageId}/objects", { params: { path }, body }));
 }
