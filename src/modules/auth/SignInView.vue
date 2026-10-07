@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { mdiKeyVariant } from "@mdi/js";
-import { ref } from "vue";
+import { onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { fetchRegistrationMode } from "@/modules/registration/registration.api";
 import { safeRedirectPath } from "@/shared/security/safe-redirect";
 import { authClient } from "./auth-client";
 import { useSession } from "./session";
@@ -15,6 +16,16 @@ const login = ref("");
 const password = ref("");
 const submitting = ref(false);
 const error = ref<string | null>(null);
+/** Only open registration has a public entry; invite-only sign-up starts from the invite link. */
+const registrationOpen = ref(false);
+
+onMounted(async () => {
+  try {
+    registrationOpen.value = (await fetchRegistrationMode()) === "open";
+  } catch {
+    registrationOpen.value = false;
+  }
+});
 
 async function completeSignIn(): Promise<void> {
   password.value = "";
@@ -87,6 +98,7 @@ async function submit(): Promise<void> {
     <v-btn variant="tonal" size="large" block class="mt-3" :prepend-icon="mdiKeyVariant" :disabled="submitting" @click="signInWithPasskey">
       Sign in with a passkey
     </v-btn>
+    <v-btn v-if="registrationOpen" variant="text" block class="mt-2" :to="{ name: 'register' }">Create account</v-btn>
     <p class="text-body-2 text-medium-emphasis mt-6">
       Participants receive a personal access link from their organizers instead of a password.
     </p>

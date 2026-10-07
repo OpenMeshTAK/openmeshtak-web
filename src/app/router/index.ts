@@ -2,6 +2,7 @@ import {
   mdiAccount,
   mdiAccountCog,
   mdiAccountGroup,
+  mdiAccountPlusOutline,
   mdiCalendarMultiple,
   mdiCogOutline,
   mdiEmailOutline,
@@ -41,6 +42,8 @@ const routes: RouteRecordRaw[] = [
   publicPage("/setup", "setup", () => import("@/modules/setup/SetupView.vue")),
   publicPage("/sign-in", "sign-in", () => import("@/modules/auth/SignInView.vue")),
   publicPage("/claim", "claim", () => import("@/modules/member-claims/ClaimView.vue")),
+  publicPage("/activate", "activate", () => import("@/modules/registration/ActivateView.vue")),
+  publicPage("/register", "register", () => import("@/modules/registration/RegisterView.vue")),
   publicPage("/forgot-password", "forgot-password", () => import("@/modules/auth/ForgotPasswordView.vue")),
   publicPage("/reset-password", "reset-password", () => import("@/modules/auth/ResetPasswordView.vue")),
   // Signed in, but shown in the simple public layout: the account is not usable before setup.
@@ -128,6 +131,12 @@ const routes: RouteRecordRaw[] = [
             name: "email-settings",
             component: () => import("@/modules/email/EmailSettingsPanel.vue"),
             meta: { navigation: { title: "Email", icon: mdiEmailOutline, permission: "email.manage" } },
+          },
+          {
+            path: "registration",
+            name: "registration-settings",
+            component: () => import("@/modules/registration/RegistrationSettingsPanel.vue"),
+            meta: { navigation: { title: "Registration", icon: mdiAccountPlusOutline, permission: "users.manage" } },
           },
           {
             path: "base-map",

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { mdiAccountOff, mdiDotsVertical, mdiMagnify } from "@mdi/js";
+import { mdiAccountOff, mdiAccountPlus, mdiDotsVertical, mdiMagnify } from "@mdi/js";
 import { onMounted, ref, watch } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
@@ -9,11 +9,14 @@ import { describeError } from "@/shared/errors/api-problem";
 import { useToast } from "@/shared/feedback/toast";
 import { useSession } from "@/modules/auth/session";
 import { normalizeUsernameInput, USERNAME_HINT, usernameRule } from "@/shared/forms/username";
+import CreateUserDialog from "./CreateUserDialog.vue";
+import SetupLinkDialog from "./SetupLinkDialog.vue";
 import { revokeUserSessions, searchUsers, sendPasswordReset, setUserDisabled, updateUser, type UserDto } from "./users.api";
 
 /**
- * Installation-wide user administration. Administrators never see or set passwords; they edit the
- * name and username, disable or sign users out. Event membership stays on each event's Members tab.
+ * Installation-wide user administration. Administrators never see or set passwords: new users
+ * get a setup link to choose their own. Administrators edit the name and username, disable or
+ * sign users out. Event membership stays on each event's Members tab.
  */
 const session = useSession();
 const toast = useToast();
@@ -32,6 +35,12 @@ const saving = ref(false);
 const editError = ref("");
 const confirmDisable = ref<UserDto | null>(null);
 const confirmSignOut = ref<UserDto | null>(null);
+const createOpen = ref(false);
+const setupLinkFor = ref<UserDto | null>(null);
+
+function onCreated(user: UserDto): void {
+  users.value = [...users.value, user];
+}
 
 async function load(append = false): Promise<void> {
   if (!append) {
@@ -123,7 +132,11 @@ onMounted(() => void load());
 
 <template>
   <ViewContent>
-    <ViewHeader title="Users" subtitle="Everyone with an OpenMeshTak account. Permissions come from user groups." />
+    <ViewHeader title="Users" subtitle="Everyone with an OpenMeshTak account. Permissions come from user groups.">
+      <template #actions>
+        <v-btn v-if="canManage" color="primary" :prepend-icon="mdiAccountPlus" @click="createOpen = true">Create user</v-btn>
+      </template>
+    </ViewHeader>
 
     <v-text-field
       v-model="search"
@@ -159,6 +172,7 @@ onMounted(() => void load());
             <td class="d-none d-md-table-cell text-medium-emphasis">{{ user.email ?? "No local sign-in yet" }}</td>
             <td>
               <v-chip v-if="user.disabled" size="small" color="error" variant="tonal" :prepend-icon="mdiAccountOff">Disabled</v-chip>
+              <v-chip v-else-if="!user.passwordSet" size="small" color="warning" variant="tonal">Setup pending</v-chip>
               <v-chip v-else size="small" color="success" variant="tonal">Active</v-chip>
             </td>
             <td v-if="canManage" class="text-right">
@@ -168,6 +182,7 @@ onMounted(() => void load());
                 </template>
                 <v-list density="compact">
                   <v-list-item title="Edit" @click="startEdit(user)" />
+                  <v-list-item v-if="!user.passwordSet" title="Create setup link" @click="setupLinkFor = user" />
                   <v-list-item title="Send password reset email" :disabled="user.email === null" @click="resetPassword(user)" />
                   <v-list-item title="Sign out everywhere" @click="confirmSignOut = user" />
                   <v-list-item v-if="user.disabled" title="Enable" @click="toggleDisabled(user, false)" />
@@ -214,6 +229,14 @@ onMounted(() => void load());
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <CreateUserDialog v-model="createOpen" @created="onCreated" />
+    <SetupLinkDialog
+      v-if="setupLinkFor"
+      :user="setupLinkFor"
+      :model-value="setupLinkFor !== null"
+      @update:model-value="setupLinkFor = null"
+    />
 
     <ConfirmDialog
       :model-value="confirmDisable !== null"

@@ -29,3 +29,16 @@ export async function revokeUserSessions(userId: string): Promise<void> {
 export async function sendPasswordReset(userId: string): Promise<void> {
   await unwrap(api.POST("/users/{userId}/password-reset", { params: { path: { userId } } }));
 }
+
+export type SetupLinkDto = Schemas["SetupLinkDto"];
+
+/** Creates a user without a password; the returned single-use link lets them set one. */
+export function createUser(displayName: string, username: string | null): Promise<Schemas["CreatedUserResponse"]> {
+  const body = { displayName, ...(username === null ? {} : { username }) };
+  return unwrap(api.POST("/users", { body }));
+}
+
+/** A fresh setup link for a user without a password; earlier links stop working. */
+export function createSetupLink(userId: string): Promise<SetupLinkDto> {
+  return unwrap(api.POST("/users/{userId}/setup-link", { params: { path: { userId } } }));
+}

@@ -14,7 +14,12 @@ export interface paths {
         /** @description Lists users ordered by creation time, oldest first. Requires instance-wide `users.read`. */
         get: operations["ListUsers"];
         put?: never;
-        post?: never;
+        /**
+         * @description Creates a user without a password and returns a single-use setup link, valid for seven days.
+         *     The person opens it, signs in once and sets their own password. The new user has no
+         *     permissions until added to a user group or an event. Requires `users.manage`.
+         */
+        post: operations["CreateUser"];
         delete?: never;
         options?: never;
         head?: never;
@@ -95,6 +100,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users/{userId}/setup-link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Issues a new single-use setup link for a user who has not set a password yet. Earlier links
+         *     of the user stop working. Requires `users.manage`.
+         */
+        post: operations["CreateSetupLink"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/users/{userId}/revoke-sessions": {
         parameters: {
             query?: never;
@@ -106,6 +131,27 @@ export interface paths {
         put?: never;
         /** @description Signs the user out everywhere. Requires `users.manage`. */
         post: operations["RevokeUserSessions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/setup-links/exchange": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Exchanges a single-use setup link of an administrator-created user for a browser session, so
+         *     the person can set their first password. The token is sent in the body, never in the URL.
+         *     Every unusable link returns the same `401`.
+         */
+        post: operations["ExchangeSetupLink"];
         delete?: never;
         options?: never;
         head?: never;
@@ -514,6 +560,83 @@ export interface paths {
         put?: never;
         /** @description Creates the first password-backed administrator using the one-time operator token. */
         post: operations["CreateAdministrator"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/registration": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Reports whether people may create their own account. Reveals nothing else. */
+        get: operations["GetRegistrationStatus"];
+        put?: never;
+        /**
+         * @description Creates an account and signs it in, if registration is open or invite-only with a usable
+         *     invite. New accounts have no permissions until an administrator grants some.
+         */
+        post: operations["Register"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/registration-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Who may create their own account. Requires `users.manage`. */
+        get: operations["GetRegistrationSettings"];
+        /** @description Closes registration, makes it invite-only or opens it to everyone. Requires `users.manage`. */
+        put: operations["UpdateRegistrationSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/registration-invites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The 50 most recent registration invites, newest first. Requires `users.manage`. */
+        get: operations["ListRegistrationInvites"];
+        put?: never;
+        /**
+         * @description Issues a single-use registration link, valid for seven days, for invite-only registration.
+         *     The link is returned once. Requires `users.manage`.
+         */
+        post: operations["CreateRegistrationInvite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/registration-invites/{inviteId}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Revokes an unused invite immediately. Requires `users.manage`. */
+        post: operations["RevokeRegistrationInvite"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1965,6 +2088,8 @@ export interface components {
             email: string | null;
             /** @description Disabled users cannot sign in, keep no sessions and lose TAK access. */
             disabled: boolean;
+            /** @description `false` until the user has set a password; a setup link can then sign them in once. */
+            passwordSet: boolean;
             /**
              * Format: double
              * @description Optimistic-concurrency version; send it back unchanged with updates.
@@ -1981,6 +2106,27 @@ export interface components {
             items: components["schemas"]["UserDto"][];
             page: components["schemas"]["PageInfo"];
         };
+        SetupLinkDto: {
+            /**
+             * @description Single-use link for the user, returned exactly once. The token travels in the URL fragment,
+             *     which browsers never send to the server; the Web application exchanges it in a request body.
+             */
+            url: string;
+            /** Format: date-time */
+            expiresAt: string;
+        };
+        CreatedUserResponse: {
+            user: components["schemas"]["UserDto"];
+            setupLink: components["schemas"]["SetupLinkDto"];
+        };
+        CreateUserRequest: {
+            displayName: string;
+            /**
+             * @description Sign-in and TAK login name; derived from the display name when omitted. The person may still
+             *     change it while setting up the account.
+             */
+            username?: string;
+        };
         UpdateUserRequest: {
             /** Format: int32 */
             version: number;
@@ -1990,6 +2136,15 @@ export interface components {
              *     name keep working, because client certificates name the user ID.
              */
             username?: string;
+        };
+        SetupLinkExchangeResponse: {
+            user: {
+                displayName: string;
+                id: components["schemas"]["Uuid"];
+            };
+        };
+        SetupLinkExchangeRequest: {
+            token: string;
         };
         /** @enum {string} */
         Permission: "users.read" | "users.manage" | "user-groups.read" | "user-groups.manage" | "events.read" | "events.manage" | "events.reactivate" | "members.read" | "members.manage" | "members.sync" | "member-claims.create" | "channel-keys.reveal" | "data-packages.read" | "data-packages.edit" | "data-packages.publish" | "artifacts.generate" | "artifacts.download" | "member-artifacts.download" | "tak-traffic.view" | "api-clients.manage" | "tak-server.manage" | "tak-server.admin-access" | "email.manage" | "settings.manage" | "audit.read";
@@ -2359,6 +2514,65 @@ export interface components {
             username: string;
             password: string;
             token: string;
+        };
+        /**
+         * @description Who may create their own account: nobody (`closed`, the default), people holding a
+         *     registration invite (`invite`), or anyone who can reach the instance (`open`).
+         * @enum {string}
+         */
+        RegistrationMode: "closed" | "invite" | "open";
+        RegistrationStatusDto: {
+            mode: components["schemas"]["RegistrationMode"];
+        };
+        RegisterResponse: {
+            user: {
+                username: string;
+                displayName: string;
+                id: components["schemas"]["Uuid"];
+            };
+        };
+        RegisterRequest: {
+            displayName: string;
+            /** @description Sign-in and TAK login name: 3 to 32 lowercase letters, digits, dots, underscores or hyphens. */
+            username: string;
+            password: string;
+            /** @description Registration invite; required while registration is invite-only. */
+            inviteToken?: string;
+        };
+        RegistrationSettingsDto: {
+            mode: components["schemas"]["RegistrationMode"];
+            /**
+             * Format: double
+             * @description Optimistic-concurrency version; `0` while the defaults were never saved.
+             */
+            version: number;
+        };
+        UpdateRegistrationSettingsRequest: {
+            /** Format: int32 */
+            version: number;
+            mode: components["schemas"]["RegistrationMode"];
+        };
+        /** @enum {string} */
+        AccountInviteStatus: "open" | "consumed" | "revoked" | "expired";
+        RegistrationInviteDto: {
+            id: components["schemas"]["Uuid"];
+            status: components["schemas"]["AccountInviteStatus"];
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: date-time */
+            consumedAt: string | null;
+            /** Format: date-time */
+            revokedAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        CreatedRegistrationInviteResponse: {
+            invite: components["schemas"]["RegistrationInviteDto"];
+            /**
+             * @description Single-use registration link, returned exactly once. The token travels in the URL fragment,
+             *     which browsers never send to the server.
+             */
+            inviteUrl: string;
         };
         ProfileAssignment: {
             slug: string;
@@ -3988,6 +4202,66 @@ export interface operations {
             };
         };
     };
+    CreateUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateUserRequest"];
+            };
+        };
+        responses: {
+            /** @description User created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedUserResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Username taken */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     GetUser: {
         parameters: {
             query?: never;
@@ -4262,6 +4536,64 @@ export interface operations {
             };
         };
     };
+    CreateSetupLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Setup link created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupLinkDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The user can already sign in */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     RevokeUserSessions: {
         parameters: {
             query?: never;
@@ -4300,6 +4632,48 @@ export interface operations {
             };
             /** @description Not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ExchangeSetupLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetupLinkExchangeRequest"];
+            };
+        };
+        responses: {
+            /** @description Session established */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupLinkExchangeResponse"];
+                };
+            };
+            /** @description Setup link not usable */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too many attempts */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5856,6 +6230,318 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SetupResponse"];
+                };
+            };
+        };
+    };
+    GetRegistrationStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Registration status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegistrationStatusDto"];
+                };
+            };
+        };
+    };
+    Register: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterRequest"];
+            };
+        };
+        responses: {
+            /** @description Account created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegisterResponse"];
+                };
+            };
+            /** @description Invite not usable */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Registration closed */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Username taken */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too many attempts */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetRegistrationSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Registration settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegistrationSettingsDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateRegistrationSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateRegistrationSettingsRequest"];
+            };
+        };
+        responses: {
+            /** @description Registration settings saved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegistrationSettingsDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Version conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListRegistrationInvites: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Registration invites */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegistrationInviteDto"][];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateRegistrationInvite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Registration invite created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedRegistrationInviteResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RevokeRegistrationInvite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                inviteId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Registration invite revoked */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegistrationInviteDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
                 };
             };
         };
