@@ -1,5 +1,6 @@
 import { reactive, readonly } from "vue";
 import { api } from "@/shared/api/client";
+import { useToast } from "@/shared/feedback/toast";
 import { logger } from "@/shared/logging/logger";
 import { isCompatibleCoreVersion } from "./version-compatibility";
 
@@ -10,8 +11,8 @@ let firstSeen: string | null = null;
 
 /**
  * What the version bar shows: `incompatible` when this Web app does not fit the server at all,
- * `updatedTo` when the server was updated while this page stayed open and a reload brings the
- * matching Web app.
+ * `updatedTo` when the server was updated while this page stayed open; that one is shown as a
+ * lasting toast with a reload button.
  */
 export const coreVersion = readonly(state);
 
@@ -24,7 +25,14 @@ export async function checkCoreVersion(): Promise<void> {
     }
     firstSeen ??= data.version;
     if (data.version !== firstSeen) {
-      state.updatedTo = data.version;
+      if (state.updatedTo !== data.version) {
+        state.updatedTo = data.version;
+        // Stays on screen: the page keeps working, but only a reload brings the matching Web app.
+        useToast().lasting("info", `OpenMeshTak was updated to ${data.version}. Reload to use the new version.`, {
+          label: "Reload",
+          run: () => window.location.reload(),
+        });
+      }
     } else if (!isCompatibleCoreVersion(WEB_VERSION, data.version)) {
       state.incompatible = data.version;
     }

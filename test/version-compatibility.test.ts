@@ -57,13 +57,18 @@ describe("version mismatch bar", () => {
     expect(wrapper.text()).toBe("");
   });
 
-  it("offers a reload when the server was updated while the page was open", async () => {
+  it("offers a reload in a lasting toast, once, when the server was updated while the page was open", async () => {
     const wrapper = await mountWithCoreVersion(__APP_VERSION__);
     const { checkCoreVersion } = await import("@/shared/version/core-version");
+    const { useToastQueue } = await import("@/shared/feedback/toast");
     serveCoreVersion("9.9.1");
     await checkCoreVersion();
+    await checkCoreVersion();
     await flushPromises();
-    expect(wrapper.text()).toContain("OpenMeshTak was updated to 9.9.1");
-    expect(wrapper.text()).toContain("Reload");
+    const toasts = useToastQueue().value;
+    expect(toasts).toHaveLength(1);
+    expect(toasts[0]).toMatchObject({ text: "OpenMeshTak was updated to 9.9.1. Reload to use the new version.", timeout: -1 });
+    expect(toasts[0]?.action?.label).toBe("Reload");
+    expect(wrapper.text()).toBe("");
   });
 });

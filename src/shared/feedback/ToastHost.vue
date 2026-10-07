@@ -22,6 +22,10 @@ const { smAndUp } = useDisplay();
       <!-- Snackbars announce politely; errors use role="alert" so they are announced at once. -->
       <span :role="item.color === 'error' ? 'alert' : undefined">{{ item.text }}</span>
     </template>
+    <template #actions="{ item, props }">
+      <v-btn v-if="item.action" variant="flat" @click="item.action.run()">{{ item.action.label }}</v-btn>
+      <v-btn v-bind="props">Dismiss</v-btn>
+    </template>
   </v-snackbar-queue>
 </template>
 
