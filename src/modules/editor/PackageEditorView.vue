@@ -283,8 +283,8 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
         :to="{ name: 'event-detail', params: { eventId, tab: 'data-packages' } }"
       />
       <div class="flex-grow-1" style="min-width: 0">
-        <div class="text-h6 text-truncate">{{ editor.dataPackage.value?.name ?? "Data package" }}</div>
-        <div class="text-caption text-medium-emphasis">
+        <div class="text-title-large font-weight-medium text-truncate">{{ editor.dataPackage.value?.name ?? "Data package" }}</div>
+        <div class="text-body-small text-medium-emphasis">
           {{ event?.name }} ·
           {{ editor.dataPackage.value?.latestRevision ? `Revision ${editor.dataPackage.value.latestRevision} published` : "Not published yet" }}
         </div>

@@ -61,7 +61,7 @@ watch(open, (isOpen) => {
           privately. It is shown only now; you can create a new one from the user's menu.
         </OneTimeLinkReveal>
         <v-form v-else @submit.prevent="submit">
-          <p class="text-body-2 text-medium-emphasis mb-4">
+          <p class="text-body-medium text-medium-emphasis mt-0 mb-4">
             The person gets a setup link, valid for seven days, to choose their own password. Add
             them to user groups or events to give them access.
           </p>

@@ -171,7 +171,7 @@ async function renew(): Promise<void> {
     <v-alert v-if="settings.lastError" type="error" variant="tonal" density="compact" class="mt-2">
       {{ settings.lastError }}
     </v-alert>
-    <p v-else-if="settings.lastSuccessAt" class="text-caption text-medium-emphasis mt-2 mb-0">
+    <p v-else-if="settings.lastSuccessAt" class="text-body-small text-medium-emphasis mt-2 mb-0">
       Last renewed {{ dateFormat.format(new Date(settings.lastSuccessAt)) }}.
     </p>
     <div class="d-flex justify-end ga-2 mt-4">

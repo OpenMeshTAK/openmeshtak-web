@@ -23,11 +23,11 @@ const sections = computed(() =>
     <v-card v-if="report">
       <v-card-title>Import report</v-card-title>
       <v-card-text>
-        <p class="text-body-1 mb-4">
+        <p class="text-body-large mt-0 mb-4">
           {{ report.accepted }} {{ report.accepted === 1 ? "object was" : "objects were" }} imported.
         </p>
         <div v-for="section in sections" :key="section.title" class="mb-4">
-          <div class="text-subtitle-2 mb-1">
+          <div class="text-title-small mb-1">
             <v-chip :color="section.color" size="small" label class="mr-2">{{ section.entries.length }}</v-chip>
             {{ section.title }}
           </div>

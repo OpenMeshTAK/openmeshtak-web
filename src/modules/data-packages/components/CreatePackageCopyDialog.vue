@@ -43,7 +43,7 @@ async function create(): Promise<void> {
     <v-card class="pa-2">
       <v-card-title>Create data package from layer</v-card-title>
       <v-card-text>
-        <p class="text-body-2 text-medium-emphasis mb-4">
+        <p class="text-body-medium text-medium-emphasis mt-0 mb-4">
           Copies {{ sourceLabel }} from its latest published revision. The new draft receives independent layer and item IDs.
         </p>
         <v-alert v-if="creation.error.value" type="error" class="mb-4">{{ creation.error.value }}</v-alert>

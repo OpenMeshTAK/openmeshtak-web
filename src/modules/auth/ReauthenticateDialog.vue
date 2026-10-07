@@ -82,7 +82,7 @@ async function confirm(): Promise<void> {
     <v-card class="pa-2">
       <v-card-title>Sign in again</v-card-title>
       <v-card-text>
-        <p class="text-body-2 mb-4">
+        <p class="text-body-medium mt-0 mb-4">
           This is a sensitive action. Confirm it is you to continue; it runs right after you sign in.
         </p>
         <v-alert v-if="error" type="error" class="mb-4">{{ error }}</v-alert>

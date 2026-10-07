@@ -125,12 +125,12 @@ onMounted(async () => {
 
 <template>
   <v-card class="pa-6">
-    <h1 class="text-h5 mb-2">Create account</h1>
+    <h1 class="text-headline-small mt-0 mb-2">Create account</h1>
 
     <v-progress-linear v-if="mode === null && !loadFailed" indeterminate color="primary" class="my-4" />
     <v-alert v-else-if="loadFailed" type="error" class="mt-4">OpenMeshTak is not reachable. Check your connection and reload.</v-alert>
     <template v-else-if="!available">
-      <p class="text-body-2 text-medium-emphasis mb-4">
+      <p class="text-body-medium text-medium-emphasis mt-0 mb-4">
         {{
           mode === "invite"
             ? "New accounts need an invite link from an administrator."
@@ -141,7 +141,7 @@ onMounted(async () => {
     </template>
 
     <template v-else>
-      <p class="text-body-2 text-medium-emphasis mb-6">
+      <p class="text-body-medium text-medium-emphasis mt-0 mb-6">
         Your username and password sign in to OpenMeshTak and log in to TAK apps.
       </p>
       <v-alert v-if="error" type="error" class="mb-4">{{ error }}</v-alert>

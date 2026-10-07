@@ -93,12 +93,12 @@ function removeEvent(eventId: string): void {
   <div>
     <div v-for="scope in scopes" :key="scope.eventId ?? 'all'" class="scope-row">
       <div class="flex-grow-1">
-        <div class="text-subtitle-2">{{ scope.name }}</div>
-        <div class="text-caption text-medium-emphasis">
+        <div class="text-title-small">{{ scope.name }}</div>
+        <div class="text-body-small text-medium-emphasis">
           {{ scope.description }}
         </div>
       </div>
-      <span class="text-body-2 text-medium-emphasis">{{ countLabel(scope.eventId) }}</span>
+      <span class="text-body-medium text-medium-emphasis">{{ countLabel(scope.eventId) }}</span>
       <v-btn variant="tonal" size="small" :prepend-icon="mdiPencil" @click="edit(scope)">
         {{ disabled ? "View" : "Edit" }}
       </v-btn>

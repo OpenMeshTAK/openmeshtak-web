@@ -55,8 +55,8 @@ async function create(): Promise<void> {
           :error-messages="messagesFor(submission.fields.value, 'name')"
         />
         <v-textarea v-model="form.description" label="Description (optional)" rows="2" auto-grow class="mb-2" />
-        <div class="text-subtitle-2 mb-1">Permissions</div>
-        <p class="text-body-2 text-medium-emphasis mb-3">
+        <div class="text-title-small mb-1">Permissions</div>
+        <p class="text-body-medium text-medium-emphasis mt-0 mb-3">
           Grant only what the integration needs and limit it to specific events where possible. You can
           only grant permissions you hold yourself.
         </p>

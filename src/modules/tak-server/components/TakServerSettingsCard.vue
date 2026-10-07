@@ -83,8 +83,8 @@ function confirmEndpointChange(): void {
   <v-card class="pa-5">
     <div class="d-flex align-center mb-4">
       <div class="flex-grow-1">
-        <div class="text-subtitle-1 font-weight-medium">Server</div>
-        <div class="text-body-2 text-medium-emphasis">
+        <div class="text-title-medium font-weight-medium">Server</div>
+        <div class="text-body-medium text-medium-emphasis">
           Public ports that devices connect to directly, not through the Web proxy. QR codes and profiles use them.
         </div>
       </div>

@@ -64,12 +64,12 @@ onMounted(keys.load);
 <template>
   <v-card class="pa-5">
     <div class="d-flex align-center mb-2">
-      <div class="text-subtitle-1 font-weight-medium flex-grow-1">API keys</div>
+      <div class="text-title-medium font-weight-medium flex-grow-1">API keys</div>
       <v-btn color="primary" :prepend-icon="mdiKeyPlus" @click="openDialog">
         {{ activeKeys > 0 ? "Rotate: create new key" : "Create key" }}
       </v-btn>
     </div>
-    <p class="text-body-2 text-medium-emphasis">
+    <p class="text-body-medium text-medium-emphasis mt-0 mb-3">
       To rotate, create a new key, switch the integration to it, then revoke the old key.
     </p>
 
@@ -88,7 +88,7 @@ onMounted(keys.load);
       <tbody>
         <tr v-for="key in keys.data.value" :key="key.id">
           <td>{{ key.name }}</td>
-          <td><code class="text-caption">{{ key.displayPrefix }}…</code></td>
+          <td><code class="text-body-small">{{ key.displayPrefix }}…</code></td>
           <td>{{ key.status }}</td>
           <td>{{ key.lastUsedAt ? new Date(key.lastUsedAt).toLocaleString() : "Never" }}</td>
           <td class="text-right">
@@ -99,7 +99,7 @@ onMounted(keys.load);
         </tr>
       </tbody>
     </v-table>
-    <p v-else class="text-body-2">No keys yet.</p>
+    <p v-else class="text-body-medium ma-0">No keys yet.</p>
 
     <v-dialog :model-value="dialogOpen" max-width="620" persistent>
       <v-card class="pa-2">

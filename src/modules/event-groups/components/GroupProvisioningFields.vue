@@ -10,7 +10,7 @@ const provisioning = defineModel<GroupProvisioning>({ required: true });
 </script>
 
 <template>
-  <div class="text-subtitle-2 mb-2">Callsign and Meshtastic name</div>
+  <div class="text-title-small mb-2">Callsign and Meshtastic name</div>
   <v-text-field
     v-model="provisioning.callsignFormat"
     label="Callsign format"
@@ -33,7 +33,7 @@ const provisioning = defineModel<GroupProvisioning>({ required: true });
     </template>
   </v-text-field>
 
-  <div class="text-subtitle-2 mb-2">TAK</div>
+  <div class="text-title-small mb-2">TAK</div>
   <div class="d-flex flex-wrap ga-4">
     <v-select
       v-model="provisioning.tak.team"

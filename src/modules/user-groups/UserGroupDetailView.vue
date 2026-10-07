@@ -92,7 +92,7 @@ onMounted(page.load);
       <v-row>
         <v-col cols="12" lg="7">
           <v-card class="pa-5">
-            <div class="text-subtitle-1 font-weight-medium mb-4">Permissions</div>
+            <div class="text-title-medium font-weight-medium mb-4">Permissions</div>
             <v-alert v-if="page.data.value.group.system" type="info" class="mb-4">
               The Admin group always holds every permission instance-wide. Only its name can change.
             </v-alert>

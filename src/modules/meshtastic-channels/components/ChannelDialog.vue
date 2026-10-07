@@ -114,7 +114,7 @@ async function save(): Promise<void> {
           </template>
         </v-text-field>
 
-        <div class="text-subtitle-2 mt-2 mb-1">MQTT and position</div>
+        <div class="text-title-small mt-2 mb-1">MQTT and position</div>
         <v-switch v-model="form.uplinkEnabled" label="Uplink to MQTT" color="primary" hide-details />
         <v-switch v-model="form.downlinkEnabled" label="Downlink from MQTT" color="primary" hide-details />
         <v-select
@@ -124,7 +124,7 @@ async function save(): Promise<void> {
           class="mt-2"
         />
 
-        <div class="text-subtitle-2 mb-1">Audience</div>
+        <div class="text-title-small mb-1">Audience</div>
         <v-alert v-if="primary" type="info" variant="tonal" density="compact" class="mb-2">
           The primary channel always reaches every member.
         </v-alert>
@@ -137,7 +137,7 @@ async function save(): Promise<void> {
           :errors="messagesFor(formFields, 'audience.groupIds')"
         />
 
-        <div class="text-subtitle-2 mb-1">Secrecy</div>
+        <div class="text-title-small mb-1">Secrecy</div>
         <v-switch
           v-model="form.secret"
           label="Secret channel"
@@ -149,7 +149,7 @@ async function save(): Promise<void> {
           </template>
         </v-switch>
         <template v-if="form.secret">
-          <div class="text-body-2 text-medium-emphasis mt-3 mb-2">
+          <div class="text-body-medium text-medium-emphasis mt-3 mb-2">
             Key holders, for example platoon leaders. Only key holders who are also in the audience
             receive the channel.
           </div>

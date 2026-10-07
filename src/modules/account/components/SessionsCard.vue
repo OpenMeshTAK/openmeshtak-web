@@ -70,7 +70,7 @@ onMounted(load);
   <v-card>
     <div class="d-flex align-center pa-5 pb-2">
       <v-icon :icon="mdiDevices" size="small" class="mr-2" />
-      <div class="text-subtitle-1 font-weight-medium flex-grow-1">Signed-in devices</div>
+      <div class="text-title-medium font-weight-medium flex-grow-1">Signed-in devices</div>
       <v-btn variant="text" size="small" :disabled="sessions.length < 2" @click="endOthers">Sign out other devices</v-btn>
     </div>
     <v-skeleton-loader v-if="state === 'loading'" type="list-item-two-line@2" />

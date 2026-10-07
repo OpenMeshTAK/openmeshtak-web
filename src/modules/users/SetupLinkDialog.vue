@@ -42,7 +42,7 @@ watch(open, (isOpen) => {
           It is shown only now and cannot be displayed again.
         </OneTimeLinkReveal>
         <template v-else>
-          <p class="text-body-2 mb-4">
+          <p class="text-body-medium mt-0 mb-4">
             {{ user.displayName }} opens this link once to choose a password. It is valid for seven
             days. Creating a new link invalidates earlier ones.
           </p>

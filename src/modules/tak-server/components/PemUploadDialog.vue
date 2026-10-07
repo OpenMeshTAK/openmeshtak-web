@@ -46,7 +46,7 @@ async function load(target: "certificate" | "key", files: File | File[] | null |
     <v-card class="pa-2">
       <v-card-title>{{ props.title }}</v-card-title>
       <v-card-text>
-        <p class="text-body-2 text-medium-emphasis mb-4">{{ props.text }}</p>
+        <p class="text-body-medium text-medium-emphasis mt-0 mb-4">{{ props.text }}</p>
         <v-alert v-if="props.error" type="error" density="compact" class="mb-4">{{ props.error }}</v-alert>
         <v-file-input
           :label="`${props.certificateLabel} file`"

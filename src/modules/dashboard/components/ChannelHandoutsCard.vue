@@ -68,7 +68,7 @@ watch(dialogOpen, (open) => {
   <v-card v-if="holderChannels.length > 0" class="pa-5">
     <div class="d-flex align-center ga-2 mb-1">
       <v-icon :icon="mdiQrcode" color="warning" />
-      <div class="text-subtitle-1 font-weight-medium">Secret channel handouts</div>
+      <div class="text-title-medium font-weight-medium">Secret channel handouts</div>
       <InfoHint
         label="About key holders"
         text="You are a key holder. Open a handout only when you are ready to share that channel on site."
@@ -104,12 +104,12 @@ watch(dialogOpen, (open) => {
             participants. Key rotation makes this handout obsolete. This handout carries only this
             channel, not the event's complete radio setup.
           </v-alert>
-          <p v-if="handout.primary" class="text-body-2 text-medium-emphasis mb-0">
+          <p v-if="handout.primary" class="text-body-medium text-medium-emphasis my-0">
             This is the primary channel. Its standard Meshtastic link uses replacement semantics;
             review the target app's import confirmation before applying it.
           </p>
           <QrCode :value="handout.url" :label="`QR handout for ${handout.channelName}`" :size="260" />
-          <div class="text-caption text-medium-emphasis">
+          <div class="text-body-small text-medium-emphasis">
             Channel key version {{ handout.pskVersion }}
           </div>
         </div>

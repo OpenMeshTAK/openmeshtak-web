@@ -59,24 +59,24 @@ onBeforeUnmount(() => {
   <v-card class="pa-6 text-center">
     <template v-if="state === 'exchanging'">
       <v-progress-circular indeterminate color="primary" class="mb-4" />
-      <p class="text-body-1">Opening your OpenMeshTak access…</p>
+      <p class="text-body-large ma-0">Opening your OpenMeshTak access…</p>
     </template>
     <template v-else-if="state === 'invalid'">
-      <h1 class="text-h6 mb-2">This link cannot be used</h1>
-      <p class="text-body-2 text-medium-emphasis">
+      <h1 class="text-title-large font-weight-medium mt-0 mb-2">This link cannot be used</h1>
+      <p class="text-body-medium text-medium-emphasis ma-0">
         Access links work only once and expire after 24 hours. Ask your organizers for a new one.
       </p>
     </template>
     <template v-else-if="state === 'sign-in'">
-      <h1 class="text-h6 mb-2">Please sign in</h1>
-      <p class="text-body-2 text-medium-emphasis mb-4">
+      <h1 class="text-title-large font-weight-medium mt-0 mb-2">Please sign in</h1>
+      <p class="text-body-medium text-medium-emphasis mt-0 mb-4">
         This account already has its own sign-in. Use your password or passkey to continue.
       </p>
       <v-btn color="primary" :to="{ name: 'sign-in' }">Sign in</v-btn>
     </template>
     <template v-else>
-      <h1 class="text-h6 mb-2">OpenMeshTak is not reachable</h1>
-      <p class="text-body-2 text-medium-emphasis mb-4">
+      <h1 class="text-title-large font-weight-medium mt-0 mb-2">OpenMeshTak is not reachable</h1>
+      <p class="text-body-medium text-medium-emphasis mt-0 mb-4">
         Check your connection and try again.
       </p>
       <v-btn color="primary" @click="exchange">Try again</v-btn>

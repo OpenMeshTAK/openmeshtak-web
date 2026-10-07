@@ -89,7 +89,7 @@ function finishRename(): void {
             <v-list-item title="Zoom to" :prepend-icon="mdiCrosshairsGps" @click="(menuOpen = false), emit('zoom')" />
             <v-list-item v-if="editable" title="Rename" :prepend-icon="mdiPencil" :disabled="locked" @click="startRename" />
             <div class="px-4 pt-2">
-              <div class="text-caption text-medium-emphasis">Opacity {{ Math.round(opacity * 100) }} %</div>
+              <div class="text-body-small text-medium-emphasis">Opacity {{ Math.round(opacity * 100) }} %</div>
               <v-slider
                 v-model="opacity"
                 :min="0.1"

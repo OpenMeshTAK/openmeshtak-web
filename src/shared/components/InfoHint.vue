@@ -26,7 +26,7 @@ withDefaults(defineProps<{ text?: string; label?: string; tone?: "info" | "warni
         <v-icon :icon="tone === 'warning' ? mdiAlertCircleOutline : mdiHelpCircleOutline" size="15" />
       </button>
     </template>
-    <v-card class="pa-4 text-body-2">
+    <v-card class="pa-4 text-body-medium">
       <slot>{{ text }}</slot>
     </v-card>
   </v-menu>

@@ -142,7 +142,7 @@ onMounted(load);
           <v-list-subheader>Setup</v-list-subheader>
           <v-list-item value="firmware" :prepend-icon="mdiChip" title="Firmware">
             <template #append>
-              <span class="text-caption text-medium-emphasis">{{ configuration.firmwareVersion }}</span>
+              <span class="text-body-small text-medium-emphasis">{{ configuration.firmwareVersion }}</span>
             </template>
           </v-list-item>
           <v-list-item value="channels" :prepend-icon="mdiAccessPointNetwork" title="Channels" />
@@ -188,7 +188,7 @@ onMounted(load);
           />
           <v-slide-y-reverse-transition>
             <v-card v-if="editable && dirty" class="save-bar d-flex align-center ga-3 pa-3 mt-4" elevation="4">
-              <span class="text-body-2 flex-grow-1">You have unsaved Meshtastic settings.</span>
+              <span class="text-body-medium flex-grow-1">You have unsaved Meshtastic settings.</span>
               <v-btn variant="text" :disabled="saving" @click="discard">Discard</v-btn>
               <v-btn color="primary" :loading="saving" @click="save">Save changes</v-btn>
             </v-card>

@@ -50,7 +50,7 @@ onMounted(() => Promise.all([members.load(), users.load()]));
 
 <template>
   <v-card class="pa-5">
-    <div class="text-subtitle-1 font-weight-medium mb-4">Members</div>
+    <div class="text-title-medium font-weight-medium mb-4">Members</div>
 
     <v-skeleton-loader v-if="members.state.value === 'loading'" type="list-item-two-line@2" />
     <v-alert v-else-if="members.state.value === 'error'" type="error">{{ members.error.value }}</v-alert>
@@ -68,7 +68,7 @@ onMounted(() => Promise.all([members.load(), users.load()]));
         </template>
       </v-list-item>
     </v-list>
-    <p v-else class="text-body-2 mb-4">No members yet.</p>
+    <p v-else class="text-body-medium mt-0 mb-4">No members yet.</p>
 
     <div v-if="canManage && users.data.value.length > 0" class="d-flex ga-2 align-center">
       <v-autocomplete
@@ -83,7 +83,7 @@ onMounted(() => Promise.all([members.load(), users.load()]));
       />
       <v-btn color="primary" :disabled="userToAdd === null" @click="add">Add</v-btn>
     </div>
-    <p class="text-caption text-medium-emphasis mt-2 mb-0">
+    <p class="text-body-small text-medium-emphasis mt-2 mb-0">
       You can only add members to groups whose permissions you hold yourself.
     </p>
   </v-card>

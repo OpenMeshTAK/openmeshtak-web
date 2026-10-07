@@ -85,7 +85,7 @@ async function copy(): Promise<void> {
     <v-card class="pa-2">
       <v-card-title>Key of {{ channel.name }}</v-card-title>
       <v-card-text>
-        <dl class="key-facts text-body-2 mb-4">
+        <dl class="key-facts text-body-medium mt-0 mb-4">
           <dt>Encryption</dt>
           <dd>{{ kindLabels[channel.psk.kind] }}</dd>
           <dt>Key version</dt>
@@ -121,7 +121,7 @@ async function copy(): Promise<void> {
             />
           </template>
         </v-text-field>
-        <div class="text-caption text-medium-emphasis mt-1">
+        <div class="text-body-small text-medium-emphasis mt-1">
           {{ canReveal ? "Every reveal is recorded in the audit log." : "You may not reveal channel keys." }}
         </div>
 

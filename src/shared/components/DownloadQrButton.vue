@@ -79,18 +79,18 @@ onBeforeUnmount(() => {
       <v-card-title class="text-wrap">Download on your phone</v-card-title>
       <v-card-text>
         <template v-if="grant && !expired">
-          <p class="text-body-2 mb-4">Scan this code with the phone that should get {{ props.fileLabel }}.</p>
+          <p class="text-body-medium mt-0 mb-4">Scan this code with the phone that should get {{ props.fileLabel }}.</p>
           <div class="d-flex justify-center mb-4">
             <QrCode :value="grant.url" :label="`Download link for ${props.fileLabel}`" />
           </div>
-          <p class="text-caption text-medium-emphasis mb-0">
+          <p class="text-body-small text-medium-emphasis my-0">
             Works without signing in until {{ timeFormat.format(new Date(grant.expiresAt)) }}. Anyone who scans it can
             download the file, so show it only to the right phone.
           </p>
           <v-alert v-if="props.secretNotice" type="warning" density="compact" class="mt-3">{{ props.secretNotice }}</v-alert>
         </template>
         <template v-else>
-          <p class="text-body-2 mb-0">This code expired. Create a new one to download the file.</p>
+          <p class="text-body-medium my-0">This code expired. Create a new one to download the file.</p>
         </template>
       </v-card-text>
       <v-card-actions>

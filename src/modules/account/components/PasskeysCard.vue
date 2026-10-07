@@ -75,7 +75,7 @@ onMounted(passkeys.load);
     <v-card-text>
       <v-skeleton-loader v-if="passkeys.state.value === 'loading'" type="list-item-two-line" />
       <v-alert v-else-if="passkeys.state.value === 'error'" type="error">{{ passkeys.error.value }}</v-alert>
-      <p v-else-if="passkeys.data.value.length === 0" class="text-body-2 text-medium-emphasis mb-0">
+      <p v-else-if="passkeys.data.value.length === 0" class="text-body-medium text-medium-emphasis my-0">
         No passkeys yet.
       </p>
       <v-list v-else density="comfortable" class="pa-0">

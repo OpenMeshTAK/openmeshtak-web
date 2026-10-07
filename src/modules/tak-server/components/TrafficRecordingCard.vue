@@ -53,8 +53,8 @@ onMounted(async () => {
   <div v-if="recording" class="pa-3">
     <div class="d-flex align-center ga-2 mb-1">
       <v-icon :icon="mdiRecordRec" size="small" :color="recording.enabled ? 'error' : undefined" />
-      <div class="text-subtitle-2 flex-grow-1">Recording</div>
-      <span class="text-caption text-medium-emphasis">{{ recording.storedItems }} stored</span>
+      <div class="text-title-small flex-grow-1">Recording</div>
+      <span class="text-body-small text-medium-emphasis">{{ recording.storedItems }} stored</span>
     </div>
     <template v-if="canManage">
       <v-switch v-model="enabled" label="Record this event's traffic" color="error" density="compact" hide-details inset />
@@ -71,7 +71,7 @@ onMounted(async () => {
         Save
       </v-btn>
     </template>
-    <p v-else class="text-caption text-medium-emphasis mb-0">
+    <p v-else class="text-body-small text-medium-emphasis my-0">
       {{ recording.enabled ? `Recorded and kept for ${recording.retentionDays} days.` : "Not recorded." }}
     </p>
     <v-btn

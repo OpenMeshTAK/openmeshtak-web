@@ -67,12 +67,12 @@ const withheld = computed(() => props.channel.secret && props.channel.releasedAt
 <template>
   <div class="channel-row d-flex align-start ga-4 pa-4">
     <v-avatar :color="channel.primary ? 'primary' : 'surface-variant'" size="40" rounded="lg" class="flex-shrink-0">
-      <span class="text-subtitle-1 font-weight-bold">{{ position }}</span>
+      <span class="text-title-medium font-weight-bold">{{ position }}</span>
     </v-avatar>
 
     <div class="flex-grow-1" style="min-width: 0">
       <div class="d-flex align-center flex-wrap ga-2 mb-1">
-        <span class="text-subtitle-1 font-weight-medium text-break">{{ channel.name }}</span>
+        <span class="text-title-medium font-weight-medium text-break">{{ channel.name }}</span>
         <v-chip v-if="channel.primary" size="small" color="primary" variant="tonal" label :prepend-icon="mdiStar">
           Primary
         </v-chip>
@@ -88,7 +88,7 @@ const withheld = computed(() => props.channel.secret && props.channel.releasedAt
         </v-chip>
       </div>
 
-      <div class="facts text-body-2">
+      <div class="facts text-body-medium">
         <span class="fact">
           <v-icon :icon="mdiAccountGroup" size="16" />
           <span class="text-truncate">{{ audienceText }}</span>

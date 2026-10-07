@@ -77,7 +77,7 @@ async function submit(): Promise<void> {
 
 <template>
   <v-card class="pa-6">
-    <h1 class="text-h5 mb-6">Sign in</h1>
+    <h1 class="text-headline-small mt-0 mb-6">Sign in</h1>
     <v-alert v-if="error" type="error" class="mb-4">{{ error }}</v-alert>
     <v-form @submit.prevent="submit">
       <v-text-field v-model="login" label="Username or email" autocomplete="username" autocapitalize="none" spellcheck="false" required />
@@ -99,7 +99,7 @@ async function submit(): Promise<void> {
       Sign in with a passkey
     </v-btn>
     <v-btn v-if="registrationOpen" variant="text" block class="mt-2" :to="{ name: 'register' }">Create account</v-btn>
-    <p class="text-body-2 text-medium-emphasis mt-6">
+    <p class="text-body-medium text-medium-emphasis mt-6 mb-0">
       Participants receive a personal access link from their organizers instead of a password.
     </p>
   </v-card>

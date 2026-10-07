@@ -30,14 +30,14 @@ async function signOut(): Promise<void> {
     <template #activator="{ props: menu }">
       <v-btn v-bind="menu" icon variant="text" size="44" aria-label="Account menu">
         <v-avatar color="primary" size="36">
-          <span class="text-body-2 font-weight-bold">{{ initials }}</span>
+          <span class="text-body-medium font-weight-bold">{{ initials }}</span>
         </v-avatar>
       </v-btn>
     </template>
     <v-card min-width="240" class="pa-2">
       <div class="px-3 pt-2 pb-3">
-        <div class="text-subtitle-2 text-truncate">{{ session.state.principal?.name }}</div>
-        <div class="text-caption text-medium-emphasis">Signed in</div>
+        <div class="text-title-small text-truncate">{{ session.state.principal?.name }}</div>
+        <div class="text-body-small text-medium-emphasis">Signed in</div>
       </div>
       <v-divider />
       <v-list density="compact" nav class="pa-0 pt-2">

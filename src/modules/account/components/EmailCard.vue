@@ -63,17 +63,17 @@ onMounted(load);
   <v-card class="pa-5">
     <div class="d-flex align-center ga-2 mb-1">
       <v-icon :icon="mdiEmailOutline" size="small" />
-      <div class="text-subtitle-1 font-weight-medium flex-grow-1">Email</div>
+      <div class="text-title-medium font-weight-medium flex-grow-1">Email</div>
       <template v-if="hasRealEmail">
         <v-chip v-if="verified" size="small" color="success" variant="tonal">Confirmed</v-chip>
         <v-chip v-else size="small" color="warning" variant="tonal">Not confirmed</v-chip>
       </template>
     </div>
-    <p class="text-body-2 text-medium-emphasis mb-3">
+    <p class="text-body-medium text-medium-emphasis mt-0 mb-3">
       Used for password resets and security notices. Only confirmed addresses receive emails.
     </p>
-    <div v-if="hasRealEmail" class="text-body-1 mb-3">{{ email }}</div>
-    <p v-else class="text-body-2 mb-3">No email address yet.</p>
+    <div v-if="hasRealEmail" class="text-body-large mb-3">{{ email }}</div>
+    <p v-else class="text-body-medium mt-0 mb-3">No email address yet.</p>
 
     <form v-if="editing" class="d-flex align-start ga-2" @submit.prevent="changeEmail">
       <v-text-field v-model="newEmail" label="New email address" type="email" autocomplete="email" density="compact" autofocus />

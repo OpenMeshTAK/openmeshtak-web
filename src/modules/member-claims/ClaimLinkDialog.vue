@@ -60,7 +60,7 @@ watch(open, (isOpen) => {
       <v-card-title class="text-wrap">Access link for {{ callsign }}</v-card-title>
       <v-card-text>
         <template v-if="claimUrl === null">
-          <p class="text-body-2 mb-4">
+          <p class="text-body-medium mt-0 mb-4">
             The participant opens this link (or scans its QR code) once to sign in to OpenMeshTak
             without a password. It works a single time and expires after 24 hours. Creating a new
             link invalidates earlier ones.
@@ -81,7 +81,7 @@ watch(open, (isOpen) => {
               <v-btn :icon="mdiContentCopy" variant="text" size="small" aria-label="Copy access link" @click="copy" />
             </template>
           </v-text-field>
-          <div class="text-caption text-medium-emphasis">
+          <div class="text-body-small text-medium-emphasis">
             {{ copied ? "Copied. " : "" }}Valid until {{ expiresAt }}, single use.
           </div>
         </template>

@@ -40,7 +40,7 @@ onMounted(load);
     {{ error }}
     <v-btn size="small" variant="text" class="ml-2" @click="load">Retry</v-btn>
   </v-alert>
-  <p v-else-if="packages.length === 0" class="text-body-2 text-medium-emphasis px-5 pb-5 mb-0">
+  <p v-else-if="packages.length === 0" class="text-body-medium text-medium-emphasis px-5 pb-5 my-0">
     No data packages for you yet.
   </p>
   <v-list v-else lines="two" class="pt-0">

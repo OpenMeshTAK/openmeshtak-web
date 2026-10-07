@@ -555,8 +555,8 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
         :to="{ name: 'event-detail', params: { eventId, tab: 'data-packages' } }"
       />
       <div class="flex-grow-1" style="min-width: 0">
-        <div class="text-h6 text-truncate">{{ event?.name ?? "Event" }} map</div>
-        <div class="text-caption text-medium-emphasis">
+        <div class="text-title-large font-weight-medium text-truncate">{{ event?.name ?? "Event" }} map</div>
+        <div class="text-body-small text-medium-emphasis">
           {{ activeEditor?.dataPackage.value?.name ?? "Choose a data package" }} ·
           {{ branches.length }} packages · {{ layers.length }} layers · {{ objects.length }} items
         </div>

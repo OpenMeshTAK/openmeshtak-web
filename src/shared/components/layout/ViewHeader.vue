@@ -13,8 +13,8 @@ const profileMenu = inject<Component | null>("view-header-profile", null);
 <template>
   <div class="view-header mb-4">
     <div class="view-header__title">
-      <h1 class="text-h5 text-truncate page-title">{{ title }}</h1>
-      <div v-if="subtitle" class="text-body-2 text-medium-emphasis text-truncate">{{ subtitle }}</div>
+      <h1 class="text-headline-small text-truncate page-title">{{ title }}</h1>
+      <div v-if="subtitle" class="text-body-medium text-medium-emphasis text-truncate">{{ subtitle }}</div>
     </div>
     <div class="view-header__actions">
       <slot name="actions" />
@@ -51,7 +51,7 @@ const profileMenu = inject<Component | null>("view-header-profile", null);
 /* Tight title/subtitle pairing; the default headline line height leaves a visible gap. */
 .page-title {
   line-height: 1.2;
-  margin-bottom: 2px;
+  margin: 0 0 2px;
 }
 
 /* On phones the title shares the first row with the account menu; actions get their own row. */

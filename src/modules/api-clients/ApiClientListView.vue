@@ -64,7 +64,7 @@ onMounted(page.load);
           >
             <td>
               <div class="font-weight-medium">{{ client.name }}</div>
-              <div v-if="client.description" class="text-caption text-medium-emphasis">{{ client.description }}</div>
+              <div v-if="client.description" class="text-body-small text-medium-emphasis">{{ client.description }}</div>
             </td>
             <td><ApiClientStatusChip :status="client.status" /></td>
             <td>{{ client.permissions.length }}</td>

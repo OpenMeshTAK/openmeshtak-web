@@ -221,7 +221,7 @@ onMounted(load);
 <template>
   <div>
     <div class="d-flex align-center mb-4 ga-4 flex-wrap">
-      <p class="text-body-2 text-medium-emphasis flex-grow-1 mb-0">
+      <p class="text-body-medium text-medium-emphasis flex-grow-1 my-0">
         Each member has exactly one role and one group. Integrations add members automatically;
         you can also add them here.
       </p>
@@ -248,11 +248,11 @@ onMounted(load);
       <v-card class="members-menu pa-2" tag="nav" aria-label="Event groups">
         <v-list density="comfortable" nav mandatory :selected="[selected]" @update:selected="selected = String($event[0] ?? selected)">
           <v-list-item value="all" :prepend-icon="mdiAccountMultiple" title="All members">
-            <template #append><span class="text-caption text-medium-emphasis">{{ members.length }}</span></template>
+            <template #append><span class="text-body-small text-medium-emphasis">{{ members.length }}</span></template>
           </v-list-item>
           <v-list-subheader>Groups</v-list-subheader>
           <v-list-item v-for="group in groups" :key="group.id" :value="group.id" :prepend-icon="mdiAccountGroup" :title="group.name">
-            <template #append><span class="text-caption text-medium-emphasis">{{ countIn(group.id) }}</span></template>
+            <template #append><span class="text-body-small text-medium-emphasis">{{ countIn(group.id) }}</span></template>
           </v-list-item>
         </v-list>
       </v-card>
@@ -263,7 +263,7 @@ onMounted(load);
         </v-alert>
 
         <template v-if="selectedGroup">
-          <p class="text-body-2 text-medium-emphasis mb-3">
+          <p class="text-body-medium text-medium-emphasis mt-0 mb-3">
             Drag members or use their menu to change the order. Core numbers them from 1 in this order.
           </p>
           <GroupMemberList
@@ -304,7 +304,7 @@ onMounted(load);
             >
               <template #[`item.callsign`]="{ item }">
                 <div class="font-weight-medium">{{ item.callsign }}</div>
-                <div v-if="item.callsignOverride" class="text-caption text-medium-emphasis">Callsign override</div>
+                <div v-if="item.callsignOverride" class="text-body-small text-medium-emphasis">Callsign override</div>
               </template>
               <template #[`item.shortName`]="{ item }">{{ item.shortName ?? "—" }}</template>
               <template #[`item.actions`]="{ item }">
@@ -362,8 +362,8 @@ onMounted(load);
         <v-card v-if="canProvision && profile.source === 'published'" class="provision-sheet">
           <div class="d-flex align-center pa-4 pb-0">
             <div class="flex-grow-1">
-              <div class="text-h6">Set up devices for {{ profile.callsign }}</div>
-              <div class="text-body-2 text-medium-emphasis">
+              <div class="text-title-large font-weight-medium">Set up devices for {{ profile.callsign }}</div>
+              <div class="text-body-medium text-medium-emphasis">
                 You download exactly what this member receives. Every view and download is audited.
               </div>
             </div>

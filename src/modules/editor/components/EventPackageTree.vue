@@ -75,7 +75,7 @@ function togglePackage(packageId: string): void {
 
 <template>
   <div class="event-tree h-100 overflow-y-auto pa-2">
-    <div class="text-subtitle-2 px-2 pt-1 pb-2">Data packages</div>
+    <div class="text-title-small px-2 pt-1 pb-2">Data packages</div>
     <VueDraggable
       v-model="ordered"
       :animation="180"

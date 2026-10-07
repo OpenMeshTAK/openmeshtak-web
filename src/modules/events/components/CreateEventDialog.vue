@@ -35,7 +35,7 @@ async function create(): Promise<void> {
     <v-card class="pa-2">
       <v-card-title>New event</v-card-title>
       <v-card-text>
-        <p class="text-body-2 text-medium-emphasis mb-4">
+        <p class="text-body-medium text-medium-emphasis mt-0 mb-4">
           New events start as drafts and stay invisible to participants until you activate them.
         </p>
         <v-alert v-if="submission.error.value" type="error" class="mb-4">{{ submission.error.value }}</v-alert>

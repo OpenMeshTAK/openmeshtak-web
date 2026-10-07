@@ -52,7 +52,7 @@ function removeIconset(): void {
 
 <template>
   <div class="mb-3">
-    <div class="text-caption text-medium-emphasis mb-1">Symbol</div>
+    <div class="text-body-small text-medium-emphasis mb-1">Symbol</div>
     <v-menu v-model="pickerOpen" :close-on-content-click="false" location="start top" :disabled="disabled">
       <template #activator="{ props: menu }">
         <v-btn v-bind="menu" variant="outlined" block class="justify-start symbol-button" :disabled="disabled">
@@ -87,7 +87,7 @@ function removeIconset(): void {
       </v-expansion-panel>
     </v-expansion-panels>
 
-    <v-alert v-if="tak?.iconsetPath" type="info" variant="tonal" density="compact" class="mt-2 text-caption">
+    <v-alert v-if="tak?.iconsetPath" type="info" variant="tonal" density="compact" class="mt-2 text-body-small">
       <div class="d-flex align-center ga-1">
         <div class="flex-grow-1 text-break">
           ATAK icon <code>{{ tak.iconsetPath }}</code> is kept for ATAK.

@@ -55,7 +55,7 @@ async function download(): Promise<void> {
   <v-card class="pa-5">
     <div class="d-flex align-center flex-wrap ga-2 mb-4">
       <v-icon :icon="mdiRadioTower" size="small" />
-      <div class="text-subtitle-1 font-weight-medium">Meshtastic radio</div>
+      <div class="text-title-medium font-weight-medium">Meshtastic radio</div>
       <v-spacer />
       <v-btn
         v-if="firmware"
@@ -70,16 +70,16 @@ async function download(): Promise<void> {
       </v-btn>
     </div>
 
-    <p v-if="firmware === null" class="text-body-2 text-medium-emphasis mb-0">
+    <p v-if="firmware === null" class="text-body-medium text-medium-emphasis my-0">
       The Meshtastic settings are not published yet. Ask the organizers to publish the event configuration.
     </p>
     <template v-else>
       <div class="d-flex align-center flex-wrap ga-2 mb-1">
-        <span class="text-body-1">Flash firmware</span>
+        <span class="text-body-large">Flash firmware</span>
         <v-chip size="small" color="primary" variant="tonal" label class="font-weight-bold">
           {{ firmware.recommendedVersion }}
         </v-chip>
-        <span class="text-body-2 text-medium-emphasis">at least {{ firmware.minimumVersion }} · {{ firmware.channel }}</span>
+        <span class="text-body-medium text-medium-emphasis">at least {{ firmware.minimumVersion }} · {{ firmware.channel }}</span>
         <InfoHint label="About the firmware">
           {{ firmware.flashingNotes ?? "Flash this firmware before importing the settings file." }}
           Settings made for a newer firmware can misconfigure an older radio.

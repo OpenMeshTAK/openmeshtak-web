@@ -121,7 +121,7 @@ onMounted(load);
 <template>
   <div>
     <div class="d-flex align-center mb-4">
-      <p class="text-body-2 text-medium-emphasis flex-grow-1 mb-0">
+      <p class="text-body-medium text-medium-emphasis flex-grow-1 my-0">
         Groups are tactical units such as Bravo. They define callsigns, TAK team and Meshtastic short-name
         settings for their members; they never grant administrative rights.
       </p>

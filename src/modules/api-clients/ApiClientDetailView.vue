@@ -70,7 +70,7 @@ onMounted(page.load);
       </ViewHeader>
 
       <v-card class="pa-5 mb-6">
-        <div class="text-subtitle-1 font-weight-medium mb-4">Settings and permissions</div>
+        <div class="text-title-medium font-weight-medium mb-4">Settings and permissions</div>
         <v-text-field v-model="form.name" label="Name" />
         <v-textarea v-model="form.description" label="Description (optional)" rows="2" auto-grow />
         <v-switch

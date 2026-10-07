@@ -44,8 +44,8 @@ async function submit(): Promise<void> {
 
 <template>
   <v-card class="pa-6">
-    <h1 class="text-h5 mb-2">Set up OpenMeshTak</h1>
-    <p class="text-body-2 text-medium-emphasis mb-6">
+    <h1 class="text-headline-small mt-0 mb-2">Set up OpenMeshTak</h1>
+    <p class="text-body-medium text-medium-emphasis mt-0 mb-6">
       Create the first administrator. Use the one-time setup token printed in the OpenMeshTak Core
       output.
     </p>

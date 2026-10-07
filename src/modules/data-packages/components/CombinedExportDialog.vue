@@ -97,14 +97,14 @@ async function createDraft(): Promise<void> {
     <v-card class="pa-2">
       <v-card-title>Export data packages</v-card-title>
       <v-card-text>
-        <p class="text-body-2 text-medium-emphasis mb-4">
+        <p class="text-body-medium text-medium-emphasis mt-0 mb-4">
           Combines the newest published revisions into one ATAK Data Package. Drafts are never
           exported.
         </p>
         <v-alert v-if="error" type="error" class="mb-4">{{ error }}</v-alert>
         <v-text-field v-model="name" label="Name of the combined package" maxlength="100" class="mb-2" />
 
-        <div class="text-subtitle-2 mb-1">Packages</div>
+        <div class="text-title-small mb-1">Packages</div>
         <v-checkbox
           v-for="dataPackage in packages"
           :key="dataPackage.id"
@@ -118,8 +118,8 @@ async function createDraft(): Promise<void> {
 
         <template v-if="report">
           <v-divider class="my-4" />
-          <div class="text-subtitle-2 mb-2">Check</div>
-          <p class="text-body-2 mb-2">
+          <div class="text-title-small mb-2">Check</div>
+          <p class="text-body-medium mt-0 mb-2">
             {{ report.included.reduce((sum, part) => sum + part.objects, 0) }} objects from
             {{ report.included.length }} {{ report.included.length === 1 ? "package" : "packages" }}.
           </p>

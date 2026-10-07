@@ -31,6 +31,6 @@ async function copy(): Promise<void> {
         <v-btn :icon="mdiContentCopy" variant="text" size="small" :aria-label="`Copy ${label}`" @click="copy" />
       </template>
     </v-text-field>
-    <div class="text-caption text-medium-emphasis">{{ copied ? "Copied. " : "" }}Valid until {{ validUntil }}, single use.</div>
+    <div class="text-body-small text-medium-emphasis">{{ copied ? "Copied. " : "" }}Valid until {{ validUntil }}, single use.</div>
   </div>
 </template>

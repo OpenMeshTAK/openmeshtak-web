@@ -101,8 +101,8 @@ onBeforeUnmount(() => clearInterval(timer));
     <header class="live-header d-flex align-center ga-3 px-4">
       <v-btn :icon="mdiArrowLeft" variant="text" aria-label="Back to the event" @click="router.push({ name: 'event-detail', params: { eventId } })" />
       <div class="flex-grow-1">
-        <div class="text-subtitle-1 font-weight-medium">Live TAK traffic</div>
-        <div class="text-caption text-medium-emphasis">
+        <div class="text-title-medium font-weight-medium">Live TAK traffic</div>
+        <div class="text-body-small text-medium-emphasis">
           {{ traffic.connections.length }} connected · {{ traffic.items.length }} items · refreshes every {{ REFRESH_MS / 1000 }} s
         </div>
       </div>
@@ -114,8 +114,8 @@ onBeforeUnmount(() => clearInterval(timer));
       <PackageMapView ref="mapView" :layers="mapLayers" :objects="objects" :contents="contents" :live="liveItems" :selected-id="null" tool="select" />
 
       <v-sheet elevation="4" rounded="lg" class="live-panel">
-        <div class="text-subtitle-2 pa-3 pb-1">Connected apps</div>
-        <p v-if="traffic.connections.length === 0" class="text-body-2 text-medium-emphasis px-3 pb-3 mb-0">
+        <div class="text-title-small pa-3 pb-1">Connected apps</div>
+        <p v-if="traffic.connections.length === 0" class="text-body-medium text-medium-emphasis px-3 pb-3 my-0">
           No TAK app of this event is connected.
         </p>
         <v-list v-else density="compact" lines="two" class="pt-0">

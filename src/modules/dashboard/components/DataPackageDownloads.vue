@@ -8,8 +8,8 @@ defineProps<{ eventId: string; memberId: string }>();
 <template>
   <v-card>
     <div class="pa-5 pb-2">
-      <div class="text-subtitle-1 font-weight-medium">Data packages</div>
-      <p class="text-body-2 text-medium-emphasis mb-0">Map content for ATAK and iTAK. Import each package in your TAK app.</p>
+      <div class="text-title-medium font-weight-medium">Data packages</div>
+      <p class="text-body-medium text-medium-emphasis my-0">Map content for ATAK and iTAK. Import each package in your TAK app.</p>
     </div>
     <DataPackageList :event-id="eventId" :member-id="memberId" />
   </v-card>

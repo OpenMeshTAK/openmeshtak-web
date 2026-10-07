@@ -63,7 +63,7 @@ defineExpose({ load });
 
 <template>
   <div>
-    <p class="text-body-2 text-medium-emphasis mb-4">
+    <p class="text-body-medium text-medium-emphasis mt-0 mb-4">
       Synchronizations that could not be resolved create no membership. Fix the role, group or
       callsign, then retry. A retry uses the event's current configuration.
     </p>
@@ -76,13 +76,13 @@ defineExpose({ load });
     <div v-else class="d-flex flex-column ga-4">
       <v-card v-for="issue in issues" :key="issue.id" class="pa-4">
         <div class="d-flex flex-wrap align-center ga-2 mb-2">
-          <span class="text-subtitle-1 font-weight-medium">{{ issue.username }}</span>
-          <span class="text-caption text-medium-emphasis">{{ issue.provider }} · {{ issue.externalId }}</span>
+          <span class="text-title-medium font-weight-medium">{{ issue.username }}</span>
+          <span class="text-body-small text-medium-emphasis">{{ issue.provider }} · {{ issue.externalId }}</span>
           <v-spacer />
-          <span class="text-caption text-medium-emphasis">Reported {{ issue.occurrences }}×</span>
+          <span class="text-body-small text-medium-emphasis">Reported {{ issue.occurrences }}×</span>
         </div>
-        <div class="text-body-2 mb-2">Requested role <code>{{ issue.requestedRole }}</code>, group <code>{{ issue.requestedGroup }}</code></div>
-        <ul class="text-body-2 ml-4 mb-3">
+        <div class="text-body-medium mb-2">Requested role <code>{{ issue.requestedRole }}</code>, group <code>{{ issue.requestedGroup }}</code></div>
+        <ul class="text-body-medium ml-4 mt-0 mb-3">
           <li v-for="reason in issue.reasons" :key="`${reason.field}-${reason.code}`">{{ reason.message }}</li>
         </ul>
         <div v-if="canRetry" class="d-flex flex-wrap align-center ga-3">

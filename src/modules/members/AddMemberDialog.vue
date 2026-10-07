@@ -153,7 +153,7 @@ async function save(): Promise<void> {
         <v-alert v-if="error" type="error" class="mb-4">{{ error }}</v-alert>
 
         <template v-if="source === 'user'">
-          <p class="text-body-2 text-medium-emphasis mb-4">
+          <p class="text-body-medium text-medium-emphasis mt-0 mb-4">
             Adds someone who already has an OpenMeshTak account. Their name is used in the callsign.
           </p>
           <v-alert v-if="usersError" type="error" class="mb-4">{{ usersError }}</v-alert>
@@ -169,7 +169,7 @@ async function save(): Promise<void> {
         </template>
 
         <template v-else>
-          <p class="text-body-2 text-medium-emphasis mb-4">
+          <p class="text-body-medium text-medium-emphasis mt-0 mb-4">
             Members are identified by their account in an external system, for example their Discord
             user ID. Adding the same identity again updates the existing member.
           </p>

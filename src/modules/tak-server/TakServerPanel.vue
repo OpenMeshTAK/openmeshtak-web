@@ -97,10 +97,10 @@ onMounted(page.load);
         <v-col cols="12">
           <v-card>
             <div class="pa-5 pb-2">
-              <div class="text-subtitle-1 font-weight-medium">Client certificates</div>
-              <div class="text-body-2 text-medium-emphasis">One per enrolled TAK app. Revoking disconnects it immediately.</div>
+              <div class="text-title-medium font-weight-medium">Client certificates</div>
+              <div class="text-body-medium text-medium-emphasis">One per enrolled TAK app. Revoking disconnects it immediately.</div>
             </div>
-            <p v-if="page.data.value.certificates.length === 0" class="text-body-2 text-medium-emphasis px-5 pb-5 mb-0">
+            <p v-if="page.data.value.certificates.length === 0" class="text-body-medium text-medium-emphasis px-5 pb-5 my-0">
               No TAK app has enrolled yet.
             </p>
             <TakClientCertificatesTable v-else :certificates="page.data.value.certificates" show-user @revoke="revoke" />

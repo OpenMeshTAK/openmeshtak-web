@@ -110,7 +110,7 @@ onMounted(load);
 <template>
   <div>
     <div class="d-flex align-center mb-4">
-      <p class="text-body-2 text-medium-emphasis flex-grow-1 mb-0">
+      <p class="text-body-medium text-medium-emphasis flex-grow-1 my-0">
         Every member has exactly one event role. Integrations refer to roles by their slug.
       </p>
       <v-btn v-if="editable" color="primary" :prepend-icon="mdiPlus" @click="open(null)">Add role</v-btn>

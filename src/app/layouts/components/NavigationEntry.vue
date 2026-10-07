@@ -37,7 +37,7 @@ const active = computed(() => isNavigationActive(props.item, route));
       />
     </template>
     <v-card class="navigation-entry__menu pa-2" min-width="220">
-      <div class="text-caption text-medium-emphasis px-3 pt-1 pb-2">{{ item.title }}</div>
+      <div class="text-body-small text-medium-emphasis px-3 pt-1 pb-2">{{ item.title }}</div>
       <v-list density="compact" nav class="pa-0">
         <v-list-item
           v-for="child in item.children"

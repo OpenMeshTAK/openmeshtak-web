@@ -21,7 +21,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <v-system-bar v-if="coreVersion !== null" color="warning" height="auto" class="py-1 px-4 text-body-2">
+  <v-system-bar v-if="coreVersion !== null" color="warning" height="auto" class="py-1 px-4 text-body-medium">
     This Web app ({{ webVersion }}) does not match the server ({{ coreVersion }}). Ask the operator to update both to
     the same release.
   </v-system-bar>

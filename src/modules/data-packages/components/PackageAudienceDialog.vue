@@ -82,13 +82,13 @@ async function save(): Promise<void> {
             />
           </div>
         </v-expand-transition>
-        <p v-if="reach !== null" class="text-body-2 text-medium-emphasis mb-0">
+        <p v-if="reach !== null" class="text-body-medium text-medium-emphasis my-0">
           Reaches {{ reach }} {{ reach === 1 ? "member" : "members" }}. Members download the newest
           published revision.
         </p>
         <v-divider class="my-4" />
-        <div class="text-subtitle-2 mb-1">Install automatically on TAK apps</div>
-        <p class="text-body-2 text-medium-emphasis mb-1">
+        <div class="text-title-small mb-1">Install automatically on TAK apps</div>
+        <p class="text-body-medium text-medium-emphasis mt-0 mb-1">
           For members connected to the built-in TAK server. Without either option they pick the
           package in their TAK app themselves.
         </p>

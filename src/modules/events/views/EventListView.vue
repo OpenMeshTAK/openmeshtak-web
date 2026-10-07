@@ -190,7 +190,7 @@ onMounted(events.load);
           <template #[`item.name`]="{ item }">
             <router-link :to="{ name: 'event-detail', params: { eventId: item.id } }" class="event-link" @click.stop>
               <div class="font-weight-medium text-break">{{ item.name }}</div>
-              <div class="text-caption text-medium-emphasis">{{ item.slug }}</div>
+              <div class="text-body-small text-medium-emphasis">{{ item.slug }}</div>
             </router-link>
           </template>
           <template #[`item.status`]="{ item }">

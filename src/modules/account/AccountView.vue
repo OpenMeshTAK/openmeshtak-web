@@ -25,8 +25,8 @@ const sessionsCard = ref<InstanceType<typeof SessionsCard> | null>(null);
           <div class="d-flex align-center ga-3">
             <v-icon :icon="mdiAccountCircleOutline" size="40" class="text-medium-emphasis" />
             <div class="flex-grow-1" style="min-width: 0">
-              <div class="text-h6 text-truncate">{{ session.state.principal?.name }}</div>
-              <div class="d-flex align-center ga-1 text-body-2 text-medium-emphasis">
+              <div class="text-title-large font-weight-medium text-truncate">{{ session.state.principal?.name }}</div>
+              <div class="d-flex align-center ga-1 text-body-medium text-medium-emphasis">
                 Username <code class="text-high-emphasis">{{ session.state.principal?.username ?? "—" }}</code>
                 <InfoHint
                   label="About the username"

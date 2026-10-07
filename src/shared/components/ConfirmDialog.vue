@@ -16,8 +16,8 @@ defineEmits<{ confirm: [] }>();
 <template>
   <v-dialog v-model="open" max-width="520">
     <v-card class="pa-2">
-      <v-card-title class="text-h6 text-wrap">{{ title }}</v-card-title>
-      <v-card-text class="text-body-2"><slot /></v-card-text>
+      <v-card-title class="text-title-large font-weight-medium text-wrap">{{ title }}</v-card-title>
+      <v-card-text class="text-body-medium"><slot /></v-card-text>
       <v-card-actions>
         <v-spacer />
         <v-btn variant="text" :disabled="loading" @click="open = false">Cancel</v-btn>

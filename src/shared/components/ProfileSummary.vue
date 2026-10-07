@@ -21,8 +21,8 @@ const meshtasticName = computed(() => {
   <v-card class="profile-summary">
     <div class="profile-summary__body">
       <div class="profile-summary__identity">
-        <div class="text-overline text-medium-emphasis text-truncate">{{ eventName }}</div>
-        <div class="text-h4 font-weight-bold text-break callsign">{{ profile.callsign }}</div>
+        <div class="text-label-medium text-uppercase text-medium-emphasis text-truncate">{{ eventName }}</div>
+        <div class="text-headline-medium font-weight-bold text-break callsign">{{ profile.callsign }}</div>
         <div class="d-flex flex-wrap ga-2 mt-3">
           <v-chip size="small" label :prepend-icon="mdiAccountGroup">{{ profile.group.name }}</v-chip>
           <v-chip size="small" label>
@@ -35,7 +35,7 @@ const meshtasticName = computed(() => {
         </div>
       </div>
 
-      <dl class="profile-facts text-body-2">
+      <dl class="profile-facts text-body-medium">
         <div>
           <dt>Event role</dt>
           <dd class="d-flex align-center ga-1">

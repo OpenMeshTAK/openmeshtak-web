@@ -95,7 +95,7 @@ function commitPosition(): void {
 <template>
   <div class="pa-3">
     <div class="d-flex align-center mb-3">
-      <div class="text-subtitle-2 flex-grow-1">Object</div>
+      <div class="text-title-small flex-grow-1">Object</div>
       <v-btn v-if="editable" :icon="mdiContentCopy" size="small" variant="text" aria-label="Duplicate object" @click="emit('duplicate')" />
       <v-btn
         v-if="editable"
@@ -125,7 +125,7 @@ function commitPosition(): void {
 
     <MarkerSymbolField v-if="object.kind === 'point'" :tak="object.tak" :color="object.style.color" :disabled="disabled" @change="emit('change', { tak: $event })" />
 
-    <div class="text-caption text-medium-emphasis mb-1">Style</div>
+    <div class="text-body-small text-medium-emphasis mb-1">Style</div>
     <div class="d-flex align-center ga-3 mb-2">
       <input
         type="color"
@@ -135,7 +135,7 @@ function commitPosition(): void {
         aria-label="Colour"
         @change="changeStyle({ color: ($event.target as HTMLInputElement).value.toUpperCase() })"
       >
-      <code class="text-body-2">{{ object.style.color }}</code>
+      <code class="text-body-medium">{{ object.style.color }}</code>
     </div>
     <template v-if="object.kind !== 'point'">
       <v-slider
@@ -165,7 +165,7 @@ function commitPosition(): void {
       @end="changeStyle({ fillOpacity: $event })"
     />
 
-    <div class="text-caption text-medium-emphasis mt-4 mb-1">Position (WGS84)</div>
+    <div class="text-body-small text-medium-emphasis mt-4 mb-1">Position (WGS84)</div>
     <template v-if="object.geometry.type === 'Point' || object.geometry.type === 'Circle'">
       <div class="d-flex ga-2">
         <v-text-field v-model="position.latitude" label="Latitude" density="compact" :disabled="disabled" @blur="commitPosition" @keydown.enter="commitPosition" />
@@ -194,7 +194,7 @@ function commitPosition(): void {
         @keydown.enter="commitPosition"
       />
     </template>
-    <p v-else class="text-body-2 mb-0">{{ vertexCount }} vertices. Drag vertices on the map to change the shape.</p>
+    <p v-else class="text-body-medium my-0">{{ vertexCount }} vertices. Drag vertices on the map to change the shape.</p>
   </div>
 </template>
 

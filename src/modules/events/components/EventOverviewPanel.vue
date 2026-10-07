@@ -98,8 +98,8 @@ onMounted(load);
       <template v-else>
         <div class="overview-stats mb-4">
           <v-card v-for="stat in stats" :key="stat.tab" class="pa-4" @click="emit('open', stat.tab)">
-            <div class="text-h5" :class="{ 'text-error': stat.warn }">{{ stat.value }}</div>
-            <div class="text-body-2 text-medium-emphasis">{{ stat.label }}</div>
+            <div class="text-headline-small" :class="{ 'text-error': stat.warn }">{{ stat.value }}</div>
+            <div class="text-body-medium text-medium-emphasis">{{ stat.label }}</div>
           </v-card>
         </div>
 
@@ -130,8 +130,8 @@ onMounted(load);
     <v-col cols="12" md="4">
       <v-card class="pa-5 mb-4">
         <div class="d-flex align-center mb-2">
-          <div class="text-subtitle-1 font-weight-medium flex-grow-1">Schedule</div>
-          <span v-if="hint" class="text-body-2 text-medium-emphasis">{{ hint }}</span>
+          <div class="text-title-medium font-weight-medium flex-grow-1">Schedule</div>
+          <span v-if="hint" class="text-body-medium text-medium-emphasis">{{ hint }}</span>
         </div>
         <dl class="schedule">
           <template v-for="row in schedule" :key="row.label">

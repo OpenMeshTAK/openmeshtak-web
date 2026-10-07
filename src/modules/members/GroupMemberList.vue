@@ -89,7 +89,7 @@ function shift(index: number, direction: -1 | 1): void {
           </template>
         </v-list-item>
       </VueDraggable>
-      <p v-if="ordered.length === 0" class="text-body-2 text-medium-emphasis pa-5 mb-0">No members in this group yet.</p>
+      <p v-if="ordered.length === 0" class="text-body-medium text-medium-emphasis pa-5 my-0">No members in this group yet.</p>
     </v-list>
   </v-card>
 </template>

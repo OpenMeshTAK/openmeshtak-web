@@ -130,7 +130,7 @@ async function apply(confirmed: FirmwareChangePreviewDto): Promise<void> {
           <v-icon :icon="mdiChip" />
         </v-avatar>
         <div class="flex-grow-1">
-          <div class="text-h6">Meshtastic {{ configuration.firmwareVersion }}</div>
+          <div class="text-title-large font-weight-medium">Meshtastic {{ configuration.firmwareVersion }}</div>
           <div class="d-flex align-center ga-2 mt-1 flex-wrap">
             <v-chip
               v-if="configuration.verified"
@@ -163,11 +163,11 @@ async function apply(confirmed: FirmwareChangePreviewDto): Promise<void> {
 
       <dl class="firmware-facts">
         <div v-for="fact in facts" :key="fact.label">
-          <dt class="text-caption text-medium-emphasis">{{ fact.label }}</dt>
-          <dd class="text-body-1">{{ fact.value }}</dd>
+          <dt class="text-body-small text-medium-emphasis">{{ fact.label }}</dt>
+          <dd class="text-body-large">{{ fact.value }}</dd>
         </div>
       </dl>
-      <p v-if="profile?.flashingNotes" class="text-body-2 text-medium-emphasis mt-4 mb-0">{{ profile.flashingNotes }}</p>
+      <p v-if="profile?.flashingNotes" class="text-body-medium text-medium-emphasis mt-4 mb-0">{{ profile.flashingNotes }}</p>
     </v-card>
 
     <v-dialog v-model="dialogOpen" max-width="600" scrollable>
@@ -191,13 +191,13 @@ async function apply(confirmed: FirmwareChangePreviewDto): Promise<void> {
           </template>
 
           <template v-else>
-            <p class="text-body-2 mb-4">
+            <p class="text-body-medium mt-0 mb-4">
               Settings are checked against Meshtastic {{ preview.firmwareVersion }} (at least
               {{ preview.effectiveMinimumVersion }}). Members need new device files after the next
               publication.
             </p>
             <div v-for="row in reportRows" :key="row.title" class="mb-4">
-              <div class="text-subtitle-2 mb-2">{{ row.title }} · {{ row.keys.length }}</div>
+              <div class="text-title-small mb-2">{{ row.title }} · {{ row.keys.length }}</div>
               <div class="d-flex flex-wrap ga-1">
                 <v-chip v-for="key in row.keys" :key="key" :color="row.color" size="small" variant="tonal" label>
                   {{ label(key) }}

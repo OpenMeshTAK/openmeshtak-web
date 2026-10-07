@@ -174,7 +174,7 @@ function objectGroup(layer: PackageLayerDto) {
 <template>
   <div class="d-flex flex-column" :class="{ 'h-100': !embedded }">
     <div class="d-flex align-center px-3 pt-2 pb-1">
-      <div class="text-subtitle-2 flex-grow-1">Layers</div>
+      <div class="text-title-small flex-grow-1">Layers</div>
       <v-btn v-if="editable" size="small" variant="tonal" :prepend-icon="mdiPlus" @click="emit('add')">Layer</v-btn>
     </div>
 

@@ -124,7 +124,7 @@ onMounted(async () => {
       <v-col cols="12" lg="7">
         <v-card class="pa-5">
           <div class="d-flex align-center mb-4">
-            <div class="text-subtitle-1 font-weight-medium flex-grow-1">SMTP server</div>
+            <div class="text-title-medium font-weight-medium flex-grow-1">SMTP server</div>
             <v-switch v-model="form.enabled" color="primary" inset hide-details label="Enabled" />
           </div>
           <v-row dense>
@@ -152,8 +152,8 @@ onMounted(async () => {
       </v-col>
       <v-col cols="12" lg="5">
         <v-card class="pa-5">
-          <div class="text-subtitle-1 font-weight-medium mb-1">Test</div>
-          <p class="text-body-2 text-medium-emphasis mb-3">Save first, then send a test email with the stored settings.</p>
+          <div class="text-title-medium font-weight-medium mb-1">Test</div>
+          <p class="text-body-medium text-medium-emphasis mt-0 mb-3">Save first, then send a test email with the stored settings.</p>
           <v-text-field v-model="testAddress" label="Recipient" type="email" density="compact" />
           <v-btn variant="tonal" block :loading="testing" :disabled="testAddress.trim() === '' || !page.data.value.enabled" @click="test">Send test email</v-btn>
         </v-card>

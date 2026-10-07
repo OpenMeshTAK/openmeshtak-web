@@ -97,10 +97,10 @@ async function run(): Promise<void> {
 
 <template>
   <v-card class="pa-5">
-    <div class="text-subtitle-1 font-weight-medium mb-2">Lifecycle</div>
+    <div class="text-title-medium font-weight-medium mb-2">Lifecycle</div>
 
     <template v-if="event.status === 'draft'">
-      <p class="text-body-2 mb-4">
+      <p class="text-body-medium mt-0 mb-4">
         This draft is invisible to participants. Activation checks that the event has roles, groups
         and short-name prefixes and publishes the first configuration revision.
       </p>
@@ -108,7 +108,7 @@ async function run(): Promise<void> {
     </template>
 
     <template v-else-if="event.status === 'active'">
-      <p class="text-body-2 mb-4">
+      <p class="text-body-medium mt-0 mb-4">
         Participants can see this event and their profiles. Archiving makes it read-only and revokes
         open access links.
       </p>
@@ -116,13 +116,13 @@ async function run(): Promise<void> {
         <v-btn v-if="canManage" color="primary" :loading="publishing" @click="publish">Publish configuration</v-btn>
         <v-btn v-if="canManage" color="error" variant="outlined" @click="pending = 'archive'">Archive event…</v-btn>
       </div>
-      <p class="text-caption text-medium-emphasis mt-2 mb-0">
+      <p class="text-body-small text-medium-emphasis mt-2 mb-0">
         Changes to roles and groups reach participants once you publish them.
       </p>
     </template>
 
     <template v-else>
-      <p class="text-body-2 mb-4">
+      <p class="text-body-medium mt-0 mb-4">
         This event is archived and read-only. It is hidden from participants and cannot provision
         devices.
       </p>

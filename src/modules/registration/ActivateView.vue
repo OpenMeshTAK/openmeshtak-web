@@ -47,19 +47,19 @@ onBeforeUnmount(() => {
   <v-card class="pa-6 text-center">
     <template v-if="state === 'exchanging'">
       <v-progress-circular indeterminate color="primary" class="mb-4" />
-      <p class="text-body-1">Opening your account setup…</p>
+      <p class="text-body-large ma-0">Opening your account setup…</p>
     </template>
     <template v-else-if="state === 'invalid'">
-      <h1 class="text-h6 mb-2">This link cannot be used</h1>
-      <p class="text-body-2 text-medium-emphasis mb-4">
+      <h1 class="text-title-large font-weight-medium mt-0 mb-2">This link cannot be used</h1>
+      <p class="text-body-medium text-medium-emphasis mt-0 mb-4">
         Setup links work only once and expire after seven days. If you already chose a password,
         sign in with it. Otherwise ask an administrator for a new link.
       </p>
       <v-btn color="primary" :to="{ name: 'sign-in' }">Sign in</v-btn>
     </template>
     <template v-else>
-      <h1 class="text-h6 mb-2">OpenMeshTak is not reachable</h1>
-      <p class="text-body-2 text-medium-emphasis mb-4">Check your connection and try again.</p>
+      <h1 class="text-title-large font-weight-medium mt-0 mb-2">OpenMeshTak is not reachable</h1>
+      <p class="text-body-medium text-medium-emphasis mt-0 mb-4">Check your connection and try again.</p>
       <v-btn color="primary" @click="exchange">Try again</v-btn>
     </template>
   </v-card>

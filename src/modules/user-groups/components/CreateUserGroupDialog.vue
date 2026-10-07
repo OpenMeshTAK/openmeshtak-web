@@ -48,7 +48,7 @@ async function create(): Promise<void> {
           @update:model-value="form.slug = suggestSlug($event)"
         />
         <v-text-field v-model="form.slug" label="Slug" :error-messages="messagesFor(submission.fields.value, 'slug')" />
-        <p class="text-body-2 text-medium-emphasis mb-0">You add permissions and members on the next page.</p>
+        <p class="text-body-medium text-medium-emphasis my-0">You add permissions and members on the next page.</p>
       </v-card-text>
       <v-card-actions>
         <v-spacer />

@@ -221,7 +221,7 @@ onMounted(() => void load());
               <InfoHint label="About username" :text="USERNAME_HINT" />
             </template>
           </v-text-field>
-          <p v-else class="text-body-2 text-medium-emphasis mb-0">
+          <p v-else class="text-body-medium text-medium-emphasis my-0">
             The username is created when this user first signs in.
           </p>
         </v-card-text>

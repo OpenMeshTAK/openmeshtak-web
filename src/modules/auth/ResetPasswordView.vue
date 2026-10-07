@@ -44,13 +44,13 @@ async function submit(): Promise<void> {
 
 <template>
   <v-card class="pa-6">
-    <h1 class="text-h5 mb-4">Choose a new password</h1>
+    <h1 class="text-headline-small mt-0 mb-4">Choose a new password</h1>
     <template v-if="done">
-      <p class="text-body-1 mb-4">Your password was changed and all sessions were signed out.</p>
+      <p class="text-body-large mt-0 mb-4">Your password was changed and all sessions were signed out.</p>
       <v-btn to="/sign-in" color="primary" block>Sign in</v-btn>
     </template>
     <template v-else-if="invalidLink">
-      <p class="text-body-1 mb-4">This reset link is invalid, already used or expired.</p>
+      <p class="text-body-large mt-0 mb-4">This reset link is invalid, already used or expired.</p>
       <v-btn to="/forgot-password" color="primary" block>Ask for a new link</v-btn>
     </template>
     <v-form v-else @submit.prevent="submit">

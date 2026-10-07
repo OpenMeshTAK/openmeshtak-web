@@ -73,7 +73,7 @@ function errorFor(field: FirmwareFieldDto): string | undefined {
                 @update:model-value="settings[field.key] = $event === true"
               />
             </template>
-            <div v-if="errorFor(field)" class="text-caption text-error mt-1">{{ errorFor(field) }}</div>
+            <div v-if="errorFor(field)" class="text-body-small text-error mt-1">{{ errorFor(field) }}</div>
           </v-list-item>
         </template>
       </v-list>

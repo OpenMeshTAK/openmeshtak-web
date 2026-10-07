@@ -54,9 +54,9 @@ async function submit(): Promise<void> {
   <v-card class="pa-5">
     <div class="d-flex align-center ga-2 mb-1">
       <v-icon :icon="mdiLockReset" size="small" />
-      <div class="text-subtitle-1 font-weight-medium">Password</div>
+      <div class="text-title-medium font-weight-medium">Password</div>
     </div>
-    <p class="text-body-2 text-medium-emphasis mb-4">Changing it signs you out on every other device.</p>
+    <p class="text-body-medium text-medium-emphasis mt-0 mb-4">Changing it signs you out on every other device.</p>
     <form @submit.prevent="submit">
       <v-alert v-if="error" type="error" density="compact" class="mb-3">{{ error }}</v-alert>
       <v-text-field

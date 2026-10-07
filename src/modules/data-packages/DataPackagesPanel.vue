@@ -345,7 +345,7 @@ onMounted(() => {
           </v-avatar>
           <div class="package-info">
             <div class="d-flex align-center flex-wrap ga-2 mb-1">
-              <span class="text-subtitle-1 font-weight-medium text-break">{{ dataPackage.name }}</span>
+              <span class="text-title-medium font-weight-medium text-break">{{ dataPackage.name }}</span>
               <v-chip
                 v-if="dataPackage.latestRevision"
                 size="small"
@@ -368,7 +368,7 @@ onMounted(() => {
                 Unpublished
               </v-chip>
             </div>
-            <div class="facts text-body-2">
+            <div class="facts text-body-medium">
               <span class="fact" :title="audienceTitle(dataPackage)">
                 <v-icon :icon="mdiAccountGroup" size="16" />
                 <span class="text-truncate">{{ audienceLabel(dataPackage) }}</span>

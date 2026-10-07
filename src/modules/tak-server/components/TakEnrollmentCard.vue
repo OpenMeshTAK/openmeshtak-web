@@ -37,7 +37,7 @@ onMounted(loadCertificates);
     <div class="pa-5 pb-3">
       <div class="d-flex align-center ga-2 mb-2">
         <v-icon :icon="mdiCellphoneLink" size="small" />
-        <div class="text-subtitle-1 font-weight-medium">TAK server</div>
+        <div class="text-title-medium font-weight-medium">TAK server</div>
         <InfoHint
           label="About the TAK server"
           text="Connect ATAK or iTAK to share positions and markers with your event and receive its Data Packages."
@@ -46,7 +46,7 @@ onMounted(loadCertificates);
       <TakEnrollmentAction @closed="loadCertificates" />
     </div>
     <template v-if="certificates.length > 0">
-      <div class="px-5 text-caption text-medium-emphasis">Your connected apps</div>
+      <div class="px-5 text-body-small text-medium-emphasis">Your connected apps</div>
       <TakClientCertificatesTable :certificates="certificates" :show-user="false" @revoke="revoke" />
     </template>
   </v-card>

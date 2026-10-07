@@ -50,7 +50,7 @@ function toggle(permission: Permission): void {
           density="compact"
           @update:model-value="toggleArea(area)"
         />
-        <span class="permission-label text-body-2 font-weight-medium">{{ area.label }}</span>
+        <span class="permission-label text-body-medium font-weight-medium">{{ area.label }}</span>
         <code class="permission-name">{{ area.prefix }}</code>
       </div>
       <div
@@ -66,9 +66,9 @@ function toggle(permission: Permission): void {
           density="compact"
           @update:model-value="toggle(entry.permission)"
         />
-        <span class="permission-label text-body-2">
+        <span class="permission-label text-body-medium">
           {{ entry.label }}
-          <span v-if="isUnavailable(entry.instanceOnly)" class="text-caption">(all events only)</span>
+          <span v-if="isUnavailable(entry.instanceOnly)" class="text-body-small">(all events only)</span>
         </span>
         <code class="permission-name">{{ entry.permission }}</code>
       </div>

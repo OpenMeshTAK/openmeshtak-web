@@ -88,9 +88,9 @@ const groups = computed(() => {
       </div>
 
       <div class="flex-grow-1 overflow-y-auto px-3 pb-3">
-        <p v-if="groups.length === 0" class="text-body-2 text-medium-emphasis">No symbol matches.</p>
+        <p v-if="groups.length === 0" class="text-body-medium text-medium-emphasis ma-0">No symbol matches.</p>
         <div v-for="section in groups" :key="section.group" class="mb-3">
-          <div class="text-caption text-medium-emphasis mb-1">{{ section.group }}</div>
+          <div class="text-body-small text-medium-emphasis mb-1">{{ section.group }}</div>
           <div class="symbol-grid">
             <button
               v-for="tile in section.tiles"

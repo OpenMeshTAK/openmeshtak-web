@@ -76,14 +76,14 @@ function close(): void {
         </v-alert>
         <v-window v-model="method">
           <v-window-item v-if="enrollment.atakEnrollmentUrl" value="qr">
-            <p class="text-body-2 mb-3">Scan this code with the QR scanner in ATAK, or open the link on the phone with ATAK.</p>
+            <p class="text-body-medium mt-0 mb-3">Scan this code with the QR scanner in ATAK, or open the link on the phone with ATAK.</p>
             <div class="d-flex justify-center mb-3">
               <QrCode :value="enrollment.atakEnrollmentUrl" label="ATAK enrollment code" :size="220" />
             </div>
             <div class="d-flex justify-center">
               <v-btn :href="enrollment.atakEnrollmentUrl" variant="tonal" size="small">Open in ATAK</v-btn>
             </div>
-            <p class="text-caption text-medium-emphasis text-center mt-3 mb-0">
+            <p class="text-body-small text-medium-emphasis text-center mt-3 mb-0">
               <template v-if="enrollment.expiresAt">Valid until {{ dateFormat.format(new Date(enrollment.expiresAt)) }}.</template>
               <template v-else>Valid as long as you have TAK access.</template>
               Do not share it: it signs in as you.
@@ -91,7 +91,7 @@ function close(): void {
           </v-window-item>
 
           <v-window-item value="package">
-            <p class="text-body-2 mb-3">
+            <p class="text-body-medium mt-0 mb-3">
               Download the connection package and import it in ATAK or iTAK. When the app asks, sign in with:
             </p>
             <v-table density="compact" class="mb-4">
@@ -109,7 +109,7 @@ function close(): void {
           </v-window-item>
 
           <v-window-item value="login">
-            <p class="text-body-2 mb-3">
+            <p class="text-body-medium mt-0 mb-3">
               In ATAK or iTAK, add a server with certificate enrollment and enter:
             </p>
             <v-table density="compact">

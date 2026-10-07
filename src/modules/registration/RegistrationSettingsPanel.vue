@@ -130,12 +130,12 @@ onMounted(load);
             <template #label>
               <div>
                 <div class="font-weight-medium">{{ option.title }}</div>
-                <div class="text-body-2 text-medium-emphasis">{{ option.text }}</div>
+                <div class="text-body-medium text-medium-emphasis">{{ option.text }}</div>
               </div>
             </template>
           </v-radio>
         </v-radio-group>
-        <p class="text-body-2 text-medium-emphasis mt-4 mb-0">
+        <p class="text-body-medium text-medium-emphasis mt-4 mb-0">
           New accounts have no permissions. Add them to user groups or events to give them access.
         </p>
         <div class="d-flex justify-end mt-4">
@@ -146,8 +146,8 @@ onMounted(load);
       <v-card v-if="settings?.mode === 'invite'" style="max-width: 760px">
         <div class="d-flex align-center flex-wrap ga-2 pa-4">
           <div class="flex-grow-1">
-            <div class="text-subtitle-1 font-weight-medium">Invite links</div>
-            <div class="text-body-2 text-medium-emphasis">Each link creates one account and expires after seven days.</div>
+            <div class="text-title-medium font-weight-medium">Invite links</div>
+            <div class="text-body-medium text-medium-emphasis">Each link creates one account and expires after seven days.</div>
           </div>
           <v-btn color="primary" variant="tonal" :prepend-icon="mdiLinkPlus" :loading="creating" @click="createInvite">Create invite link</v-btn>
         </div>
@@ -172,7 +172,7 @@ onMounted(load);
             </tr>
           </tbody>
         </v-table>
-        <p v-else class="text-body-2 text-medium-emphasis pa-4 mb-0">No invite links yet.</p>
+        <p v-else class="text-body-medium text-medium-emphasis pa-4 my-0">No invite links yet.</p>
       </v-card>
     </template>
 

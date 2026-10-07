@@ -23,7 +23,7 @@ const method = ref<"tak-server" | "manual">("tak-server");
   <v-card>
     <div class="d-flex align-center ga-2 pa-5 pb-3">
       <v-icon :icon="mdiMapOutline" size="small" />
-      <div class="text-subtitle-1 font-weight-medium">Data packages</div>
+      <div class="text-title-medium font-weight-medium">Data packages</div>
       <InfoHint
         label="About Data Packages"
         text="Map content for ATAK and iTAK, such as the game area, points of interest and offline maps."
@@ -39,12 +39,12 @@ const method = ref<"tak-server" | "manual">("tak-server");
     <v-window v-model="method">
       <v-window-item value="tak-server">
         <div class="pa-5">
-          <p v-if="enrolledInSetup" class="text-body-2 mb-0">
+          <p v-if="enrolledInSetup" class="text-body-medium my-0">
             Once your TAK app is connected in step 2, the TAK server delivers this event's Data Packages to it.
           </p>
           <template v-else>
             <div class="d-flex align-center ga-1 flex-wrap mb-3">
-              <span class="text-body-2">The TAK server sends the packages to your enrolled app.</span>
+              <span class="text-body-medium">The TAK server sends the packages to your enrolled app.</span>
               <InfoHint
                 label="How enrollment works"
                 text="Scan the QR code in ATAK, import the connection package, or enter the login data by hand."
@@ -56,7 +56,7 @@ const method = ref<"tak-server" | "manual">("tak-server");
       </v-window-item>
 
       <v-window-item value="manual">
-        <p class="d-flex align-center ga-1 text-body-2 text-medium-emphasis px-5 pt-3 mb-0">
+        <p class="d-flex align-center ga-1 text-body-medium text-medium-emphasis px-5 pt-3 my-0">
           Download a package and import the .zip in ATAK or iTAK yourself.
           <InfoHint
             label="About manual downloads"

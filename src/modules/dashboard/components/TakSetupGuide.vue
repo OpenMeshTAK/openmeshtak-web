@@ -45,7 +45,7 @@ const steps = computed(() =>
     <div class="pa-5 pb-3">
       <div class="d-flex align-center ga-2 flex-wrap mb-1">
         <v-icon :icon="mdiCellphoneLink" size="small" />
-        <span class="text-subtitle-1 font-weight-medium">Connect TAK over Meshtastic</span>
+        <span class="text-title-medium font-weight-medium">Connect TAK over Meshtastic</span>
         <InfoHint label="How TAK over Meshtastic works">
           ATAK or iTAK on this phone talks to the Meshtastic app, which sends TAK over the mesh as
           {{ profile.tak.callsign }}.
@@ -57,7 +57,7 @@ const steps = computed(() =>
       <v-tab value="ios">iPhone</v-tab>
     </v-tabs>
     <v-divider />
-    <ol class="steps text-body-2 pa-5 pl-10">
+    <ol class="steps text-body-medium pa-5 pl-10">
       <li v-for="step in steps" :key="step">{{ step }}</li>
     </ol>
   </v-card>

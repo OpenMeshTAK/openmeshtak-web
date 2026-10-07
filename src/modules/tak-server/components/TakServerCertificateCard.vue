@@ -80,7 +80,7 @@ async function useCa(): Promise<void> {
     <div class="d-flex align-center mb-3">
       <v-icon :icon="mdiCertificate" class="mr-2" />
       <div class="d-flex align-center ga-1 flex-grow-1">
-        <span class="text-subtitle-1 font-weight-medium">Server certificate</span>
+        <span class="text-title-medium font-weight-medium">Server certificate</span>
         <InfoHint label="About the server certificate">
           The certificate the TAK server shows to ATAK and iTAK when they connect, so the apps know
           they talk to your server. There is only one, for the TAK host name. The certificates of
@@ -92,16 +92,16 @@ async function useCa(): Promise<void> {
       </v-chip>
     </div>
     <template v-if="certificate">
-      <div class="text-body-2">{{ certificate.subject }}</div>
-      <div class="text-caption text-medium-emphasis">
+      <div class="text-body-medium">{{ certificate.subject }}</div>
+      <div class="text-body-small text-medium-emphasis">
         For {{ certificate.hostName }} · valid until {{ dateFormat.format(new Date(certificate.notAfter)) }}
       </div>
-      <div class="text-caption text-medium-emphasis text-truncate">SHA-256 {{ certificate.fingerprintSha256 }}</div>
+      <div class="text-body-small text-medium-emphasis text-truncate">SHA-256 {{ certificate.fingerprintSha256 }}</div>
     </template>
-    <p v-else class="text-body-2 text-medium-emphasis mb-0">Issued by the OpenMeshTak CA when the TAK server starts.</p>
+    <p v-else class="text-body-medium text-medium-emphasis my-0">Issued by the OpenMeshTak CA when the TAK server starts.</p>
 
     <div class="d-flex align-center ga-1 mt-5 mb-2">
-      <span class="text-body-2 font-weight-medium">Source</span>
+      <span class="text-body-medium font-weight-medium">Source</span>
       <InfoHint label="About the certificate sources">
         <p class="mb-2">
           <strong>OpenMeshTak CA:</strong> works without any setup, but phones do not trust it on their

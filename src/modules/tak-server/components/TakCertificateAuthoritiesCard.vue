@@ -51,7 +51,7 @@ async function importAuthority(certificatePem: string, privateKeyPem: string): P
     <div class="d-flex align-center pb-2">
       <v-icon :icon="mdiShieldKey" class="mr-2" />
       <div class="d-flex align-center ga-1 flex-grow-1">
-        <span class="text-subtitle-1 font-weight-medium">Client certificate authority</span>
+        <span class="text-title-medium font-weight-medium">Client certificate authority</span>
         <InfoHint label="About the client certificate authority">
           The OpenMeshTak CA signs the certificate of every member's TAK app, and the server
           certificate while no Let's Encrypt or uploaded certificate is used. Created automatically;

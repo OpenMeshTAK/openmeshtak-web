@@ -28,7 +28,7 @@ async function copy(): Promise<void> {
       </template>
     </v-text-field>
     <div class="d-flex align-center">
-      <span class="text-caption text-medium-emphasis">{{ copied ? "Copied to the clipboard." : "Not copied yet." }}</span>
+      <span class="text-body-small text-medium-emphasis">{{ copied ? "Copied to the clipboard." : "Not copied yet." }}</span>
       <v-spacer />
       <v-btn color="primary" variant="flat" @click="emit('dismiss')">I have stored it</v-btn>
     </div>

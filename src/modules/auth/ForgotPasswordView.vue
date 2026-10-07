@@ -30,16 +30,16 @@ async function submit(): Promise<void> {
 
 <template>
   <v-card class="pa-6">
-    <h1 class="text-h5 mb-2">Forgot your password?</h1>
+    <h1 class="text-headline-small mt-0 mb-2">Forgot your password?</h1>
     <template v-if="sent">
-      <p class="text-body-1 mb-4">
+      <p class="text-body-large mt-0 mb-4">
         If an account with a confirmed email address exists for {{ email }}, a reset link is on its
         way. It works once and for 30 minutes.
       </p>
       <v-btn to="/sign-in" variant="tonal" block>Back to sign-in</v-btn>
     </template>
     <template v-else>
-      <p class="text-body-2 text-medium-emphasis mb-6">
+      <p class="text-body-medium text-medium-emphasis mt-0 mb-6">
         Enter the email address of your account. Reset links only go to confirmed addresses.
       </p>
       <v-alert v-if="error" type="error" class="mb-4">{{ error }}</v-alert>
