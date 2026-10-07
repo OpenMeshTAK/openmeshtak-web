@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import InfoHint from "@/shared/components/InfoHint.vue";
 import { computed, ref, watch } from "vue";
 import { fieldErrors, messagesFor } from "@/shared/errors/field-errors";
 import { useToast } from "@/shared/feedback/toast";
@@ -9,7 +10,10 @@ import {
   type TakAcmeSettingsDto,
 } from "../tak-server.api";
 
-/** Automatic public TAK certificate settings. Provider credentials remain write-only. */
+/**
+ * ACME settings inside the server certificate card. Choosing this source is what enables
+ * automation, so saving always turns it on. Provider credentials remain write-only.
+ */
 const props = defineProps<{ settings: TakAcmeSettingsDto; hostName: string | null }>();
 const emit = defineEmits<{ changed: [settings: TakAcmeSettingsDto] }>();
 const toast = useToast();
@@ -41,7 +45,7 @@ const solverItems = computed(() =>
 
 function formOf(settings: TakAcmeSettingsDto): TakAcmeSettingsChanges {
   return {
-    enabled: settings.enabled,
+    enabled: true,
     email: settings.email,
     challengeType: settings.challengeType,
     provider: settings.provider,
@@ -76,7 +80,7 @@ async function save(): Promise<void> {
         ...apiToken,
       }),
     );
-    toast.success("Automatic certificate settings saved.");
+    toast.success("Let's Encrypt is set up. The certificate is requested in the background.");
   } catch (caught: unknown) {
     errors.value = fieldErrors(caught);
     toast.error(caught);
@@ -89,7 +93,7 @@ async function renew(): Promise<void> {
   renewing.value = true;
   try {
     show(await renewTakAcmeCertificate());
-    toast.success("The public TAK certificate was renewed.");
+    toast.success("The Let's Encrypt certificate was renewed.");
   } catch (caught: unknown) {
     toast.error(caught);
   } finally {
@@ -99,27 +103,22 @@ async function renew(): Promise<void> {
 </script>
 
 <template>
-  <v-card class="pa-5">
-    <div class="d-flex align-center mb-4">
-      <div class="flex-grow-1">
-        <div class="text-subtitle-1 font-weight-medium">Automatic public certificate</div>
-        <div class="text-body-2 text-medium-emphasis">Let's Encrypt through an ACME challenge solver.</div>
-      </div>
-      <v-switch v-model="form.enabled" color="primary" inset hide-details label="Enabled" />
-    </div>
-    <v-alert v-if="hostName === null" type="warning" variant="tonal" density="compact" class="mb-4">
-      Save a public TAK host name before enabling certificate automation.
-    </v-alert>
+  <div>
     <v-row dense>
       <v-col cols="12">
         <v-select
           v-model="solverKey"
           :items="solverItems"
           label="Challenge solver"
-          hint="This Core version exposes only implemented solvers. More challenge types and providers can be added independently."
-          persistent-hint
           :error-messages="messagesFor(errors, 'challengeType')"
-        />
+        >
+          <template #append-inner>
+            <InfoHint
+              label="About the challenge solver"
+              text="How Let's Encrypt checks that you own the host name. DNS-01 creates a short-lived DNS record, so no web port has to be reachable and a web server such as CloudPanel on port 80 is not affected."
+            />
+          </template>
+        </v-select>
       </v-col>
       <v-col cols="12">
         <v-text-field
@@ -127,16 +126,25 @@ async function renew(): Promise<void> {
           type="email"
           label="ACME contact email"
           :error-messages="messagesFor(errors, 'email')"
-        />
+        >
+          <template #append-inner>
+            <InfoHint label="About the contact email" text="Required by Let's Encrypt for the account; it writes here only about problems with it." />
+          </template>
+        </v-text-field>
       </v-col>
       <v-col cols="12">
         <v-text-field
           v-model="form.cloudflareZoneId"
           label="Cloudflare zone ID"
-          hint="The 32-character ID of the zone containing the TAK host name."
-          persistent-hint
           :error-messages="messagesFor(errors, 'cloudflareZoneId')"
-        />
+        >
+          <template #append-inner>
+            <InfoHint
+              label="About the Cloudflare zone ID"
+              text="The 32-character ID of the zone containing the TAK host name, shown on the zone's overview page in Cloudflare."
+            />
+          </template>
+        </v-text-field>
       </v-col>
       <v-col cols="12">
         <v-text-field
@@ -144,11 +152,13 @@ async function renew(): Promise<void> {
           type="password"
           autocomplete="new-password"
           :label="settings.apiTokenSet ? 'New Cloudflare API token (leave empty to keep)' : 'Cloudflare API token'"
-          hint="Use a token limited to DNS Write for this zone. It is encrypted and never shown again."
-          persistent-hint
           :disabled="removeApiToken"
           :error-messages="messagesFor(errors, 'apiToken')"
-        />
+        >
+          <template #append-inner>
+            <InfoHint label="About the API token" text="Use a token limited to DNS Write for this zone. It is encrypted and never shown again." />
+          </template>
+        </v-text-field>
         <v-checkbox
           v-if="settings.apiTokenSet"
           v-model="removeApiToken"
@@ -165,15 +175,10 @@ async function renew(): Promise<void> {
       Last renewed {{ dateFormat.format(new Date(settings.lastSuccessAt)) }}.
     </p>
     <div class="d-flex justify-end ga-2 mt-4">
-      <v-btn
-        variant="tonal"
-        :loading="renewing"
-        :disabled="!settings.enabled"
-        @click="renew"
-      >
-        Renew now
+      <v-btn v-if="settings.enabled" variant="tonal" :loading="renewing" @click="renew">Renew now</v-btn>
+      <v-btn color="primary" :loading="saving" :disabled="hostName === null" @click="save">
+        {{ settings.enabled ? "Save" : "Use Let's Encrypt" }}
       </v-btn>
-      <v-btn color="primary" :loading="saving" @click="save">Save</v-btn>
     </div>
-  </v-card>
+  </div>
 </template>

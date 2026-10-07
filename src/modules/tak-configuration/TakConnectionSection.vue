@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import InfoHint from "@/shared/components/InfoHint.vue";
 import { mdiCellphoneLink, mdiServerOff, mdiServerNetwork } from "@mdi/js";
 import { computed, onMounted, ref } from "vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
@@ -133,11 +134,13 @@ onMounted(load);
           v-model="meshChannelId"
           :items="channelOptions"
           label="TAK mesh channel"
-          hint="The channel the app sends TAK traffic on. Members who do not receive it use the primary channel."
-          persistent-hint
           :disabled="!editable"
           :error-messages="messagesFor(fields, 'meshChannelId')"
-        />
+        >
+          <template #append-inner>
+            <InfoHint label="About the TAK mesh channel" text="The channel the app sends TAK traffic on. Members who do not receive it use the primary channel." />
+          </template>
+        </v-select>
         <v-alert type="info" density="compact" class="mt-4">
           The app creates the TAK certificates on each phone, so participants export the TAK Data
           Package from the Meshtastic app themselves. This setup has not been tested on a device yet.

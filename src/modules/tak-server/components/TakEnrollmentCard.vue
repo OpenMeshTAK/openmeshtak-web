@@ -42,8 +42,6 @@ onMounted(loadCertificates);
           label="About the TAK server"
           text="Connect ATAK or iTAK to share positions and markers with your event and receive its Data Packages."
         />
-        <v-spacer />
-        <v-chip size="small" color="warning" variant="tonal">Not verified</v-chip>
       </div>
       <TakEnrollmentAction @closed="loadCertificates" />
     </div>

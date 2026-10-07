@@ -5,7 +5,6 @@ import ViewHeader from "@/shared/components/layout/ViewHeader.vue";
 import { useAsyncData } from "@/shared/composables/useAsyncData";
 import { useToast } from "@/shared/feedback/toast";
 import TakCertificateAuthoritiesCard from "./components/TakCertificateAuthoritiesCard.vue";
-import TakAcmeSettingsCard from "./components/TakAcmeSettingsCard.vue";
 import TakClientCertificatesTable from "./components/TakClientCertificatesTable.vue";
 import TakServerCertificateCard from "./components/TakServerCertificateCard.vue";
 import TakServerSettingsCard from "./components/TakServerSettingsCard.vue";
@@ -81,22 +80,18 @@ onMounted(page.load);
 
     <template v-else>
       <v-alert type="info" variant="tonal" density="compact" class="mb-4">
-        Not verified with ATAK and iTAK devices yet. Members of active events and holders of the
-        TAK administrator permission can enroll from their dashboard.
+        Members of active events and holders of the TAK administrator permission can enroll from their dashboard.
       </v-alert>
       <v-row>
-        <v-col cols="12" xl="6">
+        <v-col cols="12">
           <TakServerSettingsCard :settings="page.data.value.settings" @saved="showSettings" />
         </v-col>
-        <v-col cols="12" xl="6" class="d-flex flex-column ga-4">
-          <TakServerCertificateCard :settings="page.data.value.settings" @changed="page.load" />
-          <TakCertificateAuthoritiesCard :authorities="page.data.value.authorities" @changed="page.load" />
-        </v-col>
         <v-col cols="12">
-          <TakAcmeSettingsCard
-            :settings="page.data.value.acme"
-            :host-name="page.data.value.settings.hostName"
-            @changed="showAcme"
+          <TakServerCertificateCard
+            :settings="page.data.value.settings"
+            :acme="page.data.value.acme"
+            @changed="page.load"
+            @acme-changed="showAcme"
           />
         </v-col>
         <v-col cols="12">
@@ -110,6 +105,16 @@ onMounted(page.load);
             </p>
             <TakClientCertificatesTable v-else :certificates="page.data.value.certificates" show-user @revoke="revoke" />
           </v-card>
+        </v-col>
+        <v-col cols="12">
+          <!-- Rarely needed: the CA is created automatically and works without any setup. -->
+          <v-expansion-panels>
+            <v-expansion-panel title="Advanced settings">
+              <v-expansion-panel-text>
+                <TakCertificateAuthoritiesCard :authorities="page.data.value.authorities" @changed="page.load" />
+              </v-expansion-panel-text>
+            </v-expansion-panel>
+          </v-expansion-panels>
         </v-col>
       </v-row>
     </template>

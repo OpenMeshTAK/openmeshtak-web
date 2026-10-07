@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import InfoHint from "@/shared/components/InfoHint.vue";
 import { computed, ref, watch } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import { ApiProblem } from "@/shared/errors/api-problem";
@@ -106,10 +107,12 @@ function confirmEndpointChange(): void {
         <v-text-field
           v-model="form.hostName"
           label="Public host name"
-          hint="Name or IPv4 address that phones reach, e.g. tak.example.org"
-          persistent-hint
           :error-messages="messagesFor(errors, 'hostName')"
-        />
+        >
+          <template #append-inner>
+            <InfoHint label="About public host name" text="Name or IPv4 address that phones reach, e.g. tak.example.org" />
+          </template>
+        </v-text-field>
       </v-col>
       <v-col cols="12" sm="4">
         <v-text-field v-model.number="form.enrollmentPort" type="number" label="Enrollment port" :error-messages="messagesFor(errors, 'enrollmentPort')" />
@@ -139,8 +142,7 @@ function confirmEndpointChange(): void {
         by hand. Prefer a separate public address over changing them.
       </p>
       <p v-if="martiChanged" class="mb-2">
-        ATAK learns the Data Package port from its enrollment profile; the setting applies to every server in the app. iTAK
-        is not verified with a custom port yet.
+        ATAK learns the Data Package port from its enrollment profile; the setting applies to every server in the app.
       </p>
       <p v-if="quickConnectChanged || martiChanged" class="mb-2">Publish the same ports in Docker before you save.</p>
       <template v-if="props.settings.validClientCertificates > 0">
