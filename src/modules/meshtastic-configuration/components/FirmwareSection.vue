@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import InfoHint from "@/shared/components/InfoHint.vue";
 import { mdiCheckDecagram, mdiChip, mdiOpenInNew } from "@mdi/js";
-import { computed, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import SectionHeader from "@/shared/components/layout/SectionHeader.vue";
 import { describeError } from "@/shared/errors/api-problem";
 import { fieldErrors } from "@/shared/errors/field-errors";
@@ -14,6 +14,8 @@ import {
   type FirmwareProfileSummaryDto,
   type MeshtasticConfigurationDto,
 } from "../meshtastic-configuration.api";
+import { listFirmwareReleases, type FirmwareReleaseListDto } from "../firmware-releases.api";
+import FirmwareReleaseTable from "./FirmwareReleaseTable.vue";
 
 const props = defineProps<{
   eventId: string;
@@ -30,6 +32,8 @@ const line = ref("");
 const patch = ref("");
 const busy = ref(false);
 const formError = ref<string | null>(null);
+/** Published releases from the flasher; null while unknown, switched off or unreachable. */
+const releases = ref<FirmwareReleaseListDto | null>(null);
 /** Second dialog step: the server's dry-run report waiting for confirmation. */
 const preview = ref<FirmwareChangePreviewDto | null>(null);
 
@@ -45,6 +49,16 @@ const lineOptions = computed(() =>
     subtitle: `${capitalize(option.channel)} · from ${option.minVersion}${option.default ? " · default" : ""}`,
   })),
 );
+/** Published patches of the chosen line that a shipped profile supports, offered as minimum patch. */
+const patchOptions = computed(() =>
+  (releases.value?.releases ?? [])
+    .filter((release) => release.support !== "unsupported" && release.version.startsWith(`${line.value}.`))
+    .map((release) => ({
+      value: release.version.slice(line.value.length + 1),
+      title: release.version,
+      subtitle: `${capitalize(release.channel)} · build ${release.build}${release.support === "tested" ? " · tested on a device" : ""}`,
+    })),
+);
 const target = computed(() => (patch.value.trim() === "" ? line.value : `${line.value}.${patch.value.trim()}`));
 const reportRows = computed(() => {
   const report = preview.value?.report;
@@ -56,6 +70,11 @@ const reportRows = computed(() => {
         { title: "Reset to the default", color: "warning", keys: report.invalid },
         { title: "Added with defaults", color: "info", keys: report.added },
       ].filter(({ keys }) => keys.length > 0);
+});
+
+onMounted(async () => {
+  const list = await listFirmwareReleases();
+  releases.value = list !== null && (list.status === "current" || list.status === "cached") ? list : null;
 });
 
 function capitalize(value: string): string {
@@ -170,6 +189,8 @@ async function apply(confirmed: FirmwareChangePreviewDto): Promise<void> {
       <p v-if="profile?.flashingNotes" class="text-body-medium text-medium-emphasis mt-4 mb-0">{{ profile.flashingNotes }}</p>
     </v-card>
 
+    <FirmwareReleaseTable v-if="releases" :list="releases" class="mt-4" />
+
     <v-dialog v-model="dialogOpen" max-width="600" scrollable>
       <v-card class="pa-2">
         <v-card-title>{{ preview ? `Review the switch to ${preview.firmwareVersion}` : "Change firmware" }}</v-card-title>
@@ -178,16 +199,22 @@ async function apply(confirmed: FirmwareChangePreviewDto): Promise<void> {
 
           <template v-if="preview === null">
             <v-select v-model="line" :items="lineOptions" label="Firmware line" item-props class="mb-2" />
-            <v-text-field
+            <v-combobox
               v-model="patch"
+              :items="patchOptions"
+              :return-object="false"
+              item-props
               label="Minimum patch (optional)"
               :prefix="`${line}.`"
               inputmode="numeric"
             >
               <template #append-inner>
-                <InfoHint label="About minimum patch" text="Leave empty for the line's minimum. A higher patch unlocks settings added in it." />
+                <InfoHint
+                  label="About minimum patch"
+                  text="Leave empty for the line's minimum. A higher patch unlocks settings added in it. The list shows the published releases of this line."
+                />
               </template>
-            </v-text-field>
+            </v-combobox>
           </template>
 
           <template v-else>

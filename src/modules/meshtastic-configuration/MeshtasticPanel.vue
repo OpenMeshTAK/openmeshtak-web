@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { mdiAccessPointNetwork, mdiAlertCircle, mdiCellphoneLink, mdiChip } from "@mdi/js";
-import { computed, onMounted, ref } from "vue";
+import { computed, nextTick, onMounted, ref, useTemplateRef, watch } from "vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
 import { describeError } from "@/shared/errors/api-problem";
 import { fieldErrors } from "@/shared/errors/field-errors";
@@ -38,6 +38,7 @@ const loadError = ref("");
 const selected = ref("firmware");
 const saving = ref(false);
 const saveErrors = ref<Record<string, string>>({});
+const content = useTemplateRef<HTMLElement>("content");
 
 /** A field appears when it is managed or available for the event's minimum firmware version. */
 const visibleFields = computed(() =>
@@ -118,6 +119,18 @@ async function save(): Promise<void> {
   }
 }
 
+/**
+ * A newly selected section starts at its top. Without this, picking an entry far down the menu
+ * leaves the page scrolled past the shorter content; on phones the content sits below the menu.
+ */
+watch(selected, async () => {
+  await nextTick();
+  const top = content.value?.getBoundingClientRect().top;
+  if (top !== undefined && (top < 0 || top > window.innerHeight / 2)) {
+    content.value?.scrollIntoView({ block: "start" });
+  }
+});
+
 onMounted(load);
 </script>
 
@@ -162,7 +175,7 @@ onMounted(load);
         </v-list>
       </v-card>
 
-      <div class="meshtastic-content">
+      <div ref="content" class="meshtastic-content">
         <FirmwareSection
           v-if="selected === 'firmware'"
           :event-id="eventId"
@@ -206,9 +219,15 @@ onMounted(load);
   gap: 24px;
   align-items: start;
 }
+/* The menu is longer than most windows: it scrolls on its own so it stays beside the content. */
 .meshtastic-menu {
   position: sticky;
-  top: 16px;
+  top: calc(var(--v-layout-top, 0px) + 16px);
+  max-height: calc(100vh - var(--v-layout-top, 0px) - 32px);
+  overflow-y: auto;
+}
+.meshtastic-content {
+  scroll-margin-top: calc(var(--v-layout-top, 0px) + 16px);
 }
 .save-bar {
   position: sticky;
@@ -221,6 +240,7 @@ onMounted(load);
   }
   .meshtastic-menu {
     position: static;
+    max-height: none;
   }
 }
 </style>
