@@ -73,6 +73,26 @@ const filteredMembers = computed(() => {
       );
 });
 
+const memberHeaders = [
+  { title: "Callsign", key: "callsign" },
+  { title: "Short name", key: "shortName" },
+  { title: "Role", key: "role", value: (member: EventMemberDto) => member.eventRole.name },
+  { title: "Group", key: "group", value: (member: EventMemberDto) => member.eventGroup.name },
+  { title: "Actions", key: "actions", sortable: false, align: "end" as const },
+];
+/** "B2" sorts before "B10": the group prefix alphabetically, then the number. Missing ones last. */
+const memberSortKeys = {
+  shortName: (a: string | null, b: string | null): number => {
+    if (a === null || b === null) {
+      return a === b ? 0 : a === null ? 1 : -1;
+    }
+    const [prefixA = "", numberA = "0"] = /^(.*?)(d*)$/.exec(a)?.slice(1) ?? [];
+    const [prefixB = "", numberB = "0"] = /^(.*?)(d*)$/.exec(b)?.slice(1) ?? [];
+    return prefixA.localeCompare(prefixB) || Number(numberA) - Number(numberB);
+  },
+};
+const memberSortBy = ref([{ key: "shortName", order: "asc" as const }]);
+
 function countIn(groupId: string): number {
   return members.value.filter(({ eventGroup }) => eventGroup.id === groupId).length;
 }
@@ -271,34 +291,31 @@ onMounted(load);
             class="mb-3"
           />
           <v-card>
-            <v-table>
-              <thead>
-                <tr>
-                  <th>Callsign</th>
-                  <th>Short name</th>
-                  <th class="d-none d-md-table-cell">Role</th>
-                  <th>Group</th>
-                  <th class="text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="member in filteredMembers" :key="member.id">
-                  <td>
-                    <div class="font-weight-medium">{{ member.callsign }}</div>
-                    <div v-if="member.callsignOverride" class="text-caption text-medium-emphasis">Callsign override</div>
-                  </td>
-                  <td>{{ member.shortName ?? "—" }}</td>
-                  <td class="d-none d-md-table-cell">{{ member.eventRole.name }}</td>
-                  <td>{{ member.eventGroup.name }}</td>
-                  <td class="text-right text-no-wrap">
-                    <v-btn variant="text" size="small" @click="showProfile(member)">Profile</v-btn>
-                    <v-btn v-if="canClaim" variant="text" size="small" @click="claimFor = member">Access link</v-btn>
-                    <v-btn v-if="canManage" variant="text" size="small" @click="edit(member)">Edit</v-btn>
-                    <v-btn v-if="canManage" variant="text" size="small" color="error" @click="removing = member">Remove</v-btn>
-                  </td>
-                </tr>
-              </tbody>
-            </v-table>
+            <v-data-table
+              v-model:sort-by="memberSortBy"
+              :headers="memberHeaders"
+              :items="filteredMembers"
+              :custom-key-sort="memberSortKeys"
+              item-value="id"
+              mobile-breakpoint="sm"
+              :items-per-page="-1"
+              hide-default-footer
+              no-data-text="No members match the filter."
+            >
+              <template #[`item.callsign`]="{ item }">
+                <div class="font-weight-medium">{{ item.callsign }}</div>
+                <div v-if="item.callsignOverride" class="text-caption text-medium-emphasis">Callsign override</div>
+              </template>
+              <template #[`item.shortName`]="{ item }">{{ item.shortName ?? "—" }}</template>
+              <template #[`item.actions`]="{ item }">
+                <span class="text-no-wrap">
+                  <v-btn variant="text" size="small" @click="showProfile(item)">Profile</v-btn>
+                  <v-btn v-if="canClaim" variant="text" size="small" @click="claimFor = item">Access link</v-btn>
+                  <v-btn v-if="canManage" variant="text" size="small" @click="edit(item)">Edit</v-btn>
+                  <v-btn v-if="canManage" variant="text" size="small" color="error" @click="removing = item">Remove</v-btn>
+                </span>
+              </template>
+            </v-data-table>
           </v-card>
         </template>
       </div>
