@@ -396,6 +396,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/itak-connection-package": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description An iTAK connection package with the configured server ports, trust material and a newly
+         *     issued user-bound client identity. The private client key exists only in this download.
+         */
+        get: operations["GetItakConnectionPackage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tak-server/client-certificates": {
         parameters: {
             query?: never;
@@ -2528,6 +2548,17 @@ export interface components {
              *     TAK server uses a certificate from its own CA, because ATAK's QR enrollment then fails.
              */
             atakEnrollmentUrl: string | null;
+            /**
+             * @description QR payload understood by iTAK's server scanner. It configures the SSL streaming endpoint and
+             *     iTAK then asks for the user's login. `null` with a private server certificate because the QR
+             *     cannot carry CA trust material.
+             */
+            itakQrString: string | null;
+            /**
+             * @description The still valid certificate from an earlier iTAK package download. A new package is refused
+             *     until it is revoked, so each downloaded package stays one device.
+             */
+            itakPackageCertificateId: components["schemas"]["Uuid"] | null;
         };
         /** @description A client certificate issued to a TAK app. Certificates are public; no key material exists here. */
         TakClientCertificateDto: {
@@ -3875,7 +3906,7 @@ export interface components {
             expiresAt: string;
         };
         /** @enum {string} */
-        DownloadGrantKind: "device-profile" | "member-data-package" | "tak-connection-package";
+        DownloadGrantKind: "device-profile" | "member-data-package" | "tak-connection-package" | "itak-connection-package";
         CreateDownloadGrantRequest: {
             kind: components["schemas"]["DownloadGrantKind"];
             /** @description Required for `device-profile` and `member-data-package`. */
@@ -5992,6 +6023,53 @@ export interface operations {
                 };
             };
             /** @description TAK server not enabled */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetItakConnectionPackage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description iTAK Connection Data Package */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No TAK access */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description TAK server not enabled, or an earlier iTAK package certificate is still valid */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -10659,6 +10737,15 @@ export interface operations {
             };
             /** @description Not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description An iTAK package certificate is still valid */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
