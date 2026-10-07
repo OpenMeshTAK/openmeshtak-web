@@ -90,7 +90,7 @@ const routes: RouteRecordRaw[] = [
         meta: { navigation: { title: "Events", icon: mdiCalendarMultiple, permission: "events.read" } },
         children: [
           { path: "", name: "events", component: () => import("@/modules/events/views/EventListView.vue") },
-          { path: ":eventId", name: "event-detail", component: () => import("@/modules/events/views/EventDetailView.vue") },
+          { path: ":eventId/:tab?", name: "event-detail", component: () => import("@/modules/events/views/EventDetailView.vue") },
         ],
       },
       // A group without a page of its own: its path only prefixes the children, so the URLs stay

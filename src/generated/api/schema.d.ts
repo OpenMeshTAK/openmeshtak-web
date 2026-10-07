@@ -3771,6 +3771,23 @@ export interface components {
             created: boolean;
             revision: components["schemas"]["PackageRevisionDto"];
         };
+        DataPackageContentSummary: {
+            /** Format: double */
+            points: number;
+            /** Format: double */
+            lines: number;
+            /** Format: double */
+            polygons: number;
+            /** Format: double */
+            circles: number;
+            /**
+             * Format: double
+             * @description Offline map caches, including nested map packages.
+             */
+            offlineMaps: number;
+            /** Format: double */
+            rubberSheets: number;
+        };
         DataPackageSourceDto: {
             id: components["schemas"]["Uuid"];
             sourcePackageId: components["schemas"]["Uuid"];
@@ -3809,6 +3826,16 @@ export interface components {
              * @description Number of the newest published revision, or `null` while nothing is published.
              */
             latestRevision: number | null;
+            /**
+             * Format: double
+             * @description Approximate download size in bytes of the newest revision's ATAK Data Package, or `null`
+             *     while nothing is published. Counts attached files plus uncompressed CoT.
+             */
+            latestRevisionSize: number | null;
+            /** @description `true` when publishing would create a new revision: nothing is published yet or the draft differs. */
+            hasUnpublishedChanges: boolean;
+            /** @description What the draft holds, by kind. */
+            draftContents: components["schemas"]["DataPackageContentSummary"];
             /** @description Published package revisions whose content was copied into this package's initial draft. */
             sources: components["schemas"]["DataPackageSourceDto"][];
             audience: components["schemas"]["PackageAudience"];

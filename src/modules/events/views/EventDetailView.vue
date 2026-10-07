@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { mdiAccessPointNetwork } from "@mdi/js";
 import { computed, onMounted, ref, watch } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import ErrorState from "@/shared/components/ErrorState.vue";
 import ViewHeader from "@/shared/components/layout/ViewHeader.vue";
 import { describeError, isApiProblem } from "@/shared/errors/api-problem";
@@ -21,6 +21,7 @@ import { emptySettings, settingsFromEvent, settingsToRequest } from "../event-se
 import { getEvent, updateEvent, type EventDto } from "../events.api";
 
 const route = useRoute();
+const router = useRouter();
 const session = useSession();
 const toast = useToast();
 const eventId = computed(() => String(route.params.eventId));
@@ -29,7 +30,18 @@ const event = ref<EventDto | null>(null);
 const settings = ref(emptySettings());
 const state = ref<"loading" | "ready" | "error">("loading");
 const loadError = ref("");
-const tab = ref("overview");
+const TABS = ["overview", "roles", "groups", "members", "meshtastic", "sync-issues", "data-packages"];
+
+/** The open tab lives in the URL, so reloads, links and the back button keep it. */
+const tab = computed({
+  get: () => {
+    const requested = String(route.params.tab ?? "");
+    return TABS.includes(requested) ? requested : "overview";
+  },
+  set: (next: string) => {
+    void router.replace({ name: "event-detail", params: { eventId: eventId.value, tab: next === "overview" ? undefined : next } });
+  },
+});
 
 const saving = ref(false);
 const conflict = ref(false);

@@ -280,7 +280,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
         :icon="mdiArrowLeft"
         variant="text"
         aria-label="Back to the event"
-        :to="{ name: 'event-detail', params: { eventId } }"
+        :to="{ name: 'event-detail', params: { eventId, tab: 'data-packages' } }"
       />
       <div class="flex-grow-1" style="min-width: 0">
         <div class="text-h6 text-truncate">{{ editor.dataPackage.value?.name ?? "Data package" }}</div>

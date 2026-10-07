@@ -1,5 +1,23 @@
 <script setup lang="ts">
-import { mdiAccountGroup, mdiClockOutline, mdiDelete, mdiDotsVertical, mdiDragVertical, mdiExport, mdiFileImport, mdiMapOutline, mdiMapPlus } from "@mdi/js";
+import {
+  mdiAccountGroup,
+  mdiCellphoneArrowDown,
+  mdiCircleOutline,
+  mdiClockOutline,
+  mdiDelete,
+  mdiDragVertical,
+  mdiExport,
+  mdiFileImport,
+  mdiImageArea,
+  mdiMap,
+  mdiMapMarker,
+  mdiMapOutline,
+  mdiMapPlus,
+  mdiPackageVariantClosed,
+  mdiPublish,
+  mdiShapePolygonPlus,
+  mdiVectorPolyline,
+} from "@mdi/js";
 import { computed, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import type { Schemas } from "@/shared/api/types";
@@ -28,6 +46,7 @@ import {
   deleteDataPackage,
   importAsNewPackage,
   listDataPackages,
+  publishDataPackage,
   reorderDataPackages,
   type DataPackageDto,
   type ImportReport,
@@ -103,7 +122,18 @@ const createOpen = ref(false);
 const name = ref("");
 const creation = useSubmission();
 const removing = ref<DataPackageDto | null>(null);
-const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
+const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "short", timeStyle: "short" });
+const sizeFormat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 });
+
+function formatSize(bytes: number): string {
+  if (bytes < 1024) {
+    return `${String(bytes)} B`;
+  }
+  if (bytes < 1024 * 1024) {
+    return `${sizeFormat.format(bytes / 1024)} KB`;
+  }
+  return `${sizeFormat.format(bytes / (1024 * 1024))} MB`;
+}
 
 function openEditor(dataPackage: DataPackageDto): void {
   void router.push({ name: "package-editor", params: { eventId: props.event.id, packageId: dataPackage.id } });
@@ -137,15 +167,84 @@ async function confirmRemove(): Promise<void> {
   }
 }
 
-function audienceSummary(dataPackage: DataPackageDto): string {
-  const { audience } = dataPackage;
-  const members = audienceOptions.value.members;
-  if (audience.allMembers) {
-    return members === null ? "Every member" : `Every member · ${String(members.length)}`;
-  }
+function audienceLabel({ audience }: DataPackageDto): string {
   const names = audienceNames(audience, audienceOptions.value);
-  const label = names.length === 0 ? "Nobody selected yet" : names.join(", ");
-  return members === null ? label : `${label} · ${String(audienceMembers(audience, members).length)} members`;
+  return audience.allMembers ? "Everyone" : names.length === 0 ? "Nobody" : names.join(", ");
+}
+
+/** "reached/total", or null while member names are not readable. */
+function audienceReach({ audience }: DataPackageDto): string | null {
+  const members = audienceOptions.value.members;
+  if (members === null) {
+    return null;
+  }
+  const reached = audience.allMembers ? members.length : audienceMembers(audience, members).length;
+  return `${String(reached)}/${String(members.length)}`;
+}
+
+function audienceTitle(dataPackage: DataPackageDto): string {
+  const reach = audienceReach(dataPackage);
+  const who = dataPackage.audience.allMembers ? "Every member" : audienceLabel(dataPackage);
+  return reach === null ? `Receives it: ${who}` : `Receives it: ${who} (${reach} members)`;
+}
+
+/** Short label for the row plus the full sentence for its tooltip. */
+function takDeliverySummary({ takDelivery }: DataPackageDto): { label: string; title: string } {
+  if (takDelivery.onEnrollment && takDelivery.onConnection) {
+    return { label: "Auto: enroll + updates", title: "Installs on TAK enrollment and with each new revision" };
+  }
+  if (takDelivery.onEnrollment) {
+    return { label: "Auto: enroll", title: "Installs when a TAK app enrolls" };
+  }
+  if (takDelivery.onConnection) {
+    return { label: "Auto: updates", title: "Installs each new revision on TAK connection" };
+  }
+  return { label: "Manual", title: "TAK apps install it manually" };
+}
+
+type ContentKind = keyof DataPackageDto["draftContents"];
+
+const CONTENT_KINDS: Array<{ kind: ContentKind; icon: string; one: string; many: string }> = [
+  { kind: "offlineMaps", icon: mdiMap, one: "offline map", many: "offline maps" },
+  { kind: "rubberSheets", icon: mdiImageArea, one: "rubber sheet", many: "rubber sheets" },
+  { kind: "polygons", icon: mdiShapePolygonPlus, one: "polygon", many: "polygons" },
+  { kind: "circles", icon: mdiCircleOutline, one: "circle", many: "circles" },
+  { kind: "lines", icon: mdiVectorPolyline, one: "line", many: "lines" },
+  { kind: "points", icon: mdiMapMarker, one: "point", many: "points" },
+];
+
+function contentCounts({ draftContents }: DataPackageDto) {
+  return CONTENT_KINDS.filter(({ kind }) => draftContents[kind] > 0).map(({ kind, icon, one, many }) => {
+    const count = draftContents[kind];
+    return { kind, icon, count, title: `${String(count)} ${count === 1 ? one : many}` };
+  });
+}
+
+/** Maps outweigh drawn objects; otherwise the most frequent object kind names the package. */
+function packageIcon(dataPackage: DataPackageDto): string {
+  const counts = contentCounts(dataPackage);
+  const map = counts.find(({ kind }) => kind === "offlineMaps" || kind === "rubberSheets");
+  const mostFrequent = [...counts].sort((a, b) => b.count - a.count)[0];
+  return (map ?? mostFrequent)?.icon ?? mdiMapOutline;
+}
+
+const publishingId = ref<string | null>(null);
+
+async function publish(dataPackage: DataPackageDto): Promise<void> {
+  publishingId.value = dataPackage.id;
+  try {
+    const result = await publishDataPackage({ eventId: props.event.id, packageId: dataPackage.id });
+    if (result.created) {
+      toast.success(`${dataPackage.name}: published revision ${String(result.revision.number)}.`);
+    } else {
+      toast.info(`${dataPackage.name}: nothing changed since revision ${String(result.revision.number)}.`);
+    }
+    await dataPackages.load();
+  } catch (caught: unknown) {
+    toast.error(caught);
+  } finally {
+    publishingId.value = null;
+  }
 }
 
 function editAudience(dataPackage: DataPackageDto): void {
@@ -233,7 +332,7 @@ onMounted(() => {
         <div
           v-for="dataPackage in rows"
           :key="dataPackage.id"
-          class="package-row d-flex align-start ga-4 pa-4"
+          class="package-row d-flex align-start flex-wrap flex-md-nowrap ga-4 pa-4"
         >
           <v-icon
             v-if="canEdit && orderedPackages.length > 1"
@@ -242,41 +341,84 @@ onMounted(() => {
             aria-hidden="true"
           />
           <v-avatar color="primary" variant="tonal" size="40" rounded="lg" class="flex-shrink-0">
-            <v-icon :icon="mdiMapOutline" />
+            <v-icon :icon="packageIcon(dataPackage)" />
           </v-avatar>
-          <div class="flex-grow-1" style="min-width: 0">
+          <div class="package-info">
             <div class="d-flex align-center flex-wrap ga-2 mb-1">
               <span class="text-subtitle-1 font-weight-medium text-break">{{ dataPackage.name }}</span>
-              <v-chip v-if="dataPackage.latestRevision" size="small" color="success" variant="tonal" label>
-                Revision {{ dataPackage.latestRevision }} published
+              <v-chip
+                v-if="dataPackage.latestRevision"
+                size="small"
+                color="success"
+                variant="tonal"
+                label
+                :title="`Revision ${String(dataPackage.latestRevision)} is published`"
+              >
+                Rev. {{ dataPackage.latestRevision }}
               </v-chip>
-              <v-chip v-else size="small" variant="tonal" label>Draft only</v-chip>
+              <v-chip v-else size="small" variant="tonal" label>Draft</v-chip>
+              <v-chip
+                v-if="dataPackage.latestRevision && dataPackage.hasUnpublishedChanges"
+                size="small"
+                color="warning"
+                variant="tonal"
+                label
+                title="The draft has changes that members do not receive yet"
+              >
+                Unpublished
+              </v-chip>
             </div>
             <div class="facts text-body-2">
-              <span class="fact">
+              <span class="fact" :title="audienceTitle(dataPackage)">
                 <v-icon :icon="mdiAccountGroup" size="16" />
-                <span class="text-truncate">{{ audienceSummary(dataPackage) }}</span>
+                <span class="text-truncate">{{ audienceLabel(dataPackage) }}</span>
+                <span v-if="audienceReach(dataPackage)" class="text-medium-emphasis">{{ audienceReach(dataPackage) }}</span>
               </span>
-              <span class="fact text-medium-emphasis">
+              <span class="fact" :title="takDeliverySummary(dataPackage).title">
+                <v-icon :icon="mdiCellphoneArrowDown" size="16" />
+                {{ takDeliverySummary(dataPackage).label }}
+              </span>
+              <span v-if="dataPackage.latestRevisionSize !== null" class="fact" title="Approximate download size of the published revision">
+                <v-icon :icon="mdiPackageVariantClosed" size="16" />
+                {{ formatSize(dataPackage.latestRevisionSize) }}
+              </span>
+              <span v-for="content in contentCounts(dataPackage)" :key="content.kind" class="fact" :title="content.title">
+                <v-icon :icon="content.icon" size="16" />
+                {{ content.count }}
+              </span>
+              <span class="fact text-medium-emphasis" title="Last changed">
                 <v-icon :icon="mdiClockOutline" size="16" />
-                Changed {{ dateFormat.format(new Date(dataPackage.updatedAt)) }}
+                {{ dateFormat.format(new Date(dataPackage.updatedAt)) }}
               </span>
             </div>
           </div>
-          <div class="d-flex align-center ga-1 flex-shrink-0">
+          <div class="row-actions d-flex align-center flex-wrap ga-1">
+            <v-btn
+              v-if="canPublish"
+              color="primary"
+              variant="tonal"
+              size="small"
+              :prepend-icon="mdiPublish"
+              :loading="publishingId === dataPackage.id"
+              :disabled="!dataPackage.hasUnpublishedChanges"
+              :title="dataPackage.hasUnpublishedChanges ? undefined : 'The draft matches the published revision.'"
+              @click="publish(dataPackage)"
+            >
+              Publish
+            </v-btn>
+            <v-btn v-if="canPublish" variant="tonal" size="small" :prepend-icon="mdiAccountGroup" @click="editAudience(dataPackage)">
+              Delivery
+            </v-btn>
             <v-btn variant="tonal" size="small" @click="openEditor(dataPackage)">{{ canEdit ? "Open editor" : "View" }}</v-btn>
-            <v-menu v-if="canPublish || canEdit" location="bottom end">
-              <template #activator="{ props: activator }">
-                <v-btn v-bind="activator" :icon="mdiDotsVertical" variant="text" size="small" :aria-label="`More actions for ${dataPackage.name}`" />
-              </template>
-              <v-list density="compact" min-width="220">
-                <v-list-item v-if="canPublish" :prepend-icon="mdiAccountGroup" title="Who receives it" @click="editAudience(dataPackage)" />
-                <template v-if="canEdit">
-                  <v-divider v-if="canPublish" class="my-1" />
-                  <v-list-item :prepend-icon="mdiDelete" title="Delete data package" base-color="error" @click="removing = dataPackage" />
-                </template>
-              </v-list>
-            </v-menu>
+            <v-btn
+              v-if="canEdit"
+              :icon="mdiDelete"
+              variant="text"
+              size="small"
+              color="error"
+              :aria-label="`Delete ${dataPackage.name}`"
+              @click="removing = dataPackage"
+            />
           </div>
         </div>
       </VueDraggable>
@@ -340,6 +482,13 @@ onMounted(() => {
 <style scoped>
 .package-row + .package-row {
   border-top: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+}
+.package-info {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+.row-actions {
+  margin-inline-start: auto;
 }
 .drag-handle {
   cursor: grab;
