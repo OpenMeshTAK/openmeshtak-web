@@ -17,7 +17,7 @@ export interface paths {
         /**
          * @description Creates a user without a password and returns a single-use setup link, valid for seven days.
          *     The person opens it, signs in once and sets their own password. The new user has no
-         *     permissions until added to a user group or an event. Requires `users.manage`.
+         *     permissions until added to a user group or an event. Requires `users.create`.
          */
         post: operations["CreateUser"];
         delete?: never;
@@ -34,7 +34,7 @@ export interface paths {
             cookie?: never;
         };
         get: operations["GetUser"];
-        /** @description Renames a user. Requires instance-wide `users.manage`. */
+        /** @description Renames a user. Requires instance-wide `users.edit`. */
         put: operations["UpdateUser"];
         post?: never;
         delete?: never;
@@ -54,7 +54,7 @@ export interface paths {
         put?: never;
         /**
          * @description Disables a user: all sessions end, and sign-in, access links and TAK connections are refused.
-         *     Administrators cannot disable themselves. Requires `users.manage`.
+         *     Administrators cannot disable themselves. Requires `users.disable`.
          */
         post: operations["DisableUser"];
         delete?: never;
@@ -72,7 +72,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Enables a disabled user again. Requires `users.manage`. */
+        /** @description Enables a disabled user again. Requires `users.disable`. */
         post: operations["EnableUser"];
         delete?: never;
         options?: never;
@@ -91,7 +91,7 @@ export interface paths {
         put?: never;
         /**
          * @description Emails the user a single-use password-reset link if their address is verified. Administrators
-         *     never see or set passwords. Requires `users.manage`.
+         *     never see or set passwords. Requires `users.password-reset`.
          */
         post: operations["SendUserPasswordReset"];
         delete?: never;
@@ -111,7 +111,7 @@ export interface paths {
         put?: never;
         /**
          * @description Issues a new single-use setup link for a user who has not set a password yet. Earlier links
-         *     of the user stop working. Requires `users.manage`.
+         *     of the user stop working. Requires `users.setup-links`.
          */
         post: operations["CreateSetupLink"];
         delete?: never;
@@ -129,8 +129,29 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Signs the user out everywhere. Requires `users.manage`. */
+        /** @description Signs the user out everywhere. Requires `users.sign-out`. */
         post: operations["RevokeUserSessions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/{userId}/make-permanent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Turns an event account into a permanent account that stays when its event is archived.
+         *     Permanent accounts are returned unchanged. Requires `users.read` and
+         *     `event-accounts.manage` for the account's event.
+         */
+        post: operations["MakeUserPermanent"];
         delete?: never;
         options?: never;
         head?: never;
@@ -598,9 +619,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Who may create their own account. Requires `users.manage`. */
+        /** @description Who may create their own account. Requires `registration.manage`. */
         get: operations["GetRegistrationSettings"];
-        /** @description Closes registration, makes it invite-only or opens it to everyone. Requires `users.manage`. */
+        /** @description Closes registration, makes it invite-only or opens it to everyone. Requires `registration.manage`. */
         put: operations["UpdateRegistrationSettings"];
         post?: never;
         delete?: never;
@@ -616,12 +637,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description The 50 most recent registration invites, newest first. Requires `users.manage`. */
+        /** @description The 50 most recent registration invites, newest first. Requires `registration.manage`. */
         get: operations["ListRegistrationInvites"];
         put?: never;
         /**
          * @description Issues a single-use registration link, valid for seven days, for invite-only registration.
-         *     The link is returned once. Requires `users.manage`.
+         *     The link is returned once. Requires `registration.manage`.
          */
         post: operations["CreateRegistrationInvite"];
         delete?: never;
@@ -639,7 +660,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Revokes an unused invite immediately. Requires `users.manage`. */
+        /** @description Revokes an unused invite immediately. Requires `registration.manage`. */
         post: operations["RevokeRegistrationInvite"];
         delete?: never;
         options?: never;
@@ -720,6 +741,45 @@ export interface paths {
          */
         get: operations["GetPrincipal"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/meshtastic/firmware-releases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Lists full releases, newest first. When the flasher cannot be reached, the last downloaded
+         *     list is returned; without one the list is unknown. Requires `events.manage` for at least one
+         *     event.
+         */
+        get: operations["ListFirmwareReleases"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/meshtastic/firmware-releases/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Whether Core looks up releases. Requires instance-wide `settings.manage`. */
+        get: operations["GetFirmwareReleaseSettings"];
+        /** @description Switches release lookups on or off. Requires instance-wide `settings.manage`. */
+        put: operations["UpdateFirmwareReleaseSettings"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1073,6 +1133,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/instance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description How this installation presents itself. Public, because the sign-in page shows it. */
+        get: operations["GetInstanceSettings"];
+        /** @description Renames the installation. Requires instance-wide `settings.manage`. */
+        put: operations["UpdateInstanceSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -1157,7 +1235,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Moves an active event to the read-only `archived` state. Requires `events.manage`. */
+        /**
+         * @description Moves an active event to the read-only `archived` state. Requires `events.manage`. Its event
+         *     accounts are deleted with their sign-in, sessions and TAK certificates; accounts that are still
+         *     members of another unarchived event move to that event instead.
+         */
         post: operations["ArchiveEvent"];
         delete?: never;
         options?: never;
@@ -1180,6 +1262,26 @@ export interface paths {
          *     invalid; clients regenerate what they need.
          */
         post: operations["ReactivateEvent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{eventId}/make-accounts-permanent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Turns every current event account of the event into a permanent account, so archiving no
+         *     longer deletes them. Requires `event-accounts.manage` for the event.
+         */
+        post: operations["MakeEventAccountsPermanent"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1315,6 +1417,28 @@ export interface paths {
          *     external-member upsert instead. Requires `members.manage`.
          */
         post: operations["CreateEventMember"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{eventId}/members/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Creates a new person and adds them to the event in one step. Returns a single-use setup link,
+         *     valid for seven days, so they choose their own password. The account is an event account that
+         *     is deleted when the event is archived, unless the event keeps its accounts
+         *     (`permanentAccounts`). Requires `member-accounts.create`.
+         */
+        post: operations["CreateEventMemberAccount"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2083,6 +2207,15 @@ export interface components {
          *     database query.
          */
         Uuid: string;
+        UserAccountEvent: {
+            id: components["schemas"]["Uuid"];
+            slug: string;
+            name: string;
+        };
+        UserGroupSummary: {
+            id: components["schemas"]["Uuid"];
+            name: string;
+        };
         UserDto: {
             id: components["schemas"]["Uuid"];
             displayName: string;
@@ -2094,6 +2227,13 @@ export interface components {
             disabled: boolean;
             /** @description `false` until the user has set a password; a setup link can then sign them in once. */
             passwordSet: boolean;
+            /**
+             * @description Set for event accounts, which are deleted when this event is archived; `null` for permanent
+             *     accounts.
+             */
+            accountEvent: components["schemas"]["UserAccountEvent"] | null;
+            /** @description User groups the user belongs to, in the order they were added. */
+            userGroups: components["schemas"]["UserGroupSummary"][];
             /**
              * Format: double
              * @description Optimistic-concurrency version; send it back unchanged with updates.
@@ -2110,6 +2250,11 @@ export interface components {
             items: components["schemas"]["UserDto"][];
             page: components["schemas"]["PageInfo"];
         };
+        /**
+         * @description `permanent` accounts stay; `event` accounts are deleted when their event is archived.
+         * @enum {string}
+         */
+        UserAccountType: "permanent" | "event";
         SetupLinkDto: {
             /**
              * @description Single-use link for the user, returned exactly once. The token travels in the URL fragment,
@@ -2136,6 +2281,11 @@ export interface components {
             version: number;
             displayName: string;
             /**
+             * @description New email address, or `null` to remove it; only for users with a local login and with
+             *     `users.set-email`. It stays unverified until its owner confirms the link sent to it.
+             */
+            email?: string | null;
+            /**
              * @description New sign-in and TAK login name; only for users with a local login. Apps enrolled with the old
              *     name keep working, because client certificates name the user ID.
              */
@@ -2151,7 +2301,7 @@ export interface components {
             token: string;
         };
         /** @enum {string} */
-        Permission: "users.read" | "users.manage" | "user-groups.read" | "user-groups.manage" | "events.read" | "events.manage" | "events.reactivate" | "members.read" | "members.manage" | "members.sync" | "member-claims.create" | "channel-keys.reveal" | "data-packages.read" | "data-packages.edit" | "data-packages.publish" | "artifacts.generate" | "artifacts.download" | "member-artifacts.download" | "tak-traffic.view" | "api-clients.manage" | "tak-server.manage" | "tak-server.admin-access" | "email.manage" | "settings.manage" | "audit.read";
+        Permission: "users.read" | "users.create" | "users.edit" | "users.set-email" | "users.disable" | "users.sign-out" | "users.password-reset" | "users.setup-links" | "registration.manage" | "user-groups.read" | "user-groups.manage" | "user-group-members.manage" | "events.read" | "events.manage" | "events.reactivate" | "members.read" | "members.manage" | "members.sync" | "member-accounts.create" | "event-accounts.manage" | "member-claims.create" | "channel-keys.reveal" | "data-packages.read" | "data-packages.edit" | "data-packages.publish" | "artifacts.generate" | "artifacts.download" | "member-artifacts.download" | "tak-traffic.view" | "api-clients.manage" | "tak-server.manage" | "tak-server.admin-access" | "email.manage" | "settings.manage" | "audit.read";
         PermissionGrantDto: {
             permission: components["schemas"]["Permission"];
             /** @description Event the grant is limited to, or `null` for an instance-wide grant. */
@@ -2725,6 +2875,51 @@ export interface components {
             /** @description Effective grants, deduplicated across all sources. */
             permissions: components["schemas"]["PermissionGrantDto"][];
         };
+        FirmwareReleaseDto: {
+            /** @description `major.minor.patch`, e.g. `2.8.1`. */
+            version: string;
+            /** @description Short commit hash of the build, e.g. `8e6a88d`. */
+            build: string;
+            /** @enum {string} */
+            channel: "stable" | "beta" | "alpha";
+            /**
+             * @description `tested`: in a shipped profile's line and verified on a device; `supported`: in a shipped
+             *     profile's line at or above its minimum; `unsupported`: no shipped profile covers it.
+             * @enum {string}
+             */
+            support: "tested" | "supported" | "unsupported";
+            /** @description The profile that covers the release, or null when it is unsupported. */
+            profileId: string | null;
+            /** @description Upstream release page on GitHub. */
+            releaseUrl: string;
+        };
+        FirmwareReleaseListDto: {
+            /**
+             * @description `current`: downloaded within the last 12 hours; `cached`: the last downloaded list, older than
+             *     12 hours because the flasher could not be reached or a refresh is underway; `unknown`: no list
+             *     has ever been downloaded; `disabled`: lookups are switched off.
+             * @enum {string}
+             */
+            status: "current" | "cached" | "unknown" | "disabled";
+            /** @description When the shown list was downloaded; null without a list. */
+            fetchedAt: string | null;
+            /** @description Full releases only, newest first; revoked and pull-request builds are left out. */
+            releases: components["schemas"]["FirmwareReleaseDto"][];
+        };
+        FirmwareReleaseSettingsDto: {
+            /** @description Look up published releases from the official Meshtastic flasher. */
+            checkEnabled: boolean;
+            /**
+             * Format: double
+             * @description Optimistic-concurrency version; 0 while the default is in use.
+             */
+            version: number;
+        };
+        UpdateFirmwareReleaseSettingsRequest: {
+            /** Format: int32 */
+            version: number;
+            checkEnabled: boolean;
+        };
         FirmwareProfileSummaryDto: {
             /** @description Stable profile id such as `meshtastic-2.8`. */
             id: string;
@@ -3095,6 +3290,21 @@ export interface components {
             /** Format: int32 */
             maxZoom: number;
         };
+        /** @description How this installation presents itself. Public, because the sign-in page shows it. */
+        InstanceSettingsDto: {
+            /** @description Shown as the browser page title, on the sign-in page and in account emails. */
+            name: string;
+            /**
+             * Format: double
+             * @description Optimistic-concurrency version; 0 while the default is in use.
+             */
+            version: number;
+        };
+        UpdateInstanceSettingsRequest: {
+            /** Format: int32 */
+            version: number;
+            name: string;
+        };
         HealthResponse: {
             /** @enum {string} */
             status: "ok";
@@ -3157,6 +3367,11 @@ export interface components {
              *     loses TAK access.
              */
             takLoginTokenDays: number;
+            /**
+             * @description Accounts created for this event (new members, synchronized participants) are permanent instead
+             *     of event accounts that are deleted when the event is archived.
+             */
+            permanentAccounts: boolean;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -3190,6 +3405,11 @@ export interface components {
              *     loses TAK access.
              */
             takLoginTokenDays: number;
+            /**
+             * @description Accounts created for this event (new members, synchronized participants) are permanent instead
+             *     of event accounts that are deleted when the event is archived.
+             */
+            permanentAccounts: boolean;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -3217,6 +3437,11 @@ export interface components {
              *     loses TAK access.
              */
             takLoginTokenDays?: number;
+            /**
+             * @description Accounts created for this event (new members, synchronized participants) are permanent instead
+             *     of event accounts that are deleted when the event is archived. Defaults to `false`.
+             */
+            permanentAccounts?: boolean;
         };
         UpdateEventRequest: {
             /**
@@ -3238,6 +3463,11 @@ export interface components {
              *     loses TAK access.
              */
             takLoginTokenDays?: number;
+            /**
+             * @description Accounts created for this event (new members, synchronized participants) are permanent instead
+             *     of event accounts that are deleted when the event is archived. Omitted keeps the current value.
+             */
+            permanentAccounts?: boolean;
         };
         EventTransitionRequest: {
             /**
@@ -3245,6 +3475,13 @@ export interface components {
              * @description Version the client last read.
              */
             version: number;
+        };
+        EventAccountsMadePermanentResponse: {
+            /**
+             * Format: double
+             * @description Event accounts of the event that are now permanent.
+             */
+            accounts: number;
         };
         EventRoleDto: {
             id: components["schemas"]["Uuid"];
@@ -3402,6 +3639,21 @@ export interface components {
             eventGroupId: components["schemas"]["Uuid"];
             /** @description Callsign to use instead of the group format. */
             callsignOverride?: string | null;
+        };
+        CreatedEventMemberAccountResponse: {
+            member: components["schemas"]["EventMemberDto"];
+            user: components["schemas"]["UserDto"];
+            setupLink: components["schemas"]["SetupLinkDto"];
+        };
+        CreateEventMemberAccountRequest: {
+            eventRoleId: components["schemas"]["Uuid"];
+            eventGroupId: components["schemas"]["Uuid"];
+            /** @description Callsign to use instead of the group format. */
+            callsignOverride?: string | null;
+            /** @description Name of the new person; it feeds the group's callsign format. */
+            displayName: string;
+            /** @description Sign-in and TAK login name; derived from the display name when omitted. */
+            username?: string;
         };
         UpdateEventMemberRequest: {
             /**
@@ -4222,6 +4474,8 @@ export interface operations {
                 cursor?: string;
                 /** @description Matches part of the display name or email. */
                 search?: string;
+                /** @description Only permanent accounts or only event accounts. */
+                accountType?: components["schemas"]["UserAccountType"];
             };
             header?: never;
             path?: never;
@@ -4676,6 +4930,55 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    MakeUserPermanent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description User is permanent */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDto"];
+                };
             };
             /** @description Authentication required */
             401: {
@@ -6770,6 +7073,142 @@ export interface operations {
             };
         };
     };
+    ListFirmwareReleases: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Firmware releases */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FirmwareReleaseListDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetFirmwareReleaseSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Firmware release settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FirmwareReleaseSettingsDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateFirmwareReleaseSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateFirmwareReleaseSettingsRequest"];
+            };
+        };
+        responses: {
+            /** @description Firmware release settings updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FirmwareReleaseSettingsDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Version conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     ListFirmwareProfiles: {
         parameters: {
             query?: never;
@@ -8101,6 +8540,86 @@ export interface operations {
             };
         };
     };
+    GetInstanceSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Instance settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstanceSettingsDto"];
+                };
+            };
+        };
+    };
+    UpdateInstanceSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateInstanceSettingsRequest"];
+            };
+        };
+        responses: {
+            /** @description Instance settings updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstanceSettingsDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Version conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     GetHealth: {
         parameters: {
             query?: never;
@@ -8521,6 +9040,55 @@ export interface operations {
             };
             /** @description Version conflict, invalid transition or event not ready */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    MakeEventAccountsPermanent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Event accounts made permanent */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventAccountsMadePermanentResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -9198,6 +9766,77 @@ export interface operations {
                 };
             };
             /** @description Already a member, callsign or short-name conflict, or event archived */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateEventMemberAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateEventMemberAccountRequest"];
+            };
+        };
+        responses: {
+            /** @description Account and member created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedEventMemberAccountResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Username taken, callsign or short-name conflict, or event archived */
             409: {
                 headers: {
                     [name: string]: unknown;

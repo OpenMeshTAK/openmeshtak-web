@@ -81,59 +81,70 @@ function confirmEndpointChange(): void {
 
 <template>
   <v-card class="pa-5">
-    <div class="d-flex align-center mb-4">
-      <div class="flex-grow-1">
-        <div class="text-title-medium font-weight-medium">Server</div>
-        <div class="text-body-medium text-medium-emphasis">
-          Public ports that devices connect to directly, not through the Web proxy. QR codes and profiles use them.
-        </div>
-      </div>
-      <v-switch v-model="form.enabled" class="flex-grow-0 flex-shrink-0 ml-4 text-no-wrap" color="primary" inset hide-details label="Enabled" />
-    </div>
-    <v-alert
-      v-if="props.settings.clientCertificatesToReEnroll > 0 && props.settings.endpointChangedAt !== null"
-      type="warning"
-      variant="tonal"
-      density="compact"
-      class="mb-4"
-    >
-      {{ props.settings.clientCertificatesToReEnroll }} enrolled
-      {{ props.settings.clientCertificatesToReEnroll === 1 ? "app was" : "apps were" }} set up before the address or ports
-      changed on {{ dateFormat.format(new Date(props.settings.endpointChangedAt)) }}. They cannot connect until their users
-      connect them again. The certificate list marks them.
-    </v-alert>
-    <v-row>
-      <v-col cols="12">
-        <v-text-field
-          v-model="form.hostName"
-          label="Public host name"
-          :error-messages="messagesFor(errors, 'hostName')"
-        >
-          <template #append-inner>
-            <InfoHint label="About public host name" text="Name or IPv4 address that phones reach, e.g. tak.example.org" />
-          </template>
-        </v-text-field>
-      </v-col>
-      <v-col cols="12" sm="4">
-        <v-text-field v-model.number="form.enrollmentPort" type="number" label="Enrollment port" :error-messages="messagesFor(errors, 'enrollmentPort')" />
-      </v-col>
-      <v-col cols="12" sm="4">
-        <v-text-field v-model.number="form.martiPort" type="number" label="Data Package port" :error-messages="messagesFor(errors, 'martiPort')" />
-      </v-col>
-      <v-col cols="12" sm="4">
-        <v-text-field v-model.number="form.streamingPort" type="number" label="Streaming port" :error-messages="messagesFor(errors, 'streamingPort')" />
-      </v-col>
-      <v-col cols="12" sm="4">
-        <v-text-field
-          v-model.number="form.clientCertificateDays"
-          type="number"
-          label="Client certificate lifetime"
-          suffix="days"
-          :error-messages="messagesFor(errors, 'clientCertificateDays')"
+    <div class="d-flex align-center" :class="{ 'mb-4': form.enabled }">
+      <div class="d-flex align-center ga-1 flex-grow-1">
+        <span class="text-title-medium font-weight-medium">Server</span>
+        <InfoHint
+          label="About the TAK server"
+          text="Public ports that devices connect to directly, not through the Web proxy. QR codes and profiles use them."
         />
-      </v-col>
-    </v-row>
-    <div class="d-flex justify-end mt-2">
+      </div>
+      <v-switch
+        v-model="form.enabled"
+        class="flex-grow-0 flex-shrink-0 ml-4"
+        color="primary"
+        inset
+        hide-details
+        aria-label="Enable the TAK server"
+      />
+    </div>
+    <template v-if="form.enabled">
+      <v-alert
+        v-if="props.settings.clientCertificatesToReEnroll > 0 && props.settings.endpointChangedAt !== null"
+        type="warning"
+        variant="tonal"
+        density="compact"
+        class="mb-4"
+      >
+        {{ props.settings.clientCertificatesToReEnroll }} enrolled
+        {{ props.settings.clientCertificatesToReEnroll === 1 ? "app was" : "apps were" }} set up before the address or ports
+        changed on {{ dateFormat.format(new Date(props.settings.endpointChangedAt)) }}. They cannot connect until their users
+        connect them again. The certificate list marks them.
+      </v-alert>
+      <v-row>
+        <v-col cols="12">
+          <v-text-field
+            v-model="form.hostName"
+            label="Public host name"
+            :error-messages="messagesFor(errors, 'hostName')"
+          >
+            <template #append-inner>
+              <InfoHint label="About public host name" text="Name or IPv4 address that phones reach, e.g. tak.example.org" />
+            </template>
+          </v-text-field>
+        </v-col>
+        <v-col cols="12" sm="4">
+          <v-text-field v-model.number="form.enrollmentPort" type="number" label="Enrollment port" :error-messages="messagesFor(errors, 'enrollmentPort')" />
+        </v-col>
+        <v-col cols="12" sm="4">
+          <v-text-field v-model.number="form.martiPort" type="number" label="Data Package port" :error-messages="messagesFor(errors, 'martiPort')" />
+        </v-col>
+        <v-col cols="12" sm="4">
+          <v-text-field v-model.number="form.streamingPort" type="number" label="Streaming port" :error-messages="messagesFor(errors, 'streamingPort')" />
+        </v-col>
+        <v-col cols="12" sm="4">
+          <v-text-field
+            v-model.number="form.clientCertificateDays"
+            type="number"
+            label="Client certificate lifetime"
+            suffix="days"
+            :error-messages="messagesFor(errors, 'clientCertificateDays')"
+          />
+        </v-col>
+      </v-row>
+    </template>
+    <!-- Disabled and saved as disabled: nothing to save, so the card stays a single line. -->
+    <div v-if="form.enabled || props.settings.enabled" class="d-flex justify-end mt-2">
       <v-btn color="primary" :loading="saving" @click="save()">Save</v-btn>
     </div>
     <ConfirmDialog v-model="confirming" title="Change how devices connect?" confirm-label="Save" @confirm="confirmEndpointChange">

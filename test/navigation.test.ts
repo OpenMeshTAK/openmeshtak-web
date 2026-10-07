@@ -14,12 +14,10 @@ describe("navigation from the route table", () => {
       "Dashboard",
       "Events",
       { "User management": ["Users", "User groups"] },
-      { Settings: ["Email", "Registration", "Base map", "TAK server", "API access"] },
+      { Settings: ["General", "TAK server", "API access"] },
     ]);
     expect(navigation.find((item) => item.title === "Settings")?.children.map((child) => child.path)).toEqual([
-      "/admin/settings/email",
-      "/admin/settings/registration",
-      "/admin/settings/base-map",
+      "/admin/settings/general",
       "/admin/settings/tak-server",
       "/admin/settings/api-clients",
     ]);
@@ -29,7 +27,7 @@ describe("navigation from the route table", () => {
     const visible = visibleNavigation(navigation, (permission) => permission === "events.read");
     expect(titles(visible)).toEqual(["Dashboard", "Events"]);
     const withEmail = visibleNavigation(navigation, (permission) => permission === "email.manage");
-    expect(titles(withEmail)).toEqual(["Dashboard", { Settings: ["Email"] }]);
+    expect(titles(withEmail)).toEqual(["Dashboard", { Settings: ["General"] }]);
   });
 
   it.each([

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted } from "vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
+import InfoHint from "@/shared/components/InfoHint.vue";
 import ViewHeader from "@/shared/components/layout/ViewHeader.vue";
 import { useAsyncData } from "@/shared/composables/useAsyncData";
 import { useToast } from "@/shared/feedback/toast";
@@ -79,26 +80,20 @@ onMounted(page.load);
     />
 
     <template v-else>
-      <v-alert type="info" variant="tonal" density="compact" class="mb-4">
-        Members of active events and holders of the TAK administrator permission can enroll from their dashboard.
-      </v-alert>
+      <!-- Two balanced columns: what devices connect to, and how the server proves who it is. -->
       <v-row>
-        <v-col cols="12">
+        <v-col cols="12" lg="6" class="d-flex flex-column ga-4">
           <TakServerSettingsCard :settings="page.data.value.settings" @saved="showSettings" />
-        </v-col>
-        <v-col cols="12">
-          <TakServerCertificateCard
-            :settings="page.data.value.settings"
-            :acme="page.data.value.acme"
-            @changed="page.load"
-            @acme-changed="showAcme"
-          />
-        </v-col>
-        <v-col cols="12">
           <v-card>
-            <div class="pa-5 pb-2">
-              <div class="text-title-medium font-weight-medium">Client certificates</div>
-              <div class="text-body-medium text-medium-emphasis">One per enrolled TAK app. Revoking disconnects it immediately.</div>
+            <div class="d-flex align-center ga-1 pa-5 pb-2">
+              <span class="text-title-medium font-weight-medium">Client certificates</span>
+              <InfoHint label="About client certificates">
+                <p class="mb-2">
+                  Members connect their ATAK or iTAK app themselves from their dashboard while one of their events is
+                  active. TAK server administrators can connect theirs at any time.
+                </p>
+                <p class="mb-0">Each connected app gets one certificate here. Revoking it disconnects the app immediately.</p>
+              </InfoHint>
             </div>
             <p v-if="page.data.value.certificates.length === 0" class="text-body-medium text-medium-emphasis px-5 pb-5 my-0">
               No TAK app has enrolled yet.
@@ -106,15 +101,14 @@ onMounted(page.load);
             <TakClientCertificatesTable v-else :certificates="page.data.value.certificates" show-user @revoke="revoke" />
           </v-card>
         </v-col>
-        <v-col cols="12">
-          <!-- Rarely needed: the CA is created automatically and works without any setup. -->
-          <v-expansion-panels>
-            <v-expansion-panel title="Advanced settings">
-              <v-expansion-panel-text>
-                <TakCertificateAuthoritiesCard :authorities="page.data.value.authorities" @changed="page.load" />
-              </v-expansion-panel-text>
-            </v-expansion-panel>
-          </v-expansion-panels>
+        <v-col cols="12" lg="6" class="d-flex flex-column ga-4">
+          <TakServerCertificateCard
+            :settings="page.data.value.settings"
+            :acme="page.data.value.acme"
+            @changed="page.load"
+            @acme-changed="showAcme"
+          />
+          <TakCertificateAuthoritiesCard :authorities="page.data.value.authorities" @changed="page.load" />
         </v-col>
       </v-row>
     </template>

@@ -109,8 +109,8 @@ async function run(): Promise<void> {
 
     <template v-else-if="event.status === 'active'">
       <p class="text-body-medium mt-0 mb-4">
-        Participants can see this event and their profiles. Archiving makes it read-only and revokes
-        open access links.
+        Participants can see this event and their profiles. Archiving makes it read-only, revokes
+        open access links and deletes the event's event accounts.
       </p>
       <div class="d-flex flex-wrap ga-3">
         <v-btn v-if="canManage" color="primary" :loading="publishing" @click="publish">Publish configuration</v-btn>
@@ -152,7 +152,9 @@ async function run(): Promise<void> {
       </template>
       <template v-else-if="pending === 'archive'">
         The event becomes read-only and disappears for participants. Open access links are revoked
-        and no devices can be provisioned until it is reactivated.
+        and no devices can be provisioned until it is reactivated. Event accounts created for this
+        event are deleted with their logins and TAK certificates; reactivating does not bring them
+        back. Accounts that are still members of another event stay until that event ends.
       </template>
       <template v-else>
         The event becomes visible to participants again after the same checks as activation.

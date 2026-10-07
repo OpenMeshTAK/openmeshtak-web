@@ -24,7 +24,14 @@ export const permissionAreas: PermissionArea[] = [
     prefix: "users.*",
     permissions: [
       { permission: "users.read", label: "View users", instanceOnly: true },
-      { permission: "users.manage", label: "Manage users", instanceOnly: true },
+      { permission: "users.create", label: "Create permanent users", instanceOnly: true },
+      { permission: "users.edit", label: "Rename users and change usernames", instanceOnly: true },
+      { permission: "users.set-email", label: "Set email addresses", instanceOnly: true },
+      { permission: "users.disable", label: "Disable and enable users", instanceOnly: true },
+      { permission: "users.sign-out", label: "Sign users out everywhere", instanceOnly: true },
+      { permission: "users.password-reset", label: "Send password reset emails", instanceOnly: true },
+      { permission: "users.setup-links", label: "Create setup links", instanceOnly: true },
+      { permission: "registration.manage", label: "Manage self-registration and invites", instanceOnly: true },
     ],
   },
   {
@@ -32,7 +39,8 @@ export const permissionAreas: PermissionArea[] = [
     prefix: "user-groups.*",
     permissions: [
       { permission: "user-groups.read", label: "View user groups", instanceOnly: true },
-      { permission: "user-groups.manage", label: "Manage user groups and permissions", instanceOnly: true },
+      { permission: "user-groups.manage", label: "Create, edit and delete user groups and their permissions", instanceOnly: true },
+      { permission: "user-group-members.manage", label: "Add and remove group members", instanceOnly: true },
     ],
   },
   {
@@ -51,6 +59,8 @@ export const permissionAreas: PermissionArea[] = [
       { permission: "members.read", label: "View members and profiles" },
       { permission: "members.manage", label: "Manage members and sync issues" },
       { permission: "members.sync", label: "Synchronize members" },
+      { permission: "member-accounts.create", label: "Create new people as members" },
+      { permission: "event-accounts.manage", label: "Keep event accounts as permanent users" },
       { permission: "member-claims.create", label: "Create access links" },
     ],
   },

@@ -4,7 +4,7 @@ import { computed, onMounted, ref } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
 import OneTimeLinkReveal from "@/shared/components/OneTimeLinkReveal.vue";
-import ViewHeader from "@/shared/components/layout/ViewHeader.vue";
+import FormSection from "@/shared/components/layout/FormSection.vue";
 import { describeError } from "@/shared/errors/api-problem";
 import { useToast } from "@/shared/feedback/toast";
 import {
@@ -118,35 +118,35 @@ onMounted(load);
 </script>
 
 <template>
-  <div>
-    <ViewHeader title="Registration" subtitle="Whether people can create their own OpenMeshTak account." />
-
-    <v-skeleton-loader v-if="state === 'loading'" type="article" />
-    <ErrorState v-else-if="state === 'error'" :message="loadError" @retry="load" />
+  <FormSection title="Registration" description="Whether people can create their own account. New accounts have no permissions until you add them to user groups or events.">
+    <div v-if="state === 'loading'" class="pa-4"><v-skeleton-loader type="article" /></div>
+    <div v-else-if="state === 'error'" class="pa-4"><ErrorState :message="loadError" @retry="load" /></div>
     <template v-else>
-      <v-card class="pa-5 mb-4" style="max-width: 760px">
-        <v-radio-group v-model="mode" hide-details>
-          <v-radio v-for="option in modes" :key="option.value" :value="option.value" class="mb-2">
-            <template #label>
-              <div>
-                <div class="font-weight-medium">{{ option.title }}</div>
-                <div class="text-body-medium text-medium-emphasis">{{ option.text }}</div>
-              </div>
-            </template>
-          </v-radio>
+      <div class="px-4 pb-4 pt-3">
+        <v-radio-group v-model="mode" hide-details aria-label="Registration mode">
+          <div class="mode-options">
+            <div v-for="option in modes" :key="option.value">
+              <!-- The whole tile selects its option; the radio keeps keyboard and screen reader support. -->
+              <label class="mode-option" :class="{ 'mode-option--selected': mode === option.value }">
+                <v-radio :value="option.value" density="compact" class="flex-grow-0" />
+                <span>
+                  <span class="d-block font-weight-medium">{{ option.title }}</span>
+                  <span class="d-block text-body-medium text-medium-emphasis">{{ option.text }}</span>
+                </span>
+              </label>
+            </div>
+          </div>
         </v-radio-group>
-        <p class="text-body-medium text-medium-emphasis mt-4 mb-0">
-          New accounts have no permissions. Add them to user groups or events to give them access.
-        </p>
-        <div class="d-flex justify-end mt-4">
+        <div class="d-flex justify-end mt-3">
           <v-btn color="primary" :loading="saving" :disabled="!changed" @click="requestSave">Save</v-btn>
         </div>
-      </v-card>
+      </div>
 
-      <v-card v-if="settings?.mode === 'invite'" style="max-width: 760px">
+      <template v-if="settings?.mode === 'invite'">
+        <v-divider />
         <div class="d-flex align-center flex-wrap ga-2 pa-4">
           <div class="flex-grow-1">
-            <div class="text-title-medium font-weight-medium">Invite links</div>
+            <div class="text-title-small font-weight-medium">Invite links</div>
             <div class="text-body-medium text-medium-emphasis">Each link creates one account and expires after seven days.</div>
           </div>
           <v-btn color="primary" variant="tonal" :prepend-icon="mdiLinkPlus" :loading="creating" @click="createInvite">Create invite link</v-btn>
@@ -173,7 +173,7 @@ onMounted(load);
           </tbody>
         </v-table>
         <p v-else class="text-body-medium text-medium-emphasis pa-4 my-0">No invite links yet.</p>
-      </v-card>
+      </template>
     </template>
 
     <v-dialog :model-value="created !== null" max-width="520" @update:model-value="created = null">
@@ -196,5 +196,31 @@ onMounted(load);
       Anyone who can reach this installation can then create an account. New accounts have no
       permissions, but they can sign in and appear in the user list.
     </ConfirmDialog>
-  </div>
+  </FormSection>
 </template>
+
+<style scoped>
+/* Side by side when the section is wide enough, stacked in a narrow column. */
+.mode-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+
+.mode-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  height: 100%;
+  padding: 12px 12px 12px 4px;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.mode-option--selected {
+  border-color: rgb(var(--v-theme-primary));
+  background: rgba(var(--v-theme-primary), 0.06);
+}
+</style>

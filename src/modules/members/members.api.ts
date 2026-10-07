@@ -25,6 +25,14 @@ export function createMember(eventId: string, body: Schemas["CreateEventMemberRe
   return unwrap(api.POST("/events/{eventId}/members", { params: { path: { eventId } }, body }));
 }
 
+/** Creates a new person as a member; their account follows the event's account setting. */
+export function createMemberAccount(
+  eventId: string,
+  body: Schemas["CreateEventMemberAccountRequest"],
+): Promise<Schemas["CreatedEventMemberAccountResponse"]> {
+  return unwrap(api.POST("/events/{eventId}/members/accounts", { params: { path: { eventId } }, body }));
+}
+
 export function updateMember(
   eventId: string,
   memberId: string,

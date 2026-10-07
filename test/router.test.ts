@@ -12,10 +12,17 @@ describe("route table", () => {
     ["/admin/user-groups", "user-groups"],
     ["/admin/settings/api-clients", "api-clients"],
     ["/admin/user-groups/00000000-0000-0000-0000-000000000000", "user-group-detail"],
-    ["/admin/settings/email", "email-settings"],
+    ["/admin/settings/general", "general-settings"],
   ])("resolves %s to %s", (path, name) => {
     expect(router.resolve(path).name).toBe(name);
   });
+
+  it.each(["/admin/settings/email", "/admin/settings/registration", "/admin/settings/base-map", "/admin/email"])(
+    "keeps the bookmark %s working",
+    (path) => {
+      expect(router.resolve(path).matched.at(-1)?.redirect).toEqual({ name: "general-settings" });
+    },
+  );
 
   it("treats only setup, sign-in and claim as public", () => {
     expect(router.resolve("/").meta.public).toBeUndefined();

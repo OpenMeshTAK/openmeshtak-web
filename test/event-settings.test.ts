@@ -17,11 +17,13 @@ describe("event settings helpers", () => {
       startsAt: "2027-05-01T08:00:00.000Z",
       endsAt: null,
       takLoginTokenDays: 14,
+      permanentAccounts: true,
     } as EventDto;
 
     const request = settingsToRequest(settingsFromEvent(event));
     expect(request.startsAt).toBe("2027-05-01T08:00:00.000Z");
     expect(request.endsAt).toBeNull();
     expect(request.takLoginTokenDays).toBe(14);
+    expect(request.permanentAccounts).toBe(true);
   });
 });

@@ -2,6 +2,7 @@
 import { mdiEmailOutline } from "@mdi/js";
 import { computed, onMounted, ref } from "vue";
 import { useToast } from "@/shared/feedback/toast";
+import { isRealEmail } from "@/modules/auth/account-email";
 import { authClient } from "@/modules/auth/auth-client";
 
 /**
@@ -15,9 +16,7 @@ const newEmail = ref("");
 const editing = ref(false);
 const busy = ref(false);
 
-/** Access-link accounts carry Core's internal placeholder address, which is not a real inbox. */
-const PLACEHOLDER_DOMAIN = "@participants.openmeshtak.invalid";
-const hasRealEmail = computed(() => email.value !== null && !email.value.endsWith(PLACEHOLDER_DOMAIN));
+const hasRealEmail = computed(() => isRealEmail(email.value));
 
 async function load(): Promise<void> {
   const session = await authClient.getSession();

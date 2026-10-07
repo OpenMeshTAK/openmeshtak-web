@@ -13,6 +13,8 @@ export interface EventSettings {
   endsAt: string;
   /** Days an ATAK QR login stays valid; 0 means until the event ends. */
   takLoginTokenDays: number;
+  /** Accounts created for this event stay after it is archived. */
+  permanentAccounts: boolean;
 }
 
 const props = defineProps<{ errors: Record<string, string>; disabled?: boolean; autoSlug?: boolean }>();

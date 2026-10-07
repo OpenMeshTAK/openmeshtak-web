@@ -48,7 +48,13 @@ const profileError = ref<string | null>(null);
 
 const mutable = computed(() => props.event.status !== "archived");
 const canSync = computed(() => mutable.value && session.can("members.sync", props.event.id));
-const canAdd = computed(() => canSync.value || (mutable.value && session.can("members.manage", props.event.id) && session.can("users.read")));
+const canAdd = computed(
+  () =>
+    canSync.value ||
+    (mutable.value &&
+      (session.can("member-accounts.create", props.event.id) ||
+        (session.can("members.manage", props.event.id) && session.can("users.read")))),
+);
 const memberUserIds = computed(() => members.value.map(({ userId }) => userId));
 const canManage = computed(() => mutable.value && session.can("members.manage", props.event.id));
 /** On-behalf provisioning: the operator downloads the member's own artifacts, audited by Core. */
@@ -327,6 +333,7 @@ onMounted(load);
       :roles="roles"
       :groups="groups"
       :member-user-ids="memberUserIds"
+      :permanent-accounts="event.permanentAccounts"
       @saved="onAdded"
     />
 

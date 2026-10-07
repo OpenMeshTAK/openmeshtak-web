@@ -3,10 +3,11 @@ import { mdiClose } from "@mdi/js";
 import { onMounted, ref } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
-import ViewHeader from "@/shared/components/layout/ViewHeader.vue";
+import FormSection from "@/shared/components/layout/FormSection.vue";
 import { useAsyncData } from "@/shared/composables/useAsyncData";
 import { fieldErrors, messagesFor } from "@/shared/errors/field-errors";
 import { useToast } from "@/shared/feedback/toast";
+import { currentAccountEmail } from "@/modules/auth/account-email";
 import { getEmailSettings, saveEmailSettings, sendTestEmail, type EmailSettingsChanges, type EmailSettingsDto } from "./email-settings.api";
 
 /**
@@ -28,13 +29,14 @@ const newPassword = ref("");
 const confirmRemovePassword = ref(false);
 const saving = ref(false);
 const errors = ref<Record<string, string>>({});
+const testOpen = ref(false);
 const testAddress = ref("");
 const testing = ref(false);
 
 const securityOptions = [
-  { value: "starttls", title: "STARTTLS (usually port 587)" },
-  { value: "tls", title: "TLS (usually port 465)" },
-  { value: "none", title: "None (local relay only)" },
+  { value: "starttls", title: "STARTTLS (587)" },
+  { value: "tls", title: "TLS (465)" },
+  { value: "none", title: "None (local relay)" },
 ];
 
 function show(settings: EmailSettingsDto): void {
@@ -95,11 +97,24 @@ async function removePassword(): Promise<void> {
   }
 }
 
+/** Suggests the administrator's own address, the usual recipient for a test. */
+async function openTest(): Promise<void> {
+  testOpen.value = true;
+  if (testAddress.value === "") {
+    testAddress.value = (await currentAccountEmail().catch(() => null)) ?? "";
+  }
+}
+
 async function test(): Promise<void> {
+  const to = testAddress.value.trim();
+  if (to === "") {
+    return;
+  }
   testing.value = true;
   try {
-    await sendTestEmail(testAddress.value.trim());
-    toast.success(`Test email sent to ${testAddress.value.trim()}.`);
+    await sendTestEmail(to);
+    toast.success(`Test email sent to ${to}.`);
+    testOpen.value = false;
   } catch (caught: unknown) {
     toast.error(caught);
   } finally {
@@ -116,49 +131,65 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div>
-    <ViewHeader title="Email" subtitle="SMTP delivery for password resets, address confirmations and security notices." />
-    <v-skeleton-loader v-if="page.state.value === 'loading'" type="article" />
-    <ErrorState v-else-if="page.state.value === 'error' || page.data.value === null" :message="page.error.value" @retry="page.load" />
-    <v-row v-else>
-      <v-col cols="12" lg="7">
-        <v-card class="pa-5">
-          <div class="d-flex align-center mb-4">
-            <div class="text-title-medium font-weight-medium flex-grow-1">SMTP server</div>
-            <v-switch v-model="form.enabled" color="primary" inset hide-details label="Enabled" />
+  <FormSection title="Email" description="SMTP delivery for password resets, address confirmations and security notices.">
+    <div v-if="page.state.value === 'loading'" class="pa-4"><v-skeleton-loader type="list-item-two-line" /></div>
+    <div v-else-if="page.state.value === 'error' || page.data.value === null" class="pa-4"><ErrorState :message="page.error.value" @retry="page.load" /></div>
+    <template v-else>
+      <div class="px-4 pb-4 pt-3">
+        <div class="d-flex align-center ga-4" :class="{ 'mb-3': form.enabled }">
+          <div class="flex-grow-1">
+            <div class="text-title-small font-weight-medium">Send emails over SMTP</div>
+            <div v-if="!form.enabled" class="text-body-medium text-medium-emphasis">Off: password resets and notices are not sent.</div>
           </div>
-          <v-row dense>
-            <v-col cols="12" sm="8"><v-text-field v-model="form.host" label="Host" :error-messages="messagesFor(errors, 'host')" /></v-col>
-            <v-col cols="12" sm="4"><v-text-field v-model.number="form.port" type="number" label="Port" /></v-col>
-            <v-col cols="12"><v-select v-model="form.security" :items="securityOptions" label="Encryption" /></v-col>
-            <v-col cols="12" sm="6"><v-text-field v-model="form.username" label="Username (optional)" autocomplete="off" /></v-col>
-            <v-col cols="12" sm="6">
-              <v-text-field
-                v-model="newPassword"
-                type="password"
-                autocomplete="new-password"
-                :label="page.data.value.passwordSet ? 'New password (leave empty to keep)' : 'Password (optional)'"
-                :append-inner-icon="page.data.value.passwordSet && newPassword === '' ? mdiClose : undefined"
-                @click:append-inner="confirmRemovePassword = true"
-              />
-            </v-col>
-            <v-col cols="12" sm="6"><v-text-field v-model="form.fromAddress" label="Sender address" type="email" :error-messages="messagesFor(errors, 'fromAddress')" /></v-col>
-            <v-col cols="12" sm="6"><v-text-field v-model="form.fromName" label="Sender name" /></v-col>
-          </v-row>
-          <div class="d-flex justify-end">
-            <v-btn color="primary" :loading="saving" @click="save">Save</v-btn>
-          </div>
-        </v-card>
-      </v-col>
-      <v-col cols="12" lg="5">
-        <v-card class="pa-5">
-          <div class="text-title-medium font-weight-medium mb-1">Test</div>
-          <p class="text-body-medium text-medium-emphasis mt-0 mb-3">Save first, then send a test email with the stored settings.</p>
-          <v-text-field v-model="testAddress" label="Recipient" type="email" density="compact" />
-          <v-btn variant="tonal" block :loading="testing" :disabled="testAddress.trim() === '' || !page.data.value.enabled" @click="test">Send test email</v-btn>
-        </v-card>
-      </v-col>
-    </v-row>
+          <v-switch
+            v-model="form.enabled"
+            class="flex-grow-0 flex-shrink-0"
+            color="primary"
+            inset
+            hide-details
+            aria-label="Send emails over SMTP"
+          />
+        </div>
+        <v-row v-if="form.enabled" dense>
+          <v-col cols="12" sm="5"><v-text-field v-model="form.host" label="Host" :error-messages="messagesFor(errors, 'host')" /></v-col>
+          <v-col cols="5" sm="2"><v-text-field v-model.number="form.port" type="number" label="Port" /></v-col>
+          <v-col cols="7" sm="5"><v-select v-model="form.security" :items="securityOptions" label="Encryption" /></v-col>
+          <v-col cols="12" sm="6"><v-text-field v-model="form.username" label="Username (optional)" autocomplete="off" /></v-col>
+          <v-col cols="12" sm="6">
+            <v-text-field
+              v-model="newPassword"
+              type="password"
+              autocomplete="new-password"
+              :label="page.data.value.passwordSet ? 'New password (leave empty to keep)' : 'Password (optional)'"
+              :append-inner-icon="page.data.value.passwordSet && newPassword === '' ? mdiClose : undefined"
+              @click:append-inner="confirmRemovePassword = true"
+            />
+          </v-col>
+          <v-col cols="12" sm="6"><v-text-field v-model="form.fromAddress" label="Sender address" type="email" :error-messages="messagesFor(errors, 'fromAddress')" /></v-col>
+          <v-col cols="12" sm="6"><v-text-field v-model="form.fromName" label="Sender name" /></v-col>
+        </v-row>
+        <!-- Disabled and saved as disabled: nothing to save, so the card stays a single line. -->
+        <div v-if="form.enabled || page.data.value.enabled" class="d-flex justify-end ga-2 mt-2">
+          <!-- Tests the saved settings, so it only appears once SMTP is saved as enabled. -->
+          <v-btn v-if="page.data.value.enabled" variant="tonal" @click="openTest">Test</v-btn>
+          <v-btn color="primary" :loading="saving" @click="save">Save</v-btn>
+        </div>
+      </div>
+    </template>
+    <v-dialog v-model="testOpen" max-width="440">
+      <v-card>
+        <v-card-title>Send a test email</v-card-title>
+        <v-card-text>
+          <p class="text-body-medium text-medium-emphasis mt-0 mb-4">Uses the saved settings; unsaved changes in the form are not used.</p>
+          <v-text-field v-model="testAddress" label="Recipient" type="email" autofocus hide-details @keydown.enter="test" />
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="testOpen = false">Cancel</v-btn>
+          <v-btn color="primary" :loading="testing" :disabled="testAddress.trim() === ''" @click="test">Send</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
     <ConfirmDialog
       :model-value="confirmRemovePassword"
       title="Remove the stored SMTP password?"
@@ -169,5 +200,5 @@ onMounted(async () => {
     >
       The SMTP server is then used without a password. Emails fail if the server requires one.
     </ConfirmDialog>
-  </div>
+  </FormSection>
 </template>

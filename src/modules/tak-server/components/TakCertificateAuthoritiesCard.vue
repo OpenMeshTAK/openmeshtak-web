@@ -47,24 +47,31 @@ async function importAuthority(certificatePem: string, privateKeyPem: string): P
 </script>
 
 <template>
-  <div>
-    <div class="d-flex align-center pb-2">
+  <v-card>
+    <div class="d-flex align-center pa-5 pb-2">
       <v-icon :icon="mdiShieldKey" class="mr-2" />
       <div class="d-flex align-center ga-1 flex-grow-1">
         <span class="text-title-medium font-weight-medium">Client certificate authority</span>
         <InfoHint label="About the client certificate authority">
-          The OpenMeshTak CA signs the certificate of every member's TAK app, and the server
-          certificate while no Let's Encrypt or uploaded certificate is used. Created automatically;
-          usually nothing to do here. A new or imported CA signs future certificates, and older CAs
-          stay trusted until they expire. Keys never leave the server.
+          <p class="mb-2">
+            The OpenMeshTak CA signs the certificate of every member's TAK app, and the server
+            certificate while no Let's Encrypt or uploaded certificate is used. It is created and
+            used automatically.
+          </p>
+          <p class="mb-0">
+            Only act here to reuse a CA from an existing TAK setup (Import CA) or to replace a
+            compromised one (New CA). Older CAs stay trusted until they expire, so connected apps
+            keep working. Keys never leave the server.
+          </p>
         </InfoHint>
+        <v-chip size="small" variant="tonal" class="ml-2">Advanced</v-chip>
       </div>
       <div class="d-flex ga-2">
         <v-btn variant="text" @click="rotating = true">New CA</v-btn>
-        <v-btn variant="tonal" @click="dialogOpen = true">Import CA</v-btn>
+        <v-btn variant="text" @click="dialogOpen = true">Import CA</v-btn>
       </div>
     </div>
-    <v-list lines="two" class="pa-0 bg-transparent">
+    <v-list lines="two" class="pt-0">
       <v-list-item v-for="authority in authorities" :key="authority.id" :title="authority.subject">
         <v-list-item-subtitle>
           {{ authority.origin === "generated" ? "Created by OpenMeshTak" : "Imported" }} · valid until
@@ -96,5 +103,5 @@ async function importAuthority(certificatePem: string, privateKeyPem: string): P
       :error="error"
       @submit="importAuthority"
     />
-  </div>
+  </v-card>
 </template>

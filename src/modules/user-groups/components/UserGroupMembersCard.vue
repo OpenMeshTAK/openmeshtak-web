@@ -13,9 +13,10 @@ import {
 } from "../user-groups.api";
 
 const props = defineProps<{ userGroupId: string }>();
+const emit = defineEmits<{ changed: [] }>();
 const toast = useToast();
 const session = useSession();
-const canManage = computed(() => session.can("user-groups.manage"));
+const canManage = computed(() => session.can("user-group-members.manage"));
 
 const members = useAsyncData(() => listGroupMembers(props.userGroupId), [] as UserDto[]);
 // Picking new members needs users.read; without it the card stays read-only.
@@ -30,6 +31,7 @@ async function change(action: () => Promise<void>, done: string): Promise<void> 
   try {
     await action();
     toast.success(done);
+    emit("changed");
     await members.load();
   } catch (caught: unknown) {
     toast.error(describeUserGroupError(caught));

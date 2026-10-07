@@ -16,6 +16,7 @@ import { listOpenSyncIssues } from "@/modules/members/members.api";
 import DataPackagesPanel from "@/modules/data-packages/DataPackagesPanel.vue";
 import MeshtasticPanel from "@/modules/meshtastic-configuration/MeshtasticPanel.vue";
 import EventOverviewPanel from "../components/EventOverviewPanel.vue";
+import EventAccountsCard from "../components/EventAccountsCard.vue";
 import EventSettingsForm from "../components/EventSettingsForm.vue";
 import EventStatusBadge from "../components/EventStatusBadge.vue";
 import { emptySettings, settingsFromEvent, settingsToRequest } from "../event-settings";
@@ -112,6 +113,12 @@ async function save(): Promise<void> {
   }
 }
 
+/** The account toggle saves on its own; unsaved edits in the settings form stay untouched. */
+function onAccountSettingSaved(updated: EventDto): void {
+  event.value = updated;
+  settings.value.permanentAccounts = updated.permanentAccounts;
+}
+
 watch(eventId, load);
 onMounted(load);
 </script>
@@ -156,16 +163,23 @@ onMounted(load);
           <EventOverviewPanel :key="event.id" :event="event" @changed="show" @open="tab = $event" />
         </v-window-item>
         <v-window-item value="settings">
-          <v-card class="pa-5">
-            <v-alert v-if="conflict" type="warning" class="mb-4">
-              Someone else changed this event. Reload to see their changes before saving again.
-              <v-btn size="small" variant="outlined" class="ml-2" @click="load">Reload</v-btn>
-            </v-alert>
-            <EventSettingsForm v-model="settings" :errors="saveFields" :disabled="!editable" />
-            <v-btn v-if="editable" color="primary" class="mt-2" :loading="saving" @click="save">
-              Save changes
-            </v-btn>
-          </v-card>
+          <v-row>
+            <v-col cols="12" lg="7">
+              <v-card class="pa-5 h-100">
+                <v-alert v-if="conflict" type="warning" class="mb-4">
+                  Someone else changed this event. Reload to see their changes before saving again.
+                  <v-btn size="small" variant="outlined" class="ml-2" @click="load">Reload</v-btn>
+                </v-alert>
+                <EventSettingsForm v-model="settings" :errors="saveFields" :disabled="!editable" />
+                <v-btn v-if="editable" color="primary" class="mt-2" :loading="saving" @click="save">
+                  Save changes
+                </v-btn>
+              </v-card>
+            </v-col>
+            <v-col cols="12" lg="5">
+              <EventAccountsCard :event="event" :editable="editable" class="h-100" @updated="onAccountSettingSaved" />
+            </v-col>
+          </v-row>
         </v-window-item>
         <v-window-item value="roles">
           <EventRolesPanel :event-id="event.id" :editable="editable" />

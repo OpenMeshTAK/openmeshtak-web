@@ -2,13 +2,11 @@ import {
   mdiAccount,
   mdiAccountCog,
   mdiAccountGroup,
-  mdiAccountPlusOutline,
   mdiCalendarMultiple,
   mdiCogOutline,
-  mdiEmailOutline,
   mdiKeyChain,
-  mdiLayersOutline,
   mdiServerNetwork,
+  mdiTuneVariant,
   mdiViewDashboard,
 } from "@mdi/js";
 import { createRouter, createWebHistory, type RouteRecordRaw } from "vue-router";
@@ -110,10 +108,11 @@ const routes: RouteRecordRaw[] = [
             meta: { navigation: { title: "User groups", icon: mdiAccountGroup, permission: "user-groups.read" } },
             children: [
               { path: "", name: "user-groups", component: () => import("@/modules/user-groups/UserGroupListView.vue") },
+              // The list opens the group's editor in a dialog.
               {
                 path: ":userGroupId",
                 name: "user-group-detail",
-                component: () => import("@/modules/user-groups/UserGroupDetailView.vue"),
+                component: () => import("@/modules/user-groups/UserGroupListView.vue"),
               },
             ],
           },
@@ -127,22 +126,12 @@ const routes: RouteRecordRaw[] = [
         meta: { navigation: { title: "Settings", icon: mdiCogOutline } },
         children: [
           {
-            path: "email",
-            name: "email-settings",
-            component: () => import("@/modules/email/EmailSettingsPanel.vue"),
-            meta: { navigation: { title: "Email", icon: mdiEmailOutline, permission: "email.manage" } },
-          },
-          {
-            path: "registration",
-            name: "registration-settings",
-            component: () => import("@/modules/registration/RegistrationSettingsPanel.vue"),
-            meta: { navigation: { title: "Registration", icon: mdiAccountPlusOutline, permission: "users.manage" } },
-          },
-          {
-            path: "base-map",
-            name: "base-map",
-            component: () => import("@/modules/map-settings/MapSettingsPanel.vue"),
-            meta: { navigation: { title: "Base map", icon: mdiLayersOutline, permission: "settings.manage" } },
+            path: "general",
+            name: "general-settings",
+            component: () => import("@/modules/settings/GeneralSettingsView.vue"),
+            meta: {
+              navigation: { title: "General", icon: mdiTuneVariant, permission: ["settings.manage", "registration.manage", "email.manage"] },
+            },
           },
           {
             path: "tak-server",
@@ -169,8 +158,11 @@ const routes: RouteRecordRaw[] = [
         ],
       },
       // Earlier standalone settings pages; keep bookmarks working.
-      { path: "admin/email", redirect: { name: "email-settings" } },
-      { path: "admin/base-map", redirect: { name: "base-map" } },
+      { path: "admin/email", redirect: { name: "general-settings" } },
+      { path: "admin/base-map", redirect: { name: "general-settings" } },
+      { path: "admin/settings/email", redirect: { name: "general-settings" } },
+      { path: "admin/settings/registration", redirect: { name: "general-settings" } },
+      { path: "admin/settings/base-map", redirect: { name: "general-settings" } },
       { path: "admin/tak-server", redirect: { name: "tak-server" } },
     ],
   },

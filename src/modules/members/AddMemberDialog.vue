@@ -5,7 +5,10 @@ import { describeError, isApiProblem } from "@/shared/errors/api-problem";
 import { fieldErrors, messagesFor } from "@/shared/errors/field-errors";
 import { useSession } from "@/modules/auth/session";
 import { listAllUsers, type UserDto } from "@/modules/user-groups/user-groups.api";
-import { createMember, syncMember } from "./members.api";
+import OneTimeLinkReveal from "@/shared/components/OneTimeLinkReveal.vue";
+import { normalizeUsernameInput, USERNAME_HINT, usernameRule } from "@/shared/forms/username";
+import type { SetupLinkDto } from "@/modules/users/users.api";
+import { createMember, createMemberAccount, syncMember } from "./members.api";
 
 type Assignment = { id: string; slug: string; name: string };
 
@@ -15,22 +18,34 @@ const props = defineProps<{
   groups: Assignment[];
   /** Users who are already members and therefore not offered again. */
   memberUserIds: string[];
+  /** The event creates permanent users instead of event accounts. */
+  permanentAccounts: boolean;
 }>();
 const open = defineModel<boolean>({ required: true });
 const emit = defineEmits<{ saved: [outcome: "member" | "sync-issue"] }>();
 const session = useSession();
 
-/** Picking an existing user needs `users.read`; external identities need only `members.sync`. */
+/**
+ * New people need `member-accounts.create`, existing users `members.manage` and `users.read`;
+ * external identities need only `members.sync`.
+ */
+const canCreate = computed(() => session.can("member-accounts.create", props.eventId));
 const canPickUsers = computed(() => session.can("users.read") && session.can("members.manage", props.eventId));
 const canSync = computed(() => session.can("members.sync", props.eventId));
+const sourceCount = computed(() => [canCreate.value, canPickUsers.value, canSync.value].filter(Boolean).length);
 
-const source = ref<"user" | "external">("user");
+type Source = "new" | "user" | "external";
+const source = ref<Source>("new");
+/** The new person's setup link, shown once after creating them and cleared on close. */
+const created = ref<{ displayName: string; setupLink: SetupLinkDto } | null>(null);
 const users = ref<UserDto[]>([]);
 /** Captured on open so the list does not change while the dialog fades out after saving. */
 const excludedUserIds = ref<string[]>([]);
 const usersError = ref<string | null>(null);
 const form = ref({
   userId: null as string | null,
+  displayName: "",
+  accountUsername: "",
   callsignOverride: "",
   provider: "discord",
   externalId: "",
@@ -57,14 +72,21 @@ async function loadUsers(): Promise<void> {
   }
 }
 
+function usernameOrEmpty(value: string): true | string {
+  return value.trim() === "" || usernameRule(normalizeUsernameInput(value));
+}
+
 watch(open, (isOpen) => {
   if (!isOpen) {
+    created.value = null;
     return;
   }
-  source.value = canPickUsers.value ? "user" : "external";
+  source.value = canCreate.value ? "new" : canPickUsers.value ? "user" : "external";
   excludedUserIds.value = [...props.memberUserIds];
   form.value = {
     userId: null,
+    displayName: "",
+    accountUsername: "",
     callsignOverride: "",
     provider: "discord",
     externalId: "",
@@ -90,6 +112,9 @@ function describeAddError(caught: unknown): string {
   if (isApiProblem(caught, "MEMBER_EXISTS")) {
     return "This user is already a member of this event.";
   }
+  if (isApiProblem(caught, "USERNAME_TAKEN")) {
+    return "That username is already in use. Choose another one.";
+  }
   return describeError(caught);
 }
 
@@ -99,6 +124,18 @@ function describeAddError(caught: unknown): string {
  * with an access link.
  */
 async function addMember(): Promise<"member" | "sync-issue"> {
+  if (source.value === "new") {
+    const username = normalizeUsernameInput(form.value.accountUsername);
+    const result = await createMemberAccount(props.eventId, {
+      displayName: form.value.displayName.trim(),
+      ...(username === "" ? {} : { username }),
+      eventRoleId: form.value.roleId,
+      eventGroupId: form.value.groupId,
+      callsignOverride: form.value.callsignOverride.trim() || null,
+    });
+    created.value = { displayName: result.user.displayName, setupLink: result.setupLink };
+    return "member";
+  }
   if (source.value === "user") {
     await createMember(props.eventId, {
       userId: form.value.userId ?? "",
@@ -116,12 +153,25 @@ async function addMember(): Promise<"member" | "sync-issue"> {
   return result.outcome;
 }
 
+const ready = computed(() => {
+  if (source.value === "new") {
+    return form.value.displayName.trim() !== "" && usernameOrEmpty(form.value.accountUsername) === true;
+  }
+  return source.value === "external" || form.value.userId !== null;
+});
+
 async function save(): Promise<void> {
+  if (!ready.value) {
+    return;
+  }
   saving.value = true;
   error.value = null;
   try {
     const outcome = await addMember();
-    open.value = false;
+    // A new person's setup link stays visible until the dialog is closed.
+    if (created.value === null) {
+      open.value = false;
+    }
     emit("saved", outcome);
   } catch (caught: unknown) {
     fields.value = fieldErrors(caught);
@@ -135,24 +185,62 @@ async function save(): Promise<void> {
 <template>
   <v-dialog v-model="open" max-width="560">
     <v-card class="pa-2">
-      <v-card-title>Add member</v-card-title>
-      <v-card-text>
+      <v-card-title class="text-wrap">{{ created ? `Setup link for ${created.displayName}` : "Add member" }}</v-card-title>
+      <v-card-text v-if="created">
+        <OneTimeLinkReveal :url="created.setupLink.url" :expires-at="created.setupLink.expiresAt" label="Setup link">
+          {{ created.displayName }} opens this link to choose a password. Share it privately; it is shown only now.
+          You can create a new one from the Users page.
+        </OneTimeLinkReveal>
+      </v-card-text>
+      <v-card-text v-else>
         <v-btn-toggle
-          v-if="canPickUsers && canSync"
+          v-if="sourceCount > 1"
           v-model="source"
           mandatory
           density="compact"
           variant="outlined"
           divided
-          class="mb-4"
+          class="mb-4 flex-wrap"
         >
-          <v-btn value="user">OpenMeshTak user</v-btn>
-          <v-btn value="external">External identity</v-btn>
+          <v-btn v-if="canCreate" value="new">New person</v-btn>
+          <v-btn v-if="canPickUsers" value="user">Existing user</v-btn>
+          <v-btn v-if="canSync" value="external">External identity</v-btn>
         </v-btn-toggle>
 
         <v-alert v-if="error" type="error" class="mb-4">{{ error }}</v-alert>
 
-        <template v-if="source === 'user'">
+        <template v-if="source === 'new'">
+          <p class="text-body-medium text-medium-emphasis mt-0 mb-4">
+            <template v-if="permanentAccounts">
+              Creates a permanent user. They get a setup link to choose their own password.
+            </template>
+            <template v-else>
+              Creates an event account that is deleted when this event is archived. They get a setup link to
+              choose their own password.
+            </template>
+          </p>
+          <v-text-field
+            v-model="form.displayName"
+            label="Name"
+            maxlength="100"
+            autofocus
+            :error-messages="messagesFor(fields, 'displayName')"
+          />
+          <v-text-field
+            v-model="form.accountUsername"
+            label="Username (optional)"
+            autocapitalize="none"
+            spellcheck="false"
+            :rules="[usernameOrEmpty]"
+            :error-messages="messagesFor(fields, 'username')"
+          >
+            <template #append-inner>
+              <InfoHint label="About username" :text="`${USERNAME_HINT} Derived from the name when empty.`" />
+            </template>
+          </v-text-field>
+        </template>
+
+        <template v-else-if="source === 'user'">
           <p class="text-body-medium text-medium-emphasis mt-0 mb-4">
             Adds someone who already has an OpenMeshTak account. Their name is used in the callsign.
           </p>
@@ -194,7 +282,7 @@ async function save(): Promise<void> {
           <v-select v-model="form.groupId" :items="groups" item-title="name" item-value="id" label="Group" style="min-width: 200px" />
         </div>
         <v-text-field
-          v-if="source === 'user'"
+          v-if="source !== 'external'"
           v-model="form.callsignOverride"
           label="Callsign override (optional)"
           maxlength="39"
@@ -207,15 +295,16 @@ async function save(): Promise<void> {
       </v-card-text>
       <v-card-actions>
         <v-spacer />
-        <v-btn variant="text" @click="open = false">Cancel</v-btn>
+        <v-btn variant="text" @click="open = false">{{ created ? "Done" : "Cancel" }}</v-btn>
         <v-btn
+          v-if="!created"
           color="primary"
           variant="flat"
           :loading="saving"
-          :disabled="source === 'user' && form.userId === null"
+          :disabled="!ready"
           @click="save"
         >
-          Add member
+          {{ source === "new" ? "Create and add" : "Add member" }}
         </v-btn>
       </v-card-actions>
     </v-card>

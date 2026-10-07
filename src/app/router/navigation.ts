@@ -5,8 +5,11 @@ import type { Permission } from "@/shared/api/types";
 export interface RouteNavigation {
   title: string;
   icon: string;
-  /** Hint only; Core authorizes every request behind these pages. */
-  permission?: Permission;
+  /**
+   * Hint only; Core authorizes every request behind these pages. A list shows the item to users
+   * holding any of them, for pages whose sections each need their own permission.
+   */
+  permission?: Permission | readonly Permission[];
 }
 
 export interface NavigationItem extends RouteNavigation {
@@ -39,7 +42,8 @@ export function navigationFromRoutes(routes: readonly RouteRecordRaw[], parentPa
 export function visibleNavigation(items: readonly NavigationItem[], can: (permission: Permission) => boolean): NavigationItem[] {
   return items.flatMap((item) => {
     if (item.children.length === 0) {
-      return item.permission === undefined || can(item.permission) ? [item] : [];
+      const required = item.permission === undefined ? [] : [item.permission].flat();
+      return required.length === 0 || required.some(can) ? [item] : [];
     }
     const children = visibleNavigation(item.children, can);
     return children.length > 0 ? [{ ...item, children }] : [];

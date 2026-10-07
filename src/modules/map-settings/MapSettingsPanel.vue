@@ -2,7 +2,7 @@
 import InfoHint from "@/shared/components/InfoHint.vue";
 import { onMounted, ref } from "vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
-import ViewHeader from "@/shared/components/layout/ViewHeader.vue";
+import FormSection from "@/shared/components/layout/FormSection.vue";
 import { useAsyncData } from "@/shared/composables/useAsyncData";
 import { fieldErrors, messagesFor } from "@/shared/errors/field-errors";
 import { useToast } from "@/shared/feedback/toast";
@@ -55,12 +55,11 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div>
-    <ViewHeader title="Base map" subtitle="The online map shown below all Data Packages, in the editor and the live view." />
-    <v-skeleton-loader v-if="page.state.value === 'loading'" type="article" />
-    <ErrorState v-else-if="page.state.value === 'error' || page.data.value === null" :message="page.error.value" @retry="page.load" />
-    <v-card v-else class="pa-5" style="max-width: 760px">
-      <v-alert v-if="page.data.value.version === 0" type="info" variant="tonal" density="compact" class="mb-4">
+  <FormSection title="Base map" description="The online map below all Data Packages, in the editor and the live view.">
+    <div v-if="page.state.value === 'loading'" class="pa-4"><v-skeleton-loader type="article" /></div>
+    <div v-else-if="page.state.value === 'error' || page.data.value === null" class="pa-4"><ErrorState :message="page.error.value" @retry="page.load" /></div>
+    <div v-else class="px-4 pb-4 pt-3">
+      <v-alert v-if="page.data.value.version === 0" type="info" variant="tonal" density="compact" class="mb-3">
         OpenStreetMap's public tiles are a default for development and small events. Their usage
         policy forbids heavy use and bulk downloads; use your own or a contracted provider for real
         operations.
@@ -91,9 +90,9 @@ onMounted(async () => {
           </v-text-field>
         </v-col>
       </v-row>
-      <div class="d-flex justify-end mt-4">
+      <div class="d-flex justify-end mt-1">
         <v-btn color="primary" :loading="saving" @click="save">Save</v-btn>
       </div>
-    </v-card>
-  </div>
+    </div>
+  </FormSection>
 </template>

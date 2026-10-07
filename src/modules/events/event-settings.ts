@@ -23,6 +23,7 @@ export function emptySettings(): EventSettings {
     startsAt: "",
     endsAt: "",
     takLoginTokenDays: 0,
+    permanentAccounts: false,
   };
 }
 
@@ -34,6 +35,7 @@ export function settingsFromEvent(event: EventDto): EventSettings {
     startsAt: toLocalInput(event.startsAt),
     endsAt: toLocalInput(event.endsAt),
     takLoginTokenDays: event.takLoginTokenDays,
+    permanentAccounts: event.permanentAccounts,
   };
 }
 
@@ -45,5 +47,6 @@ export function settingsToRequest(settings: EventSettings) {
     startsAt: toInstant(settings.startsAt),
     endsAt: toInstant(settings.endsAt),
     takLoginTokenDays: settings.takLoginTokenDays,
+    permanentAccounts: settings.permanentAccounts,
   };
 }

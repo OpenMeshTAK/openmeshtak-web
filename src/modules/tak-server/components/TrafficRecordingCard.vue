@@ -55,11 +55,22 @@ onMounted(async () => {
       <v-icon :icon="mdiRecordRec" size="small" :color="recording.enabled ? 'error' : undefined" />
       <div class="text-title-small flex-grow-1">Recording</div>
       <span class="text-body-small text-medium-emphasis">{{ recording.storedItems }} stored</span>
+      <v-switch
+        v-if="canManage"
+        v-model="enabled"
+        class="flex-grow-0 flex-shrink-0"
+        aria-label="Record this event's traffic"
+        color="error"
+        density="compact"
+        hide-details
+        inset
+      />
     </div>
     <template v-if="canManage">
-      <v-switch v-model="enabled" label="Record this event's traffic" color="error" density="compact" hide-details inset />
-      <v-text-field v-model.number="retentionDays" type="number" label="Keep for" suffix="days" density="compact" class="mt-2" hide-details />
+      <v-text-field v-if="enabled" v-model.number="retentionDays" type="number" label="Keep for" suffix="days" density="compact" class="mt-2" hide-details />
+      <!-- Disabled and saved as disabled: nothing to save. -->
       <v-btn
+        v-if="enabled || recording.enabled"
         block
         variant="tonal"
         size="small"

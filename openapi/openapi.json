@@ -76,6 +76,42 @@
 				"description": "Opaque resource identifier. The pattern makes tsoa reject malformed IDs before they reach a\ndatabase query.",
 				"pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
 			},
+			"UserAccountEvent": {
+				"properties": {
+					"id": {
+						"$ref": "#/components/schemas/Uuid"
+					},
+					"slug": {
+						"type": "string"
+					},
+					"name": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"id",
+					"slug",
+					"name"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"UserGroupSummary": {
+				"properties": {
+					"id": {
+						"$ref": "#/components/schemas/Uuid"
+					},
+					"name": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"id",
+					"name"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
 			"UserDto": {
 				"properties": {
 					"id": {
@@ -102,6 +138,22 @@
 						"type": "boolean",
 						"description": "`false` until the user has set a password; a setup link can then sign them in once."
 					},
+					"accountEvent": {
+						"allOf": [
+							{
+								"$ref": "#/components/schemas/UserAccountEvent"
+							}
+						],
+						"nullable": true,
+						"description": "Set for event accounts, which are deleted when this event is archived; `null` for permanent\naccounts."
+					},
+					"userGroups": {
+						"items": {
+							"$ref": "#/components/schemas/UserGroupSummary"
+						},
+						"type": "array",
+						"description": "User groups the user belongs to, in the order they were added."
+					},
 					"version": {
 						"type": "number",
 						"format": "double",
@@ -119,6 +171,8 @@
 					"email",
 					"disabled",
 					"passwordSet",
+					"accountEvent",
+					"userGroups",
 					"version",
 					"createdAt"
 				],
@@ -160,6 +214,14 @@
 				],
 				"type": "object",
 				"additionalProperties": false
+			},
+			"UserAccountType": {
+				"type": "string",
+				"enum": [
+					"permanent",
+					"event"
+				],
+				"description": "`permanent` accounts stay; `event` accounts are deleted when their event is archived."
 			},
 			"SetupLinkDto": {
 				"properties": {
@@ -226,6 +288,13 @@
 						"minLength": 1,
 						"maxLength": 100
 					},
+					"email": {
+						"type": "string",
+						"nullable": true,
+						"description": "New email address, or `null` to remove it; only for users with a local login and with\n`users.set-email`. It stays unverified until its owner confirms the link sent to it.",
+						"maxLength": 254,
+						"pattern": "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$"
+					},
 					"username": {
 						"type": "string",
 						"description": "New sign-in and TAK login name; only for users with a local login. Apps enrolled with the old\nname keep working, because client certificates name the user ID.",
@@ -280,15 +349,25 @@
 				"type": "string",
 				"enum": [
 					"users.read",
-					"users.manage",
+					"users.create",
+					"users.edit",
+					"users.set-email",
+					"users.disable",
+					"users.sign-out",
+					"users.password-reset",
+					"users.setup-links",
+					"registration.manage",
 					"user-groups.read",
 					"user-groups.manage",
+					"user-group-members.manage",
 					"events.read",
 					"events.manage",
 					"events.reactivate",
 					"members.read",
 					"members.manage",
 					"members.sync",
+					"member-accounts.create",
+					"event-accounts.manage",
 					"member-claims.create",
 					"channel-keys.reveal",
 					"data-packages.read",
@@ -1949,6 +2028,124 @@
 				"type": "object",
 				"additionalProperties": false
 			},
+			"FirmwareReleaseDto": {
+				"properties": {
+					"version": {
+						"type": "string",
+						"description": "`major.minor.patch`, e.g. `2.8.1`."
+					},
+					"build": {
+						"type": "string",
+						"description": "Short commit hash of the build, e.g. `8e6a88d`."
+					},
+					"channel": {
+						"type": "string",
+						"enum": [
+							"stable",
+							"beta",
+							"alpha"
+						]
+					},
+					"support": {
+						"type": "string",
+						"enum": [
+							"tested",
+							"supported",
+							"unsupported"
+						],
+						"description": "`tested`: in a shipped profile's line and verified on a device; `supported`: in a shipped\nprofile's line at or above its minimum; `unsupported`: no shipped profile covers it."
+					},
+					"profileId": {
+						"type": "string",
+						"nullable": true,
+						"description": "The profile that covers the release, or null when it is unsupported."
+					},
+					"releaseUrl": {
+						"type": "string",
+						"description": "Upstream release page on GitHub."
+					}
+				},
+				"required": [
+					"version",
+					"build",
+					"channel",
+					"support",
+					"profileId",
+					"releaseUrl"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"FirmwareReleaseListDto": {
+				"properties": {
+					"status": {
+						"type": "string",
+						"enum": [
+							"current",
+							"cached",
+							"unknown",
+							"disabled"
+						],
+						"description": "`current`: downloaded within the last 12 hours; `cached`: the last downloaded list, older than\n12 hours because the flasher could not be reached or a refresh is underway; `unknown`: no list\nhas ever been downloaded; `disabled`: lookups are switched off."
+					},
+					"fetchedAt": {
+						"type": "string",
+						"nullable": true,
+						"description": "When the shown list was downloaded; null without a list."
+					},
+					"releases": {
+						"items": {
+							"$ref": "#/components/schemas/FirmwareReleaseDto"
+						},
+						"type": "array",
+						"description": "Full releases only, newest first; revoked and pull-request builds are left out."
+					}
+				},
+				"required": [
+					"status",
+					"fetchedAt",
+					"releases"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"FirmwareReleaseSettingsDto": {
+				"properties": {
+					"checkEnabled": {
+						"type": "boolean",
+						"description": "Look up published releases from the official Meshtastic flasher."
+					},
+					"version": {
+						"type": "number",
+						"format": "double",
+						"description": "Optimistic-concurrency version; 0 while the default is in use."
+					}
+				},
+				"required": [
+					"checkEnabled",
+					"version"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"UpdateFirmwareReleaseSettingsRequest": {
+				"properties": {
+					"version": {
+						"type": "integer",
+						"format": "int32",
+						"minimum": 0
+					},
+					"checkEnabled": {
+						"type": "boolean"
+					}
+				},
+				"required": [
+					"version",
+					"checkEnabled"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
 			"FirmwareProfileSummaryDto": {
 				"properties": {
 					"id": {
@@ -3034,6 +3231,46 @@
 				"type": "object",
 				"additionalProperties": false
 			},
+			"InstanceSettingsDto": {
+				"description": "How this installation presents itself. Public, because the sign-in page shows it.",
+				"properties": {
+					"name": {
+						"type": "string",
+						"description": "Shown as the browser page title, on the sign-in page and in account emails."
+					},
+					"version": {
+						"type": "number",
+						"format": "double",
+						"description": "Optimistic-concurrency version; 0 while the default is in use."
+					}
+				},
+				"required": [
+					"name",
+					"version"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"UpdateInstanceSettingsRequest": {
+				"properties": {
+					"version": {
+						"type": "integer",
+						"format": "int32",
+						"minimum": 0
+					},
+					"name": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 60
+					}
+				},
+				"required": [
+					"version",
+					"name"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
 			"HealthResponse": {
 				"properties": {
 					"status": {
@@ -3149,6 +3386,10 @@
 						"minimum": 0,
 						"maximum": 3650
 					},
+					"permanentAccounts": {
+						"type": "boolean",
+						"description": "Accounts created for this event (new members, synchronized participants) are permanent instead\nof event accounts that are deleted when the event is archived."
+					},
 					"createdAt": {
 						"type": "string",
 						"format": "date-time"
@@ -3171,6 +3412,7 @@
 					"startsAt",
 					"endsAt",
 					"takLoginTokenDays",
+					"permanentAccounts",
 					"createdAt",
 					"updatedAt",
 					"overview"
@@ -3237,6 +3479,10 @@
 						"minimum": 0,
 						"maximum": 3650
 					},
+					"permanentAccounts": {
+						"type": "boolean",
+						"description": "Accounts created for this event (new members, synchronized participants) are permanent instead\nof event accounts that are deleted when the event is archived."
+					},
 					"createdAt": {
 						"type": "string",
 						"format": "date-time"
@@ -3256,6 +3502,7 @@
 					"startsAt",
 					"endsAt",
 					"takLoginTokenDays",
+					"permanentAccounts",
 					"createdAt",
 					"updatedAt"
 				],
@@ -3296,6 +3543,10 @@
 						"description": "Days a TAK login token (QR code or typed instead of the password) stays valid. `0` keeps it valid\nuntil the event's end date, or with no end date it never expires. Defaults to `0`. Tokens stop working anyway once the user\nloses TAK access.",
 						"minimum": 0,
 						"maximum": 3650
+					},
+					"permanentAccounts": {
+						"type": "boolean",
+						"description": "Accounts created for this event (new members, synchronized participants) are permanent instead\nof event accounts that are deleted when the event is archived. Defaults to `false`."
 					}
 				},
 				"required": [
@@ -3343,6 +3594,10 @@
 						"description": "Days a TAK login token (QR code or typed instead of the password) stays valid. `0` keeps it valid\nuntil the event's end date, or with no end date it never expires. Omitted keeps the current value. Tokens stop working anyway once the user\nloses TAK access.",
 						"minimum": 0,
 						"maximum": 3650
+					},
+					"permanentAccounts": {
+						"type": "boolean",
+						"description": "Accounts created for this event (new members, synchronized participants) are permanent instead\nof event accounts that are deleted when the event is archived. Omitted keeps the current value."
 					}
 				},
 				"required": [
@@ -3367,6 +3622,20 @@
 				},
 				"required": [
 					"version"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"EventAccountsMadePermanentResponse": {
+				"properties": {
+					"accounts": {
+						"type": "number",
+						"format": "double",
+						"description": "Event accounts of the event that are now permanent."
+					}
+				},
+				"required": [
+					"accounts"
 				],
 				"type": "object",
 				"additionalProperties": false
@@ -3903,6 +4172,61 @@
 					"userId",
 					"eventRoleId",
 					"eventGroupId"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"CreatedEventMemberAccountResponse": {
+				"properties": {
+					"member": {
+						"$ref": "#/components/schemas/EventMemberDto"
+					},
+					"user": {
+						"$ref": "#/components/schemas/UserDto"
+					},
+					"setupLink": {
+						"$ref": "#/components/schemas/SetupLinkDto"
+					}
+				},
+				"required": [
+					"member",
+					"user",
+					"setupLink"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"CreateEventMemberAccountRequest": {
+				"properties": {
+					"eventRoleId": {
+						"$ref": "#/components/schemas/Uuid"
+					},
+					"eventGroupId": {
+						"$ref": "#/components/schemas/Uuid"
+					},
+					"callsignOverride": {
+						"type": "string",
+						"nullable": true,
+						"description": "Callsign to use instead of the group format.",
+						"minLength": 1,
+						"maxLength": 39
+					},
+					"displayName": {
+						"type": "string",
+						"description": "Name of the new person; it feeds the group's callsign format.",
+						"minLength": 1,
+						"maxLength": 100
+					},
+					"username": {
+						"type": "string",
+						"description": "Sign-in and TAK login name; derived from the display name when omitted.",
+						"pattern": "^[a-z0-9._-]{3,32}$"
+					}
+				},
+				"required": [
+					"eventRoleId",
+					"eventGroupId",
+					"displayName"
 				],
 				"type": "object",
 				"additionalProperties": false
@@ -6585,6 +6909,15 @@
 						"schema": {
 							"type": "string"
 						}
+					},
+					{
+						"description": "Only permanent accounts or only event accounts.",
+						"in": "query",
+						"name": "accountType",
+						"required": false,
+						"schema": {
+							"$ref": "#/components/schemas/UserAccountType"
+						}
 					}
 				]
 			},
@@ -6642,7 +6975,7 @@
 						}
 					}
 				},
-				"description": "Creates a user without a password and returns a single-use setup link, valid for seven days.\nThe person opens it, signs in once and sets their own password. The new user has no\npermissions until added to a user group or an event. Requires `users.manage`.",
+				"description": "Creates a user without a password and returns a single-use setup link, valid for seven days.\nThe person opens it, signs in once and sets their own password. The new user has no\npermissions until added to a user group or an event. Requires `users.create`.",
 				"tags": [
 					"Users"
 				],
@@ -6798,7 +7131,7 @@
 						}
 					}
 				},
-				"description": "Renames a user. Requires instance-wide `users.manage`.",
+				"description": "Renames a user. Requires instance-wide `users.edit`.",
 				"tags": [
 					"Users"
 				],
@@ -6887,7 +7220,7 @@
 						}
 					}
 				},
-				"description": "Disables a user: all sessions end, and sign-in, access links and TAK connections are refused.\nAdministrators cannot disable themselves. Requires `users.manage`.",
+				"description": "Disables a user: all sessions end, and sign-in, access links and TAK connections are refused.\nAdministrators cannot disable themselves. Requires `users.disable`.",
 				"tags": [
 					"Users"
 				],
@@ -6956,7 +7289,7 @@
 						}
 					}
 				},
-				"description": "Enables a disabled user again. Requires `users.manage`.",
+				"description": "Enables a disabled user again. Requires `users.disable`.",
 				"tags": [
 					"Users"
 				],
@@ -7018,7 +7351,7 @@
 						}
 					}
 				},
-				"description": "Emails the user a single-use password-reset link if their address is verified. Administrators\nnever see or set passwords. Requires `users.manage`.",
+				"description": "Emails the user a single-use password-reset link if their address is verified. Administrators\nnever see or set passwords. Requires `users.password-reset`.",
 				"tags": [
 					"Users"
 				],
@@ -7097,7 +7430,7 @@
 						}
 					}
 				},
-				"description": "Issues a new single-use setup link for a user who has not set a password yet. Earlier links\nof the user stop working. Requires `users.manage`.",
+				"description": "Issues a new single-use setup link for a user who has not set a password yet. Earlier links\nof the user stop working. Requires `users.setup-links`.",
 				"tags": [
 					"Users"
 				],
@@ -7159,7 +7492,76 @@
 						}
 					}
 				},
-				"description": "Signs the user out everywhere. Requires `users.manage`.",
+				"description": "Signs the user out everywhere. Requires `users.sign-out`.",
+				"tags": [
+					"Users"
+				],
+				"security": [
+					{
+						"sessionCookie": []
+					},
+					{
+						"apiClientBearer": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "userId",
+						"required": true,
+						"schema": {
+							"$ref": "#/components/schemas/Uuid"
+						}
+					}
+				]
+			}
+		},
+		"/users/{userId}/make-permanent": {
+			"post": {
+				"operationId": "MakeUserPermanent",
+				"responses": {
+					"200": {
+						"description": "User is permanent",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/UserDto"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Authentication required",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ProblemDetails"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Access denied",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ProblemDetails"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ProblemDetails"
+								}
+							}
+						}
+					}
+				},
+				"description": "Turns an event account into a permanent account that stays when its event is archived.\nPermanent accounts are returned unchanged. Requires `users.read` and\n`event-accounts.manage` for the account's event.",
 				"tags": [
 					"Users"
 				],
@@ -9418,7 +9820,7 @@
 						}
 					}
 				},
-				"description": "Who may create their own account. Requires `users.manage`.",
+				"description": "Who may create their own account. Requires `registration.manage`.",
 				"tags": [
 					"Users"
 				],
@@ -9486,7 +9888,7 @@
 						}
 					}
 				},
-				"description": "Closes registration, makes it invite-only or opens it to everyone. Requires `users.manage`.",
+				"description": "Closes registration, makes it invite-only or opens it to everyone. Requires `registration.manage`.",
 				"tags": [
 					"Users"
 				],
@@ -9549,7 +9951,7 @@
 						}
 					}
 				},
-				"description": "The 50 most recent registration invites, newest first. Requires `users.manage`.",
+				"description": "The 50 most recent registration invites, newest first. Requires `registration.manage`.",
 				"tags": [
 					"Users"
 				],
@@ -9597,7 +9999,7 @@
 						}
 					}
 				},
-				"description": "Issues a single-use registration link, valid for seven days, for invite-only registration.\nThe link is returned once. Requires `users.manage`.",
+				"description": "Issues a single-use registration link, valid for seven days, for invite-only registration.\nThe link is returned once. Requires `registration.manage`.",
 				"tags": [
 					"Users"
 				],
@@ -9657,7 +10059,7 @@
 						}
 					}
 				},
-				"description": "Revokes an unused invite immediately. Requires `users.manage`.",
+				"description": "Revokes an unused invite immediately. Requires `registration.manage`.",
 				"tags": [
 					"Users"
 				],
@@ -9918,6 +10320,178 @@
 					}
 				],
 				"parameters": []
+			}
+		},
+		"/meshtastic/firmware-releases": {
+			"get": {
+				"operationId": "ListFirmwareReleases",
+				"responses": {
+					"200": {
+						"description": "Firmware releases",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/FirmwareReleaseListDto"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Authentication required",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ProblemDetails"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Access denied",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ProblemDetails"
+								}
+							}
+						}
+					}
+				},
+				"description": "Lists full releases, newest first. When the flasher cannot be reached, the last downloaded\nlist is returned; without one the list is unknown. Requires `events.manage` for at least one\nevent.",
+				"tags": [
+					"Meshtastic firmware profiles"
+				],
+				"security": [
+					{
+						"sessionCookie": []
+					},
+					{
+						"apiClientBearer": []
+					}
+				],
+				"parameters": []
+			}
+		},
+		"/meshtastic/firmware-releases/settings": {
+			"get": {
+				"operationId": "GetFirmwareReleaseSettings",
+				"responses": {
+					"200": {
+						"description": "Firmware release settings",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/FirmwareReleaseSettingsDto"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Authentication required",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ProblemDetails"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Access denied",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ProblemDetails"
+								}
+							}
+						}
+					}
+				},
+				"description": "Whether Core looks up releases. Requires instance-wide `settings.manage`.",
+				"tags": [
+					"Meshtastic firmware profiles"
+				],
+				"security": [
+					{
+						"sessionCookie": []
+					}
+				],
+				"parameters": []
+			},
+			"put": {
+				"operationId": "UpdateFirmwareReleaseSettings",
+				"responses": {
+					"200": {
+						"description": "Firmware release settings updated",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/FirmwareReleaseSettingsDto"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Authentication required",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ProblemDetails"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Access denied",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ProblemDetails"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Version conflict",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ProblemDetails"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation failed",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ProblemDetails"
+								}
+							}
+						}
+					}
+				},
+				"description": "Switches release lookups on or off. Requires instance-wide `settings.manage`.",
+				"tags": [
+					"Meshtastic firmware profiles"
+				],
+				"security": [
+					{
+						"sessionCookie": []
+					}
+				],
+				"parameters": [],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/UpdateFirmwareReleaseSettingsRequest"
+							}
+						}
+					}
+				}
 			}
 		},
 		"/meshtastic/firmware-profiles": {
@@ -11860,6 +12434,104 @@
 				}
 			}
 		},
+		"/instance": {
+			"get": {
+				"operationId": "GetInstanceSettings",
+				"responses": {
+					"200": {
+						"description": "Instance settings",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/InstanceSettingsDto"
+								}
+							}
+						}
+					}
+				},
+				"description": "How this installation presents itself. Public, because the sign-in page shows it.",
+				"tags": [
+					"Instance"
+				],
+				"security": [],
+				"parameters": []
+			},
+			"put": {
+				"operationId": "UpdateInstanceSettings",
+				"responses": {
+					"200": {
+						"description": "Instance settings updated",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/InstanceSettingsDto"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Authentication required",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ProblemDetails"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Access denied",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ProblemDetails"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Version conflict",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ProblemDetails"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation failed",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ProblemDetails"
+								}
+							}
+						}
+					}
+				},
+				"description": "Renames the installation. Requires instance-wide `settings.manage`.",
+				"tags": [
+					"Instance"
+				],
+				"security": [
+					{
+						"sessionCookie": []
+					}
+				],
+				"parameters": [],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/UpdateInstanceSettingsRequest"
+							}
+						}
+					}
+				}
+			}
+		},
 		"/health": {
 			"get": {
 				"operationId": "GetHealth",
@@ -12349,7 +13021,7 @@
 						}
 					}
 				},
-				"description": "Moves an active event to the read-only `archived` state. Requires `events.manage`.",
+				"description": "Moves an active event to the read-only `archived` state. Requires `events.manage`. Its event\naccounts are deleted with their sign-in, sessions and TAK certificates; accounts that are still\nmembers of another unarchived event move to that event instead.",
 				"tags": [
 					"Events"
 				],
@@ -12470,6 +13142,75 @@
 						}
 					}
 				}
+			}
+		},
+		"/events/{eventId}/make-accounts-permanent": {
+			"post": {
+				"operationId": "MakeEventAccountsPermanent",
+				"responses": {
+					"200": {
+						"description": "Event accounts made permanent",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/EventAccountsMadePermanentResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Authentication required",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ProblemDetails"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Access denied",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ProblemDetails"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ProblemDetails"
+								}
+							}
+						}
+					}
+				},
+				"description": "Turns every current event account of the event into a permanent account, so archiving no\nlonger deletes them. Requires `event-accounts.manage` for the event.",
+				"tags": [
+					"Events"
+				],
+				"security": [
+					{
+						"sessionCookie": []
+					},
+					{
+						"apiClientBearer": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "eventId",
+						"required": true,
+						"schema": {
+							"$ref": "#/components/schemas/Uuid"
+						}
+					}
+				]
 			}
 		},
 		"/events/{eventId}/roles": {
@@ -13512,6 +14253,105 @@
 						"application/json": {
 							"schema": {
 								"$ref": "#/components/schemas/CreateEventMemberRequest"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/events/{eventId}/members/accounts": {
+			"post": {
+				"operationId": "CreateEventMemberAccount",
+				"responses": {
+					"201": {
+						"description": "Account and member created",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/CreatedEventMemberAccountResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Authentication required",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ProblemDetails"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Access denied",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ProblemDetails"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ProblemDetails"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Username taken, callsign or short-name conflict, or event archived",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ProblemDetails"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation failed",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ProblemDetails"
+								}
+							}
+						}
+					}
+				},
+				"description": "Creates a new person and adds them to the event in one step. Returns a single-use setup link,\nvalid for seven days, so they choose their own password. The account is an event account that\nis deleted when the event is archived, unless the event keeps its accounts\n(`permanentAccounts`). Requires `member-accounts.create`.",
+				"tags": [
+					"Event members"
+				],
+				"security": [
+					{
+						"sessionCookie": []
+					},
+					{
+						"apiClientBearer": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "eventId",
+						"required": true,
+						"schema": {
+							"$ref": "#/components/schemas/Uuid"
+						}
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/CreateEventMemberAccountRequest"
 							}
 						}
 					}
