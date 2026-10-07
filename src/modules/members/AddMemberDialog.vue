@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import InfoHint from "@/shared/components/InfoHint.vue";
 import { computed, ref, watch } from "vue";
 import { describeError, isApiProblem } from "@/shared/errors/api-problem";
 import { fieldErrors, messagesFor } from "@/shared/errors/field-errors";
@@ -173,17 +174,19 @@ async function save(): Promise<void> {
             user ID. Adding the same identity again updates the existing member.
           </p>
           <div class="d-flex flex-wrap ga-4">
-            <v-text-field v-model="form.provider" label="System" hint="e.g. discord" persistent-hint style="min-width: 160px" />
+            <v-text-field v-model="form.provider" placeholder="discord" label="System" style="min-width: 160px" />
             <v-text-field v-model="form.externalId" label="External ID" style="min-width: 220px" />
           </div>
           <v-text-field
             v-model="form.username"
             label="Name"
-            hint="Used in the callsign, e.g. Peter"
-            persistent-hint
             class="mb-2"
             :error-messages="messagesFor(fields, 'username')"
-          />
+          >
+            <template #append-inner>
+              <InfoHint label="About name" text="Used in the callsign, e.g. Peter" />
+            </template>
+          </v-text-field>
         </template>
 
         <div class="d-flex flex-wrap ga-4">
@@ -194,11 +197,13 @@ async function save(): Promise<void> {
           v-if="source === 'user'"
           v-model="form.callsignOverride"
           label="Callsign override (optional)"
-          hint="Leave empty to use the group's callsign format"
-          persistent-hint
           maxlength="39"
           :error-messages="messagesFor(fields, 'callsignOverride')"
-        />
+        >
+          <template #append-inner>
+            <InfoHint label="About callsign override" text="Leave empty to use the group's callsign format" />
+          </template>
+        </v-text-field>
       </v-card-text>
       <v-card-actions>
         <v-spacer />

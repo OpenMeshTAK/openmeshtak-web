@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import InfoHint from "@/shared/components/InfoHint.vue";
 import { mdiCheckCircleOutline } from "@mdi/js";
 import { computed, onMounted, ref } from "vue";
 import type { Schemas } from "@/shared/api/types";
@@ -10,7 +11,7 @@ import { useSession } from "@/modules/auth/session";
 import { listOpenSyncIssues, retrySyncIssue, type SyncIssueDto } from "./members.api";
 
 const props = defineProps<{ event: Schemas["EventDto"] }>();
-const emit = defineEmits<{ resolved: [] }>();
+const emit = defineEmits<{ resolved: []; loaded: [openCount: number] }>();
 const session = useSession();
 const toast = useToast();
 
@@ -26,6 +27,7 @@ async function load(): Promise<void> {
   state.value = "loading";
   try {
     issues.value = await listOpenSyncIssues(props.event.id);
+    emit("loaded", issues.value.length);
     state.value = "ready";
   } catch (caught: unknown) {
     loadError.value = describeError(caught);
@@ -88,10 +90,12 @@ defineExpose({ load });
             v-if="hasCallsignConflict(issue)"
             v-model="overrides[issue.id]"
             label="Callsign override"
-            hint="A unique callsign for this member, e.g. Peter M. [Bravo]"
-            persistent-hint
             style="min-width: 260px"
-          />
+          >
+            <template #append-inner>
+              <InfoHint label="About callsign override" text="A unique callsign for this member, e.g. Peter M. [Bravo]" />
+            </template>
+          </v-text-field>
           <v-btn color="primary" variant="outlined" :loading="retrying === issue.id" @click="retry(issue)">Retry</v-btn>
         </div>
       </v-card>

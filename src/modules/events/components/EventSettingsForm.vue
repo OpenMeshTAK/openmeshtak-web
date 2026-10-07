@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, watch } from "vue";
+import InfoHint from "@/shared/components/InfoHint.vue";
 import { messagesFor } from "@/shared/errors/field-errors";
 import { suggestSlug } from "../slug";
 
@@ -35,12 +36,14 @@ watch(
   <v-text-field
     v-model="settings.slug"
     label="Slug"
-    hint="Lowercase letters, digits and single hyphens, e.g. lightsim-2027"
-    persistent-hint
     :disabled="disabled"
     :error-messages="messagesFor(errors, 'slug')"
     class="mb-2"
-  />
+  >
+    <template #append-inner>
+      <InfoHint label="About slug" text="Lowercase letters, digits and single hyphens, e.g. lightsim-2027" />
+    </template>
+  </v-text-field>
   <v-autocomplete
     v-model="settings.timeZone"
     :items="timeZones"
@@ -74,9 +77,18 @@ watch(
     min="0"
     max="3650"
     label="ATAK QR login valid for (days)"
-    hint="0 keeps it valid until the event ends, or without an end date for good."
-    persistent-hint
     :disabled="disabled"
     :error-messages="messagesFor(errors, 'takLoginTokenDays')"
-  />
+  >
+    <template #append-inner>
+      <InfoHint label="About the QR login lifetime">
+        <p class="mb-2">How many days a participant's ATAK login QR code keeps working after it is created.</p>
+        <p class="mb-2">
+          Enter <strong>0</strong> to keep it working until the event's end date. If the event has no end date, it
+          then never expires.
+        </p>
+        <p>Either way, the code stops working as soon as the participant no longer has TAK access.</p>
+      </InfoHint>
+    </template>
+  </v-text-field>
 </template>

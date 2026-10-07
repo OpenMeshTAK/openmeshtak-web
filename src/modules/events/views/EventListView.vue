@@ -1,7 +1,16 @@
 <script setup lang="ts">
-import { mdiCalendarBlank, mdiCalendarPlus, mdiMagnify } from "@mdi/js";
+import {
+  mdiAccessPointNetwork,
+  mdiAccountGroup,
+  mdiCalendarBlank,
+  mdiCalendarPlus,
+  mdiCog,
+  mdiMagnify,
+  mdiMapLegend,
+  mdiPackageVariantClosed,
+} from "@mdi/js";
 import { computed, onMounted, ref } from "vue";
-import { useRouter } from "vue-router";
+import { useRouter, type RouteLocationRaw } from "vue-router";
 import EmptyState from "@/shared/components/EmptyState.vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
 import ViewContent from "@/shared/components/layout/ViewContent.vue";
@@ -47,6 +56,7 @@ const headers = [
   { title: "Sync issues", key: "issues", value: (event: EventListItem) => event.overview.openSyncIssueCount, align: "end" as const },
   { title: "Dates", key: "startsAt" },
   { title: "Updated", key: "updatedAt" },
+  { title: "", key: "actions", sortable: false, align: "end" as const },
 ];
 
 /** Status sorts by lifecycle (active, draft, archived) and dates by time; missing dates last. */
@@ -85,6 +95,29 @@ function eventDates(event: EventDto): string {
 }
 
 const updatedFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
+
+interface QuickLink {
+  label: string;
+  icon: string;
+  to: RouteLocationRaw;
+}
+
+/** Shortcuts at the end of each row; each one only appears with the permission its page needs. */
+function quickLinks(event: EventDto): QuickLink[] {
+  const tab = (name: string): RouteLocationRaw => ({ name: "event-detail", params: { eventId: event.id, tab: name } });
+  const links: QuickLink[] = [{ label: "Members", icon: mdiAccountGroup, to: tab("members") }];
+  if (session.can("data-packages.read", event.id)) {
+    links.push(
+      { label: "Data packages", icon: mdiPackageVariantClosed, to: tab("data-packages") },
+      { label: "Map editor", icon: mdiMapLegend, to: { name: "event-editor", params: { eventId: event.id } } },
+    );
+  }
+  if (event.status === "active" && session.can("tak-traffic.view", event.id)) {
+    links.push({ label: "Live TAK", icon: mdiAccessPointNetwork, to: { name: "event-live", params: { eventId: event.id } } });
+  }
+  links.push({ label: "Settings", icon: mdiCog, to: tab("settings") });
+  return links;
+}
 
 function open(event: EventDto): void {
   void router.push({ name: "event-detail", params: { eventId: event.id } });
@@ -180,6 +213,21 @@ onMounted(events.load);
           </template>
           <template #[`item.updatedAt`]="{ item }">
             <span class="text-medium-emphasis">{{ updatedFormat.format(new Date(item.updatedAt)) }}</span>
+          </template>
+          <template #[`item.actions`]="{ item }">
+            <div class="text-no-wrap">
+              <v-btn
+                v-for="link in quickLinks(item)"
+                :key="link.label"
+                v-tooltip:top="link.label"
+                :to="link.to"
+                :icon="link.icon"
+                :aria-label="link.label"
+                variant="text"
+                size="small"
+                @click.stop
+              />
+            </div>
           </template>
         </v-data-table>
       </v-card>

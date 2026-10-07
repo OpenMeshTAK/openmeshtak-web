@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import InfoHint from "@/shared/components/InfoHint.vue";
 import { mdiPlus } from "@mdi/js";
 import { onMounted, ref, toRaw } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
@@ -7,6 +8,7 @@ import ErrorState from "@/shared/components/ErrorState.vue";
 import { describeError, isApiProblem } from "@/shared/errors/api-problem";
 import { fieldErrors, messagesFor } from "@/shared/errors/field-errors";
 import { useToast } from "@/shared/feedback/toast";
+import { suggestSlug } from "@/modules/events/slug";
 import GroupProvisioningFields from "./components/GroupProvisioningFields.vue";
 import {
   createGroup,
@@ -41,6 +43,12 @@ function defaultProvisioning(slug: string): GroupProvisioning {
     shortNamePrefix: slug.charAt(0).toUpperCase() || null,
     tak: { team: "Cyan", role: "Team Member", serverGroups: [] },
   };
+}
+
+/** While a new group is created, its short-name prefix follows the slug's first letter. */
+function changeSlug(slug: string): void {
+  form.value.slug = slug;
+  provisioning.value.shortNamePrefix = slug.charAt(0).toUpperCase() || null;
 }
 
 async function load(): Promise<void> {
@@ -160,16 +168,23 @@ onMounted(load);
         <v-card-title>{{ editing ? "Edit group" : "Add group" }}</v-card-title>
         <v-card-text>
           <v-alert v-if="formError" type="error" class="mb-4">{{ formError }}</v-alert>
-          <v-text-field v-model="form.name" label="Name" :error-messages="messagesFor(formFields, 'name')" />
           <v-text-field
-            v-model="form.slug"
+            v-model="form.name"
+            label="Name"
+            :error-messages="messagesFor(formFields, 'name')"
+            @update:model-value="!editing && changeSlug(suggestSlug($event))"
+          />
+          <v-text-field
+            :model-value="form.slug"
             label="Slug"
-            hint="Used by integrations, e.g. bravo"
-            persistent-hint
             class="mb-2"
             :error-messages="messagesFor(formFields, 'slug')"
-            @update:model-value="!editing && (provisioning.shortNamePrefix = $event.charAt(0).toUpperCase() || null)"
-          />
+            @update:model-value="editing ? (form.slug = $event) : changeSlug($event)"
+          >
+            <template #append-inner>
+              <InfoHint label="About slug" text="Used by integrations, e.g. bravo" />
+            </template>
+          </v-text-field>
           <v-textarea v-model="form.description" label="Description (optional)" rows="2" auto-grow class="mb-2" />
           <GroupProvisioningFields v-model="provisioning" :errors="formFields" />
         </v-card-text>

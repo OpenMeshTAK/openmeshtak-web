@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import InfoHint from "@/shared/components/InfoHint.vue";
 import { mdiPlus } from "@mdi/js";
 import { onMounted, ref } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
@@ -9,6 +10,7 @@ import { fieldErrors, messagesFor } from "@/shared/errors/field-errors";
 import { useToast } from "@/shared/feedback/toast";
 import type { Schemas } from "@/shared/api/types";
 import { takRoleOptions } from "@/modules/event-groups/provisioning-options";
+import { suggestSlug } from "@/modules/events/slug";
 import { createRole, deleteRole, listRoles, updateRole, type EventRoleDto } from "./event-roles.api";
 
 const props = defineProps<{ eventId: string; editable: boolean }>();
@@ -152,24 +154,33 @@ onMounted(load);
         <v-card-title>{{ editing ? "Edit role" : "Add role" }}</v-card-title>
         <v-card-text>
           <v-alert v-if="formError" type="error" class="mb-4">{{ formError }}</v-alert>
-          <v-text-field v-model="form.name" label="Name" :error-messages="messagesFor(formFields, 'name')" />
+          <v-text-field
+            v-model="form.name"
+            label="Name"
+            :error-messages="messagesFor(formFields, 'name')"
+            @update:model-value="!editing && (form.slug = suggestSlug($event))"
+          />
           <v-text-field
             v-model="form.slug"
             label="Slug"
-            hint="Used by integrations, e.g. participant"
-            persistent-hint
             class="mb-2"
             :error-messages="messagesFor(formFields, 'slug')"
-          />
+          >
+            <template #append-inner>
+              <InfoHint label="About slug" text="Used by integrations, e.g. participant" />
+            </template>
+          </v-text-field>
           <v-select
             v-model="form.takRoleOverride"
             :items="takRoleItems"
             label="TAK role"
-            hint="Replaces the group's TAK role for members with this role, e.g. Team Lead for platoon leaders."
-            persistent-hint
             class="mb-4"
             :error-messages="messagesFor(formFields, 'takRoleOverride')"
-          />
+          >
+            <template #append-inner>
+              <InfoHint label="About the TAK role" text="Replaces the group's TAK role for members with this role, e.g. Team Lead for platoon leaders." />
+            </template>
+          </v-select>
           <v-textarea v-model="form.description" label="Description (optional)" rows="2" auto-grow />
         </v-card-text>
         <v-card-actions>

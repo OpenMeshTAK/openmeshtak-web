@@ -12,9 +12,10 @@ import EventGroupsPanel from "@/modules/event-groups/EventGroupsPanel.vue";
 import EventRolesPanel from "@/modules/event-roles/EventRolesPanel.vue";
 import EventMembersPanel from "@/modules/members/EventMembersPanel.vue";
 import SyncIssuesPanel from "@/modules/members/SyncIssuesPanel.vue";
+import { listOpenSyncIssues } from "@/modules/members/members.api";
 import DataPackagesPanel from "@/modules/data-packages/DataPackagesPanel.vue";
 import MeshtasticPanel from "@/modules/meshtastic-configuration/MeshtasticPanel.vue";
-import EventLifecycleCard from "../components/EventLifecycleCard.vue";
+import EventOverviewPanel from "../components/EventOverviewPanel.vue";
 import EventSettingsForm from "../components/EventSettingsForm.vue";
 import EventStatusBadge from "../components/EventStatusBadge.vue";
 import { emptySettings, settingsFromEvent, settingsToRequest } from "../event-settings";
@@ -30,7 +31,7 @@ const event = ref<EventDto | null>(null);
 const settings = ref(emptySettings());
 const state = ref<"loading" | "ready" | "error">("loading");
 const loadError = ref("");
-const TABS = ["overview", "roles", "groups", "members", "meshtastic", "sync-issues", "data-packages"];
+const TABS = ["overview", "settings", "roles", "groups", "members", "meshtastic", "sync-issues", "data-packages"];
 
 /** The open tab lives in the URL, so reloads, links and the back button keep it. */
 const tab = computed({
@@ -59,9 +60,21 @@ function show(loaded: EventDto): void {
   settings.value = settingsFromEvent(loaded);
 }
 
+/** Shown as a badge on the Sync issues tab; a failed count only hides the badge. */
+const openSyncIssues = ref(0);
+
+async function loadSyncIssueCount(): Promise<void> {
+  try {
+    openSyncIssues.value = (await listOpenSyncIssues(eventId.value)).length;
+  } catch {
+    openSyncIssues.value = 0;
+  }
+}
+
 async function load(): Promise<void> {
   state.value = "loading";
   conflict.value = false;
+  void loadSyncIssueCount();
   try {
     show(await getEvent(eventId.value));
     state.value = "ready";
@@ -126,34 +139,33 @@ onMounted(load);
 
       <v-tabs v-model="tab" class="mb-4" density="compact" show-arrows>
         <v-tab value="overview">Overview</v-tab>
+        <v-tab value="settings">Settings</v-tab>
         <v-tab value="roles">Roles</v-tab>
         <v-tab value="groups">Groups</v-tab>
         <v-tab value="members">Members</v-tab>
         <v-tab value="meshtastic">Meshtastic</v-tab>
-        <v-tab value="sync-issues">Sync issues</v-tab>
+        <v-tab value="sync-issues">
+          Sync issues
+          <v-badge v-if="openSyncIssues > 0" :content="openSyncIssues" color="error" inline />
+        </v-tab>
         <v-tab v-if="session.can('data-packages.read', event.id)" value="data-packages">Data packages</v-tab>
       </v-tabs>
 
       <v-window v-model="tab">
         <v-window-item value="overview">
-          <v-row>
-            <v-col cols="12" md="7">
-              <v-card class="pa-5">
-                <div class="text-subtitle-1 font-weight-medium mb-4">Settings</div>
-                <v-alert v-if="conflict" type="warning" class="mb-4">
-                  Someone else changed this event. Reload to see their changes before saving again.
-                  <v-btn size="small" variant="outlined" class="ml-2" @click="load">Reload</v-btn>
-                </v-alert>
-                <EventSettingsForm v-model="settings" :errors="saveFields" :disabled="!editable" />
-                <v-btn v-if="editable" color="primary" class="mt-2" :loading="saving" @click="save">
-                  Save changes
-                </v-btn>
-              </v-card>
-            </v-col>
-            <v-col cols="12" md="5">
-              <EventLifecycleCard :event="event" @changed="show" />
-            </v-col>
-          </v-row>
+          <EventOverviewPanel :key="event.id" :event="event" @changed="show" @open="tab = $event" />
+        </v-window-item>
+        <v-window-item value="settings">
+          <v-card class="pa-5">
+            <v-alert v-if="conflict" type="warning" class="mb-4">
+              Someone else changed this event. Reload to see their changes before saving again.
+              <v-btn size="small" variant="outlined" class="ml-2" @click="load">Reload</v-btn>
+            </v-alert>
+            <EventSettingsForm v-model="settings" :errors="saveFields" :disabled="!editable" />
+            <v-btn v-if="editable" color="primary" class="mt-2" :loading="saving" @click="save">
+              Save changes
+            </v-btn>
+          </v-card>
         </v-window-item>
         <v-window-item value="roles">
           <EventRolesPanel :event-id="event.id" :editable="editable" />
@@ -168,7 +180,7 @@ onMounted(load);
           <MeshtasticPanel :event-id="event.id" :editable="editable" :active="event.status === 'active'" />
         </v-window-item>
         <v-window-item value="sync-issues">
-          <SyncIssuesPanel :event="event" />
+          <SyncIssuesPanel :event="event" @loaded="openSyncIssues = $event" />
         </v-window-item>
         <v-window-item value="data-packages">
           <DataPackagesPanel :event="event" />

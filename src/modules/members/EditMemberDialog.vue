@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import InfoHint from "@/shared/components/InfoHint.vue";
 import { ref, watch } from "vue";
 import { describeError, isApiProblem } from "@/shared/errors/api-problem";
 import { messagesFor } from "@/shared/errors/field-errors";
@@ -89,11 +90,13 @@ async function save(): Promise<void> {
         <v-text-field
           v-model="form.callsignOverride"
           label="Callsign override (optional)"
-          hint="Leave empty to use the group's callsign format"
-          persistent-hint
           maxlength="39"
           :error-messages="messagesFor(saving.fields.value, 'callsignOverride')"
-        />
+        >
+          <template #append-inner>
+            <InfoHint label="About callsign override" text="Leave empty to use the group's callsign format" />
+          </template>
+        </v-text-field>
       </v-card-text>
       <v-card-actions>
         <v-spacer />
