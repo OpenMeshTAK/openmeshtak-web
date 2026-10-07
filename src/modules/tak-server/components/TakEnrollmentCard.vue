@@ -15,8 +15,25 @@ const certificates = ref<TakClientCertificateDto[]>([]);
 const state = ref<"loading" | "ready" | "error">("loading");
 const error = ref("");
 const showPrevious = ref(false);
-const activeCertificates = computed(() => certificates.value.filter(({ status }) => status === "valid"));
-const previousCertificates = computed(() => certificates.value.filter(({ status }) => status !== "valid"));
+
+/** A device enrolls again after expiry or a reinstall, so its certificates are grouped by device UID. */
+function deviceKey(certificate: TakClientCertificateDto): string {
+  return certificate.clientUid ?? certificate.id;
+}
+
+/** One certificate per device, newest first: its valid one if any, otherwise its latest. */
+const devices = computed(() => {
+  const byDevice = new Map<string, TakClientCertificateDto>();
+  for (const certificate of certificates.value) {
+    const shown = byDevice.get(deviceKey(certificate));
+    if (shown === undefined || (shown.status !== "valid" && certificate.status === "valid")) {
+      byDevice.set(deviceKey(certificate), certificate);
+    }
+  }
+  return [...byDevice.values()];
+});
+const activeCertificates = computed(() => devices.value.filter(({ status }) => status === "valid"));
+const previousCertificates = computed(() => devices.value.filter(({ status }) => status !== "valid"));
 
 async function loadCertificates(): Promise<void> {
   try {
@@ -28,9 +45,15 @@ async function loadCertificates(): Promise<void> {
   }
 }
 
+/** Revokes every valid certificate of the device, including ones enrolled before Core kept one per device. */
 async function revoke(certificate: TakClientCertificateDto): Promise<void> {
+  const deviceCertificates = certificates.value.filter(
+    (candidate) => deviceKey(candidate) === deviceKey(certificate) && candidate.status === "valid",
+  );
   try {
-    await revokeMyTakCertificate(certificate.id);
+    for (const { id } of deviceCertificates) {
+      await revokeMyTakCertificate(id);
+    }
     toast.success("The certificate was revoked and its app disconnected.");
     await loadCertificates();
   } catch (caught: unknown) {
@@ -85,7 +108,7 @@ onMounted(loadCertificates);
           :aria-expanded="showPrevious"
           @click="showPrevious = !showPrevious"
         >
-          Previous enrollments ({{ previousCertificates.length }})
+          Earlier apps ({{ previousCertificates.length }})
         </v-btn>
         <v-expand-transition>
           <TakClientCertificatesTable

@@ -30,7 +30,12 @@ function certificateDates(certificate: TakClientCertificateDto): string {
   if (certificate.status === "expired") {
     return `Expired ${dateFormat.format(new Date(certificate.notAfter))}`;
   }
-  return `Enrolled ${dateFormat.format(new Date(certificate.notBefore))} · valid until ${dateFormat.format(new Date(certificate.notAfter))}`;
+  return `Valid until ${dateFormat.format(new Date(certificate.notAfter))}`;
+}
+
+/** The end of the device UID tells two phones of the same kind apart; the full UID is in the tooltip. */
+function shortUid(clientUid: string): string {
+  return clientUid.length > 8 ? `…${clientUid.slice(-7)}` : clientUid;
 }
 
 function confirm(): void {
@@ -46,15 +51,17 @@ function confirm(): void {
     <div v-if="props.compact" class="certificate-list" role="list">
       <div v-for="certificate in props.certificates" :key="certificate.id" class="certificate-row" role="listitem">
         <div class="certificate-identity">
-          <div class="text-body-medium font-weight-medium">{{ deviceName(certificate) }}</div>
-          <div v-if="props.showUser" class="text-body-small">{{ certificate.userDisplayName }}</div>
-          <div
-            v-if="certificate.clientUid"
-            class="certificate-uid text-body-small text-medium-emphasis"
-            :title="certificate.clientUid"
-          >
-            {{ certificate.clientUid }}
+          <div class="text-body-medium font-weight-medium text-truncate">
+            {{ deviceName(certificate) }}
+            <span
+              v-if="certificate.clientUid"
+              class="certificate-uid text-body-small text-medium-emphasis font-weight-regular"
+              :title="certificate.clientUid"
+            >
+              {{ shortUid(certificate.clientUid) }}
+            </span>
           </div>
+          <div v-if="props.showUser" class="text-body-small">{{ certificate.userDisplayName }}</div>
           <div class="text-body-small text-medium-emphasis">{{ certificateDates(certificate) }}</div>
         </div>
         <div class="certificate-actions">
@@ -163,10 +170,8 @@ function confirm(): void {
 }
 
 .certificate-uid {
-  overflow: hidden;
+  margin-left: 4px;
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .certificate-actions {
