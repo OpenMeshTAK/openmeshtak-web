@@ -367,8 +367,11 @@ function download(): void {
   width: 24px;
   height: 20px;
   margin-top: 1px;
+  border: 0;
   border-radius: 4px;
+  outline: none;
   color: #8b949e;
+  background: transparent;
   opacity: 0;
 }
 
@@ -381,6 +384,12 @@ function download(): void {
 .log-copy:hover {
   color: #e6edf3;
   background: rgba(110, 118, 129, 0.25);
+}
+
+/* No ring after a mouse click; keyboard users still see where focus is. */
+.log-copy:focus-visible {
+  color: #e6edf3;
+  box-shadow: 0 0 0 1px #58a6ff;
 }
 
 .log-details {
