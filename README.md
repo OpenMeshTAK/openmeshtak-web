@@ -58,6 +58,10 @@ pnpm build
 
 The production Web application is served by Core on the same origin as the API. The Core Docker build consumes this repository through its `web` build context.
 
+## AI assistance
+
+LLMs are used in the development of this project. See [AI_USAGE.md](AI_USAGE.md) for how they are used and reviewed.
+
 ## License
 
 OpenMeshTak Web is licensed under `AGPL-3.0-only`.
