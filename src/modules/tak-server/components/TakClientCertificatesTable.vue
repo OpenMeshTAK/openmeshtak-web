@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { mdiLinkVariantOff } from "@mdi/js";
 import { ref } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
+import InfoHint from "@/shared/components/InfoHint.vue";
 import type { TakClientCertificateDto } from "../tak-server.api";
 
 /** Issued client certificates with revocation; used for all certificates and for a user's own. */
@@ -20,7 +22,9 @@ function deviceName(certificate: TakClientCertificateDto): string {
   }
   const uid = certificate.clientUid.toUpperCase();
   if (uid.startsWith("ITAK-PACKAGE-")) return "iTAK (connection package)";
-  return uid.startsWith("ANDROID-") ? "Android TAK app" : "TAK app";
+  if (uid.startsWith("ANDROID-")) return "Android TAK app";
+  // iOS apps send a bare UUID as their device UID.
+  return /^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/.test(uid) ? "iOS TAK app" : "TAK app";
 }
 
 function certificateDates(certificate: TakClientCertificateDto): string {
@@ -51,48 +55,33 @@ function confirm(): void {
     <div v-if="props.compact" class="certificate-list" role="list">
       <div v-for="certificate in props.certificates" :key="certificate.id" class="certificate-row" role="listitem">
         <div class="certificate-identity">
-          <div class="text-body-medium font-weight-medium text-truncate">
-            {{ deviceName(certificate) }}
-            <span
-              v-if="certificate.clientUid"
-              class="certificate-uid text-body-small text-medium-emphasis font-weight-regular"
-              :title="certificate.clientUid"
-            >
-              {{ shortUid(certificate.clientUid) }}
-            </span>
+          <div class="d-flex align-center ga-1 text-body-medium font-weight-medium">
+            <span class="text-truncate">{{ deviceName(certificate) }}</span>
+            <InfoHint
+              v-if="certificate.status === 'valid' && certificate.issuedForOldEndpoint"
+              tone="warning"
+              label="Old TAK server address"
+              text="This app was set up before the TAK server address or ports changed. Connect it again."
+            />
           </div>
           <div v-if="props.showUser" class="text-body-small">{{ certificate.userDisplayName }}</div>
-          <div class="text-body-small text-medium-emphasis">{{ certificateDates(certificate) }}</div>
+          <div class="text-body-small text-medium-emphasis text-truncate">
+            <span v-if="certificate.clientUid" class="certificate-uid" :title="certificate.clientUid">
+              {{ shortUid(certificate.clientUid) }} ·
+            </span>
+            {{ certificateDates(certificate) }}
+          </div>
         </div>
-        <div class="certificate-actions">
-          <v-chip
-            v-if="certificate.status !== 'valid'"
-            size="small"
-            variant="tonal"
-            :color="statusColor[certificate.status]"
-            class="text-capitalize"
-          >
-            {{ certificate.status }}
-          </v-chip>
-          <v-chip
-            v-if="certificate.status === 'valid' && certificate.issuedForOldEndpoint"
-            size="small"
-            variant="tonal"
-            color="warning"
-            title="Set up before the TAK server address or ports changed; connect the app again."
-          >
-            Old address
-          </v-chip>
-          <v-btn
-            v-if="certificate.status === 'valid'"
-            variant="text"
-            size="small"
-            color="error"
-            @click="revoking = certificate"
-          >
-            Revoke
-          </v-btn>
-        </div>
+        <v-btn
+          v-if="certificate.status === 'valid'"
+          :icon="mdiLinkVariantOff"
+          variant="text"
+          size="small"
+          color="error"
+          title="Revoke"
+          aria-label="Revoke"
+          @click="revoking = certificate"
+        />
       </div>
     </div>
     <v-table v-else density="comfortable">
@@ -148,10 +137,6 @@ function confirm(): void {
 </template>
 
 <style scoped>
-.certificate-layout {
-  container-type: inline-size;
-}
-
 .certificate-list {
   padding: 0 20px 8px;
 }
@@ -170,25 +155,6 @@ function confirm(): void {
 }
 
 .certificate-uid {
-  margin-left: 4px;
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-}
-
-.certificate-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  align-items: center;
-  justify-content: flex-end;
-}
-
-@container (max-width: 420px) {
-  .certificate-row {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .certificate-actions {
-    justify-content: flex-start;
-  }
 }
 </style>

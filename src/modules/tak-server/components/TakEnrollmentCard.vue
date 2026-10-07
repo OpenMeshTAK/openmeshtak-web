@@ -80,12 +80,7 @@ onMounted(loadCertificates);
     <v-skeleton-loader v-if="state === 'loading'" type="list-item-two-line@2" />
     <ErrorState v-else-if="state === 'error'" :message="error" class="mx-5" @retry="loadCertificates" />
     <template v-else>
-      <div class="d-flex align-center ga-2 px-5 pb-1">
-        <div class="text-body-small text-medium-emphasis flex-grow-1">Enrolled TAK apps</div>
-        <v-chip v-if="activeCertificates.length > 0" size="x-small" variant="tonal">
-          {{ activeCertificates.length }}
-        </v-chip>
-      </div>
+      <div class="text-body-small text-medium-emphasis px-5 pb-1">Enrolled TAK apps</div>
       <p v-if="activeCertificates.length === 0" class="text-body-medium text-medium-emphasis px-5 pb-4 my-0">
         No TAK app is enrolled yet.
       </p>
