@@ -10,6 +10,8 @@ export interface EventSettings {
   /** `datetime-local` value in the browser's local time, or empty. */
   startsAt: string;
   endsAt: string;
+  /** Days an ATAK QR login stays valid; 0 means until the event ends. */
+  takLoginTokenDays: number;
 }
 
 const props = defineProps<{ errors: Record<string, string>; disabled?: boolean; autoSlug?: boolean }>();
@@ -66,4 +68,15 @@ watch(
       style="min-width: 220px"
     />
   </div>
+  <v-text-field
+    v-model.number="settings.takLoginTokenDays"
+    type="number"
+    min="0"
+    max="3650"
+    label="ATAK QR login valid for (days)"
+    hint="0 keeps it valid until the event ends, or without an end date for good."
+    persistent-hint
+    :disabled="disabled"
+    :error-messages="messagesFor(errors, 'takLoginTokenDays')"
+  />
 </template>

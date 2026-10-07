@@ -22,6 +22,7 @@ export function emptySettings(): EventSettings {
     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     startsAt: "",
     endsAt: "",
+    takLoginTokenDays: 0,
   };
 }
 
@@ -32,6 +33,7 @@ export function settingsFromEvent(event: EventDto): EventSettings {
     timeZone: event.timeZone,
     startsAt: toLocalInput(event.startsAt),
     endsAt: toLocalInput(event.endsAt),
+    takLoginTokenDays: event.takLoginTokenDays,
   };
 }
 
@@ -42,5 +44,6 @@ export function settingsToRequest(settings: EventSettings) {
     timeZone: settings.timeZone,
     startsAt: toInstant(settings.startsAt),
     endsAt: toInstant(settings.endsAt),
+    takLoginTokenDays: settings.takLoginTokenDays,
   };
 }

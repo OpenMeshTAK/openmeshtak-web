@@ -12,6 +12,7 @@ function event(overrides: Partial<EventDto>): EventDto {
     version: 1,
     startsAt: null,
     endsAt: null,
+    takLoginTokenDays: 0,
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
     ...overrides,

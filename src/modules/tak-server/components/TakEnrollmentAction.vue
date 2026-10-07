@@ -75,7 +75,7 @@ function close(): void {
           or use the QR code.
         </v-alert>
         <v-window v-model="method">
-          <v-window-item v-if="enrollment.atakEnrollmentUrl && enrollment.expiresAt" value="qr">
+          <v-window-item v-if="enrollment.atakEnrollmentUrl" value="qr">
             <p class="text-body-2 mb-3">Scan this code with the QR scanner in ATAK, or open the link on the phone with ATAK.</p>
             <div class="d-flex justify-center mb-3">
               <QrCode :value="enrollment.atakEnrollmentUrl" label="ATAK enrollment code" :size="220" />
@@ -84,7 +84,9 @@ function close(): void {
               <v-btn :href="enrollment.atakEnrollmentUrl" variant="tonal" size="small">Open in ATAK</v-btn>
             </div>
             <p class="text-caption text-medium-emphasis text-center mt-3 mb-0">
-              Valid until {{ dateFormat.format(new Date(enrollment.expiresAt)) }}. Do not share it: it signs in as you.
+              <template v-if="enrollment.expiresAt">Valid until {{ dateFormat.format(new Date(enrollment.expiresAt)) }}.</template>
+              <template v-else>Valid as long as you have TAK access.</template>
+              Do not share it: it signs in as you.
             </p>
           </v-window-item>
 

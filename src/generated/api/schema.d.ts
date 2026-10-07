@@ -339,8 +339,9 @@ export interface paths {
         put?: never;
         /**
          * @description Returns the TAK login of the signed-in user (account username, used with the account
-         *     password) and a fresh QR token in the ATAK enrollment link, valid until the end of the user's
-         *     latest active event. Members of active events and holders of `tak-server.admin-access` may
+         *     password) and a fresh QR token in the ATAK enrollment link. The token lifetime of the user's
+         *     active events decides how long it is valid (`expiresAt`, `null` for no time limit). Members of
+         *     active events and holders of `tak-server.admin-access` may
          *     enroll. QR tokens never carry the account password.
          */
         post: operations["CreateTakEnrollment"];
@@ -2351,8 +2352,9 @@ export interface components {
             username: string;
             /**
              * Format: date-time
-             * @description When the QR token expires: the end of the user's latest active event, otherwise in 30 days.
-             *     `null` without QR enrollment.
+             * @description When the QR token expires, from the token lifetime of the user's active events: a number of
+             *     days, or the event end. `null` when it does not expire (an event without end date) or when
+             *     `atakEnrollmentUrl` is `null`. Users without an active event get 30 days.
              */
             expiresAt: string | null;
             hostName: string;
@@ -3144,6 +3146,13 @@ export interface components {
             startsAt: string | null;
             /** Format: date-time */
             endsAt: string | null;
+            /**
+             * Format: int32
+             * @description Days a TAK login token (QR code or typed instead of the password) stays valid. `0` means until
+             *     the event ends, and without an end date for good. Tokens stop working anyway once the user
+             *     loses TAK access.
+             */
+            takLoginTokenDays: number;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -3170,6 +3179,13 @@ export interface components {
             startsAt: string | null;
             /** Format: date-time */
             endsAt: string | null;
+            /**
+             * Format: int32
+             * @description Days a TAK login token (QR code or typed instead of the password) stays valid. `0` means until
+             *     the event ends, and without an end date for good. Tokens stop working anyway once the user
+             *     loses TAK access.
+             */
+            takLoginTokenDays: number;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -3190,6 +3206,13 @@ export interface components {
              * @description Descriptive end instant; it never changes the lifecycle state.
              */
             endsAt?: string | null;
+            /**
+             * Format: int32
+             * @description Days a TAK login token (QR code or typed instead of the password) stays valid. `0` means until
+             *     the event ends, and without an end date for good. Defaults to `0`. Tokens stop working anyway once the user
+             *     loses TAK access.
+             */
+            takLoginTokenDays?: number;
         };
         UpdateEventRequest: {
             /**
@@ -3204,6 +3227,13 @@ export interface components {
             startsAt: string | null;
             /** Format: date-time */
             endsAt: string | null;
+            /**
+             * Format: int32
+             * @description Days a TAK login token (QR code or typed instead of the password) stays valid. `0` means until
+             *     the event ends, and without an end date for good. Omitted keeps the current value. Tokens stop working anyway once the user
+             *     loses TAK access.
+             */
+            takLoginTokenDays?: number;
         };
         EventTransitionRequest: {
             /**
