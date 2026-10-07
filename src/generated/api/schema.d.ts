@@ -301,7 +301,10 @@ export interface paths {
          */
         put: operations["AddTakServerCertificate"];
         post?: never;
-        /** @description Removes an added certificate; the server then uses one issued by the OpenMeshTak CA. */
+        /**
+         * @description Removes an added or ACME certificate and disables ACME; the server then uses one issued by the
+         *     OpenMeshTak CA.
+         */
         delete: operations["RemoveTakServerCertificate"];
         options?: never;
         head?: never;
@@ -2672,6 +2675,7 @@ export interface components {
             tak: {
                 /** @description How this member connects ATAK/iTAK; `null` when the event gives no guidance. */
                 connection: components["schemas"]["ProfileTakConnection"] | null;
+                /** @description The group's TAK server groups for an external TAK server; the built-in server ignores them. */
                 serverGroups: string[];
                 role: components["schemas"]["TakRole"];
                 team: components["schemas"]["TakTeam"];
@@ -3148,8 +3152,8 @@ export interface components {
             endsAt: string | null;
             /**
              * Format: int32
-             * @description Days a TAK login token (QR code or typed instead of the password) stays valid. `0` means until
-             *     the event ends, and without an end date for good. Tokens stop working anyway once the user
+             * @description Days a TAK login token (QR code or typed instead of the password) stays valid. `0` keeps it valid
+             *     until the event's end date, or with no end date it never expires. Tokens stop working anyway once the user
              *     loses TAK access.
              */
             takLoginTokenDays: number;
@@ -3181,8 +3185,8 @@ export interface components {
             endsAt: string | null;
             /**
              * Format: int32
-             * @description Days a TAK login token (QR code or typed instead of the password) stays valid. `0` means until
-             *     the event ends, and without an end date for good. Tokens stop working anyway once the user
+             * @description Days a TAK login token (QR code or typed instead of the password) stays valid. `0` keeps it valid
+             *     until the event's end date, or with no end date it never expires. Tokens stop working anyway once the user
              *     loses TAK access.
              */
             takLoginTokenDays: number;
@@ -3208,8 +3212,8 @@ export interface components {
             endsAt?: string | null;
             /**
              * Format: int32
-             * @description Days a TAK login token (QR code or typed instead of the password) stays valid. `0` means until
-             *     the event ends, and without an end date for good. Defaults to `0`. Tokens stop working anyway once the user
+             * @description Days a TAK login token (QR code or typed instead of the password) stays valid. `0` keeps it valid
+             *     until the event's end date, or with no end date it never expires. Defaults to `0`. Tokens stop working anyway once the user
              *     loses TAK access.
              */
             takLoginTokenDays?: number;
@@ -3229,8 +3233,8 @@ export interface components {
             endsAt: string | null;
             /**
              * Format: int32
-             * @description Days a TAK login token (QR code or typed instead of the password) stays valid. `0` means until
-             *     the event ends, and without an end date for good. Omitted keeps the current value. Tokens stop working anyway once the user
+             * @description Days a TAK login token (QR code or typed instead of the password) stays valid. `0` keeps it valid
+             *     until the event's end date, or with no end date it never expires. Omitted keeps the current value. Tokens stop working anyway once the user
              *     loses TAK access.
              */
             takLoginTokenDays?: number;
@@ -3424,6 +3428,10 @@ export interface components {
              */
             shortNamePrefix: string | null;
             tak: {
+                /**
+                 * @description Group names for an external TAK server, passed on unchanged in each member's profile for
+                 *     integrations. The built-in TAK server ignores them; the event alone decides who sees whom.
+                 */
                 serverGroups: components["schemas"]["ProvisioningName"][];
                 role: components["schemas"]["TakRole"];
                 team: components["schemas"]["TakTeam"];
