@@ -14,11 +14,12 @@ describe("navigation from the route table", () => {
       "Dashboard",
       "Events",
       { "User management": ["Users", "User groups"] },
-      { Settings: ["General", "TAK server", "API access"] },
+      { Settings: ["General", "TAK server", "Server log", "API access"] },
     ]);
     expect(navigation.find((item) => item.title === "Settings")?.children.map((child) => child.path)).toEqual([
       "/admin/settings/general",
       "/admin/settings/tak-server",
+      "/admin/settings/server-log",
       "/admin/settings/api-clients",
     ]);
   });

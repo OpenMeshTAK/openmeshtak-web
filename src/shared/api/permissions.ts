@@ -118,6 +118,11 @@ export const permissionAreas: PermissionArea[] = [
     prefix: "audit.*",
     permissions: [{ permission: "audit.read", label: "Read the audit log", instanceOnly: true }],
   },
+  {
+    label: "Server log",
+    prefix: "server-logs.*",
+    permissions: [{ permission: "server-logs.read", label: "Watch the live server log", instanceOnly: true }],
+  },
 ];
 
 type Listed = (typeof permissionAreas)[number]["permissions"][number]["permission"];

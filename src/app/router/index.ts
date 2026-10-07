@@ -4,6 +4,7 @@ import {
   mdiAccountGroup,
   mdiCalendarMultiple,
   mdiCogOutline,
+  mdiConsole,
   mdiKeyChain,
   mdiServerNetwork,
   mdiTuneVariant,
@@ -138,6 +139,12 @@ const routes: RouteRecordRaw[] = [
             name: "tak-server",
             component: () => import("@/modules/tak-server/TakServerPanel.vue"),
             meta: { navigation: { title: "TAK server", icon: mdiServerNetwork, permission: "tak-server.manage" } },
+          },
+          {
+            path: "server-log",
+            name: "server-log",
+            component: () => import("@/modules/server-logs/ServerLogView.vue"),
+            meta: { navigation: { title: "Server log", icon: mdiConsole, permission: "server-logs.read" } },
           },
           {
             path: "api-clients",

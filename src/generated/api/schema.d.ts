@@ -611,6 +611,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/server-logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Core's most recent log lines from memory, sanitized like the container log. Without `after`
+         *     it returns the newest lines; with `after` only lines written since. Requires instance-wide
+         *     `server-logs.read`.
+         */
+        get: operations["ListServerLogs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/registration": {
         parameters: {
             query?: never;
@@ -2321,7 +2342,7 @@ export interface components {
             token: string;
         };
         /** @enum {string} */
-        Permission: "users.read" | "users.create" | "users.edit" | "users.set-email" | "users.disable" | "users.sign-out" | "users.password-reset" | "users.setup-links" | "registration.manage" | "user-groups.read" | "user-groups.manage" | "user-group-members.manage" | "events.read" | "events.manage" | "events.reactivate" | "members.read" | "members.manage" | "members.sync" | "member-accounts.create" | "event-accounts.manage" | "member-claims.create" | "channel-keys.reveal" | "data-packages.read" | "data-packages.edit" | "data-packages.publish" | "artifacts.generate" | "artifacts.download" | "member-artifacts.download" | "tak-traffic.view" | "api-clients.manage" | "tak-server.manage" | "tak-server.admin-access" | "email.manage" | "settings.manage" | "audit.read";
+        Permission: "users.read" | "users.create" | "users.edit" | "users.set-email" | "users.disable" | "users.sign-out" | "users.password-reset" | "users.setup-links" | "registration.manage" | "user-groups.read" | "user-groups.manage" | "user-group-members.manage" | "events.read" | "events.manage" | "events.reactivate" | "members.read" | "members.manage" | "members.sync" | "member-accounts.create" | "event-accounts.manage" | "member-claims.create" | "channel-keys.reveal" | "data-packages.read" | "data-packages.edit" | "data-packages.publish" | "artifacts.generate" | "artifacts.download" | "member-artifacts.download" | "tak-traffic.view" | "api-clients.manage" | "tak-server.manage" | "tak-server.admin-access" | "email.manage" | "settings.manage" | "audit.read" | "server-logs.read";
         PermissionGrantDto: {
             permission: components["schemas"]["Permission"];
             /** @description Event the grant is limited to, or `null` for an instance-wide grant. */
@@ -2700,6 +2721,31 @@ export interface components {
             username: string;
             password: string;
             token: string;
+        };
+        /** @enum {string} */
+        ServerLogLevel: "trace" | "debug" | "info" | "warn" | "error" | "fatal";
+        ServerLogEntryDto: {
+            /**
+             * Format: double
+             * @description Increases by one per line since Core started; poll with the last one seen.
+             */
+            sequence: number;
+            /** @description ISO 8601 time the line was written. */
+            time: string | null;
+            level: components["schemas"]["ServerLogLevel"];
+            message: string;
+            /** @description The remaining structured fields as JSON, already sanitized like the container log. */
+            details: string | null;
+        };
+        ServerLogPage: {
+            items: components["schemas"]["ServerLogEntryDto"][];
+            /**
+             * Format: double
+             * @description Pass as `after` on the next request to receive only newer lines.
+             */
+            latestSequence: number;
+            /** @description True when `items` starts a fresh view: no `after` was given or Core restarted since. */
+            reset: boolean;
         };
         /**
          * @description Who may create their own account: nobody (`closed`, the default), people holding a
@@ -6676,6 +6722,55 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SetupResponse"];
+                };
+            };
+        };
+    };
+    ListServerLogs: {
+        parameters: {
+            query?: {
+                after?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Server log lines */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServerLogPage"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
                 };
             };
         };

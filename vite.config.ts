@@ -62,6 +62,8 @@ export default defineConfig({
       "/api": {
         target: process.env.OPENMESHTAK_CORE_URL ?? "http://127.0.0.1:3000",
         changeOrigin: false,
+        // The live server log uses Socket.IO under /api/realtime.
+        ws: true,
       },
     },
   },
