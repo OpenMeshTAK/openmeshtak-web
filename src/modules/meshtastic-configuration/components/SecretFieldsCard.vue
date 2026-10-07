@@ -87,7 +87,7 @@ function hintFor(field: FirmwareFieldDto): string {
               :type="reveal ? 'text' : 'password'"
               :inputmode="field.type === 'integer' ? 'numeric' : undefined"
               :label="field.label"
-              :hint="hintFor(field)"
+              :placeholder="hintFor(field)"
               :error-messages="error ?? []"
               :append-inner-icon="reveal ? mdiEyeOff : mdiEye"
               autocomplete="new-password"

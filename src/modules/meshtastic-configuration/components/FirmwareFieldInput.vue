@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import InfoHint from "@/shared/components/InfoHint.vue";
 import { computed } from "vue";
 import type { FirmwareEnumValueDto, FirmwareFieldDto, SettingValue } from "../meshtastic-configuration.api";
 
@@ -42,14 +43,16 @@ function updateNumber(input: string): void {
     v-if="field.type === 'boolean'"
     :model-value="value === true"
     :label="field.label"
-    :hint="hint"
-    :persistent-hint="Boolean(hint)"
     :disabled="disabled"
     :error-messages="errorMessages"
     color="primary"
     class="mb-2"
     @update:model-value="value = $event === true"
-  />
+  >
+    <template v-if="hint" #append>
+      <InfoHint :label="`About ${field.label.toLowerCase()}`" :text="hint" />
+    </template>
+  </v-switch>
   <v-select
     v-else-if="field.type === 'enum'"
     :model-value="typeof value === 'string' ? value : null"
@@ -57,19 +60,19 @@ function updateNumber(input: string): void {
     item-title="label"
     item-value="value"
     :label="field.label"
-    :hint="hint"
-    :persistent-hint="Boolean(hint)"
     :disabled="disabled"
     :error-messages="errorMessages"
     class="mb-2"
     @update:model-value="value = $event ?? undefined"
-  />
+  >
+    <template v-if="hint" #append-inner>
+      <InfoHint :label="`About ${field.label.toLowerCase()}`" :text="hint" />
+    </template>
+  </v-select>
   <v-text-field
     v-else-if="field.type === 'integer' || field.type === 'number'"
     :model-value="value === undefined ? '' : String(value)"
     :label="field.label"
-    :hint="hint"
-    :persistent-hint="Boolean(hint)"
     :suffix="field.unit ?? ''"
     :rules="numberRules"
     :disabled="disabled"
@@ -77,17 +80,23 @@ function updateNumber(input: string): void {
     type="number"
     class="mb-2"
     @update:model-value="updateNumber"
-  />
+  >
+    <template v-if="hint" #append-inner>
+      <InfoHint :label="`About ${field.label.toLowerCase()}`" :text="hint" />
+    </template>
+  </v-text-field>
   <v-text-field
     v-else
     :model-value="value === undefined ? '' : String(value)"
     :label="field.label"
-    :hint="hint"
-    :persistent-hint="Boolean(hint)"
     :counter="field.maxBytes ?? false"
     :disabled="disabled"
     :error-messages="errorMessages"
     class="mb-2"
     @update:model-value="value = $event"
-  />
+  >
+    <template v-if="hint" #append-inner>
+      <InfoHint :label="`About ${field.label.toLowerCase()}`" :text="hint" />
+    </template>
+  </v-text-field>
 </template>

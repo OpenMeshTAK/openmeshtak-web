@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import InfoHint from "@/shared/components/InfoHint.vue";
 import { ref, toRaw, watch } from "vue";
 import { describeError } from "@/shared/errors/api-problem";
 import { fieldErrors, messagesFor } from "@/shared/errors/field-errors";
@@ -93,21 +94,25 @@ async function save(): Promise<void> {
           v-model="form.name"
           label="Name"
           counter="11"
-          hint="Up to 11 letters, digits, - or _"
-          persistent-hint
           class="mb-2"
           :error-messages="messagesFor(formFields, 'name')"
-        />
+        >
+          <template #append-inner>
+            <InfoHint label="About name" text="Up to 11 letters, digits, - or _" />
+          </template>
+        </v-text-field>
         <v-text-field
           v-if="channel === null"
           v-model="form.psk"
           label="Existing key (optional)"
-          hint="Leave empty to generate a new random key. Otherwise paste the base64 key."
-          persistent-hint
           autocomplete="off"
           class="mb-2"
           :error-messages="messagesFor(formFields, 'psk')"
-        />
+        >
+          <template #append-inner>
+            <InfoHint label="About existing key" text="Leave empty to generate a new random key. Otherwise paste the base64 key." />
+          </template>
+        </v-text-field>
 
         <div class="text-subtitle-2 mt-2 mb-1">MQTT and position</div>
         <v-switch v-model="form.uplinkEnabled" label="Uplink to MQTT" color="primary" hide-details />
@@ -137,10 +142,12 @@ async function save(): Promise<void> {
           v-model="form.secret"
           label="Secret channel"
           color="primary"
-          hint="Only key holders receive the key before release; they share it on site. This can also apply to the primary channel."
-          persistent-hint
           :error-messages="messagesFor(formFields, 'secret')"
-        />
+        >
+          <template #append>
+            <InfoHint label="About secret channel" text="Only key holders receive the key before release; they share it on site. This can also apply to the primary channel." />
+          </template>
+        </v-switch>
         <template v-if="form.secret">
           <div class="text-body-2 text-medium-emphasis mt-3 mb-2">
             Key holders, for example platoon leaders. Only key holders who are also in the audience

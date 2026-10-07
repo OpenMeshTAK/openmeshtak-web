@@ -139,8 +139,6 @@ onMounted(async () => {
                 autocomplete="new-password"
                 :label="page.data.value.passwordSet ? 'New password (leave empty to keep)' : 'Password (optional)'"
                 :append-inner-icon="page.data.value.passwordSet && newPassword === '' ? mdiClose : undefined"
-                :hint="page.data.value.passwordSet ? 'A password is stored.' : ''"
-                persistent-hint
                 @click:append-inner="confirmRemovePassword = true"
               />
             </v-col>

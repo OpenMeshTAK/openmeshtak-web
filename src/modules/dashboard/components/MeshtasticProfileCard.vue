@@ -11,8 +11,7 @@ import { downloadDeviceProfile } from "../dashboard.api";
 /**
  * Firmware notice and the member's Meshtastic settings file. The file is only offered after the
  * firmware notice was acknowledged, because settings for a newer firmware can misconfigure an
- * older radio. Delivery is a plain file the Meshtastic app imports; nothing is promised beyond that
- * until a real device test has verified it.
+ * older radio. Delivery is a plain file the Meshtastic app imports; nothing is promised beyond that.
  */
 const props = defineProps<{
   profile: Schemas["ResolvedProfileDto"];
@@ -57,7 +56,6 @@ async function download(): Promise<void> {
     <div class="d-flex align-center flex-wrap ga-2 mb-4">
       <v-icon :icon="mdiRadioTower" size="small" />
       <div class="text-subtitle-1 font-weight-medium">Meshtastic radio</div>
-      <v-chip v-if="firmware && !firmware.verified" size="small" color="warning" variant="tonal">Not verified</v-chip>
       <v-spacer />
       <v-btn
         v-if="firmware"

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import InfoHint from "@/shared/components/InfoHint.vue";
 import { mdiContentCopy, mdiEye } from "@mdi/js";
 import { ref, watch } from "vue";
 import { useToast } from "@/shared/feedback/toast";
@@ -130,11 +131,13 @@ async function copy(): Promise<void> {
           <v-text-field
             v-model="replacementKey"
             label="Existing replacement key (optional)"
-            hint="Leave empty to generate a new random key. Otherwise paste the base64 key."
-            persistent-hint
             autocomplete="off"
             class="mt-3"
-          />
+          >
+            <template #append-inner>
+              <InfoHint label="About existing replacement key" text="Leave empty to generate a new random key. Otherwise paste the base64 key." />
+            </template>
+          </v-text-field>
           <div class="mt-3">
             <v-btn color="warning" variant="flat" size="small" :loading="busy" @click="rotate">Replace key</v-btn>
             <v-btn variant="text" size="small" class="ml-2" @click="confirmRotate = false">Cancel</v-btn>

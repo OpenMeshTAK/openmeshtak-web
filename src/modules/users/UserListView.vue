@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import InfoHint from "@/shared/components/InfoHint.vue";
 import { mdiAccountOff, mdiAccountPlus, mdiDotsVertical, mdiMagnify } from "@mdi/js";
 import { onMounted, ref, watch } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
@@ -213,11 +214,13 @@ onMounted(() => void load());
             label="Username"
             autocapitalize="none"
             spellcheck="false"
-            :hint="USERNAME_HINT"
-            persistent-hint
             :rules="[(value: string) => usernameRule(normalizeUsernameInput(value))]"
             @keydown.enter="saveEdit"
-          />
+          >
+            <template #append-inner>
+              <InfoHint label="About username" :text="USERNAME_HINT" />
+            </template>
+          </v-text-field>
           <p v-else class="text-body-2 text-medium-emphasis mb-0">
             The username is created when this user first signs in.
           </p>

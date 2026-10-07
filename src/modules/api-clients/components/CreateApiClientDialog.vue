@@ -49,9 +49,8 @@ async function create(): Promise<void> {
         <v-alert v-if="submission.error.value" type="error" class="mb-4">{{ submission.error.value }}</v-alert>
         <v-text-field
           v-model="form.name"
+          placeholder="Terra Bot"
           label="Name"
-          hint="e.g. Terra Bot"
-          persistent-hint
           class="mb-2"
           :error-messages="messagesFor(submission.fields.value, 'name')"
         />

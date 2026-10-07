@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import InfoHint from "@/shared/components/InfoHint.vue";
 import { mdiChevronDown, mdiCircle, mdiClose } from "@mdi/js";
 import { computed, ref, watch } from "vue";
 import type { TakMarker } from "@/modules/data-packages/data-packages.api";
@@ -71,15 +72,17 @@ function removeIconset(): void {
             v-model="typed"
             label="CoT type"
             placeholder="b-m-p-s-m"
-            hint="Any ATAK CoT type; a-* types are drawn as MIL-STD-2525 symbols"
-            persistent-hint
             density="compact"
             maxlength="64"
             :error-messages="typeError"
             :disabled="disabled"
             @blur="apply(typed)"
             @keydown.enter="apply(typed)"
-          />
+          >
+            <template #append-inner>
+              <InfoHint label="About the CoT type" text="Any ATAK CoT type; a-* types are drawn as MIL-STD-2525 symbols" />
+            </template>
+          </v-text-field>
         </v-expansion-panel-text>
       </v-expansion-panel>
     </v-expansion-panels>

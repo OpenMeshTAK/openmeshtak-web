@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import InfoHint from "@/shared/components/InfoHint.vue";
 import { ref, watch } from "vue";
 import OneTimeLinkReveal from "@/shared/components/OneTimeLinkReveal.vue";
 import { describeError, isApiProblem } from "@/shared/errors/api-problem";
@@ -71,10 +72,12 @@ watch(open, (isOpen) => {
             label="Username (optional)"
             autocapitalize="none"
             spellcheck="false"
-            :hint="`${USERNAME_HINT} Derived from the name when empty.`"
-            persistent-hint
             :rules="[usernameOrEmpty]"
-          />
+          >
+            <template #append-inner>
+              <InfoHint label="About username" :text="`${USERNAME_HINT} Derived from the name when empty.`" />
+            </template>
+          </v-text-field>
           <button type="submit" hidden />
         </v-form>
       </v-card-text>

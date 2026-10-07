@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import InfoHint from "@/shared/components/InfoHint.vue";
 import { mdiKeyPlus } from "@mdi/js";
 import { computed, onMounted, ref } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
@@ -107,7 +108,11 @@ onMounted(keys.load);
           <OneTimeCredentialReveal v-if="revealedKey" :secret="revealedKey" label="API key" @dismiss="closeDialog" />
           <template v-else>
             <v-alert v-if="creation.error.value" type="error" class="mb-4">{{ creation.error.value }}</v-alert>
-            <v-text-field v-model="keyName" label="Key name" hint="Helps you tell keys apart, e.g. production" persistent-hint />
+            <v-text-field v-model="keyName" label="Key name">
+              <template #append-inner>
+                <InfoHint label="About key name" text="Helps you tell keys apart, e.g. production" />
+              </template>
+            </v-text-field>
           </template>
         </v-card-text>
         <v-card-actions v-if="!revealedKey">

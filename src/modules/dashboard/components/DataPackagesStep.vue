@@ -49,8 +49,6 @@ const method = ref<"tak-server" | "manual">("tak-server");
                 label="How enrollment works"
                 text="Scan the QR code in ATAK, import the connection package, or enter the login data by hand."
               />
-              <v-spacer />
-              <v-chip size="small" color="warning" variant="tonal">Not verified</v-chip>
             </div>
             <TakEnrollmentAction label="Enroll a TAK app" />
           </template>

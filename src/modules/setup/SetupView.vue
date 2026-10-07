@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import InfoHint from "@/shared/components/InfoHint.vue";
 import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { api, unwrap } from "@/shared/api/client";
@@ -67,13 +68,15 @@ async function submit(): Promise<void> {
         autocomplete="username"
         autocapitalize="none"
         spellcheck="false"
-        :hint="USERNAME_HINT"
-        persistent-hint
         :rules="[(value: string) => usernameRule(normalizeUsernameInput(value))]"
         :error-messages="messagesFor(fields, 'username')"
         class="mb-2"
         required
-      />
+      >
+        <template #append-inner>
+          <InfoHint label="About username" :text="USERNAME_HINT" />
+        </template>
+      </v-text-field>
       <v-text-field
         v-model="form.email"
         label="Email"
@@ -84,11 +87,9 @@ async function submit(): Promise<void> {
       />
       <v-text-field
         v-model="form.password"
-        label="Password"
+        label="Password (at least 12 characters)"
         type="password"
         autocomplete="new-password"
-        hint="At least 12 characters"
-        persistent-hint
         :error-messages="messagesFor(fields, 'password')"
         required
       />

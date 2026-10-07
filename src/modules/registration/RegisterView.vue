@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import InfoHint from "@/shared/components/InfoHint.vue";
 import { mdiEye, mdiEyeOff } from "@mdi/js";
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
@@ -152,18 +153,18 @@ onMounted(async () => {
           autocomplete="username"
           autocapitalize="none"
           spellcheck="false"
-          :hint="USERNAME_HINT"
-          persistent-hint
           :rules="[(value: string) => usernameRule(normalizeUsernameInput(value))]"
           class="mb-2"
-        />
+        >
+          <template #append-inner>
+            <InfoHint label="About username" :text="USERNAME_HINT" />
+          </template>
+        </v-text-field>
         <v-text-field
           v-model="password"
           :type="reveal ? 'text' : 'password'"
-          label="Password"
+          label="Password (at least 12 characters)"
           autocomplete="new-password"
-          hint="At least 12 characters"
-          persistent-hint
           :append-inner-icon="reveal ? mdiEyeOff : mdiEye"
           class="mb-2"
           @click:append-inner="reveal = !reveal"
@@ -180,9 +181,11 @@ onMounted(async () => {
           label="Email (optional)"
           type="email"
           autocomplete="email"
-          hint="Only for password resets and security notices. You confirm it with a link."
-          persistent-hint
-        />
+        >
+          <template #append-inner>
+            <InfoHint label="About email" text="Only for password resets and security notices. You confirm it with a link." />
+          </template>
+        </v-text-field>
         <v-btn type="submit" color="primary" size="large" block class="mt-6" :loading="saving" :disabled="!ready">
           Create account
         </v-btn>

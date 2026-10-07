@@ -41,9 +41,8 @@ async function create(): Promise<void> {
         <v-alert v-if="submission.error.value" type="error" class="mb-4">{{ submission.error.value }}</v-alert>
         <v-text-field
           v-model="form.name"
+          placeholder="Editors"
           label="Name"
-          hint="e.g. Editors"
-          persistent-hint
           class="mb-2"
           :error-messages="messagesFor(submission.fields.value, 'name')"
           @update:model-value="form.slug = suggestSlug($event)"

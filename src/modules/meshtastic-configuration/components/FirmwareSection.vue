@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { mdiAlertDecagram, mdiCheckDecagram, mdiChip, mdiOpenInNew } from "@mdi/js";
+import InfoHint from "@/shared/components/InfoHint.vue";
+import { mdiCheckDecagram, mdiChip, mdiOpenInNew } from "@mdi/js";
 import { computed, ref } from "vue";
 import SectionHeader from "@/shared/components/layout/SectionHeader.vue";
 import { describeError } from "@/shared/errors/api-problem";
@@ -132,13 +133,14 @@ async function apply(confirmed: FirmwareChangePreviewDto): Promise<void> {
           <div class="text-h6">Meshtastic {{ configuration.firmwareVersion }}</div>
           <div class="d-flex align-center ga-2 mt-1 flex-wrap">
             <v-chip
+              v-if="configuration.verified"
               size="small"
               variant="tonal"
               label
-              :color="configuration.verified ? 'success' : 'warning'"
-              :prepend-icon="configuration.verified ? mdiCheckDecagram : mdiAlertDecagram"
+              color="success"
+              :prepend-icon="mdiCheckDecagram"
             >
-              {{ configuration.verified ? "Tested on a device" : "Not verified" }}
+              Tested on a device
             </v-chip>
             <v-chip v-if="profile && profile.channel !== 'stable'" size="small" variant="tonal" label color="warning">
               {{ capitalize(profile.channel) }} firmware
@@ -180,10 +182,12 @@ async function apply(confirmed: FirmwareChangePreviewDto): Promise<void> {
               v-model="patch"
               label="Minimum patch (optional)"
               :prefix="`${line}.`"
-              hint="Leave empty for the line's minimum. A higher patch unlocks settings added in it."
-              persistent-hint
               inputmode="numeric"
-            />
+            >
+              <template #append-inner>
+                <InfoHint label="About minimum patch" text="Leave empty for the line's minimum. A higher patch unlocks settings added in it." />
+              </template>
+            </v-text-field>
           </template>
 
           <template v-else>

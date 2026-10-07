@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import InfoHint from "@/shared/components/InfoHint.vue";
 import { onMounted, ref } from "vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
 import ViewHeader from "@/shared/components/layout/ViewHeader.vue";
@@ -71,19 +72,23 @@ onMounted(async () => {
           <v-text-field
             v-model="form.tileUrlTemplate"
             label="Tile URL"
-            hint="HTTPS XYZ template with {z}, {x} and {y}, e.g. https://tile.example.org/{z}/{x}/{y}.png"
-            persistent-hint
             :error-messages="messagesFor(errors, 'tileUrlTemplate')"
-          />
+          >
+            <template #append-inner>
+              <InfoHint label="About tile url" text="HTTPS XYZ template with {z}, {x} and {y}, e.g. https://tile.example.org/{z}/{x}/{y}.png" />
+            </template>
+          </v-text-field>
         </v-col>
         <v-col cols="12">
           <v-text-field
             v-model="form.attribution"
             label="Attribution"
-            hint="Shown on every map, exactly as the provider requires."
-            persistent-hint
             :error-messages="messagesFor(errors, 'attribution')"
-          />
+          >
+            <template #append-inner>
+              <InfoHint label="About attribution" text="Shown on every map, exactly as the provider requires." />
+            </template>
+          </v-text-field>
         </v-col>
       </v-row>
       <div class="d-flex justify-end mt-4">

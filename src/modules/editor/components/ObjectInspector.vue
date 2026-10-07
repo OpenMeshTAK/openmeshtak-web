@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import InfoHint from "@/shared/components/InfoHint.vue";
 import { mdiContentCopy, mdiTrashCanOutline } from "@mdi/js";
 import { computed, ref, watch } from "vue";
 import type {
@@ -173,13 +174,15 @@ function commitPosition(): void {
       <v-text-field
         v-model="position.altitude"
         label="Altitude (m HAE, optional)"
-        hint="Leave empty when unknown"
-        persistent-hint
         density="compact"
         :disabled="disabled"
         @blur="commitPosition"
         @keydown.enter="commitPosition"
-      />
+      >
+        <template #append-inner>
+          <InfoHint label="About altitude" text="Leave empty when unknown" />
+        </template>
+      </v-text-field>
       <v-text-field
         v-if="object.geometry.type === 'Circle'"
         v-model="position.radius"

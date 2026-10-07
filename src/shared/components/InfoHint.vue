@@ -1,18 +1,29 @@
 <script setup lang="ts">
-import { mdiHelpCircleOutline } from "@mdi/js";
+import { mdiAlertCircleOutline, mdiHelpCircleOutline } from "@mdi/js";
 
 /**
- * A small (?) button that explains something on demand, so cards stay short. It opens on click or
- * tap rather than hover, because touch devices have no hover and no action may depend on it.
+ * A small (?) button that explains something on demand, so cards stay short. With `tone="warning"` it
+ * becomes an orange (!) for caveats. It opens on click or tap rather than hover, because touch devices
+ * have no hover and no action may depend on it. Errors never go here: they must always be visible.
  */
-withDefaults(defineProps<{ text?: string; label?: string }>(), { text: "", label: "More information" });
+withDefaults(defineProps<{ text?: string; label?: string; tone?: "info" | "warning" }>(), {
+  text: "",
+  label: "More information",
+  tone: "info",
+});
 </script>
 
 <template>
   <v-menu location="bottom" :close-on-content-click="false" max-width="360">
     <template #activator="{ props: activator }">
-      <button v-bind="activator" type="button" class="info-hint" :aria-label="label">
-        <v-icon :icon="mdiHelpCircleOutline" size="15" />
+      <button
+        v-bind="activator"
+        type="button"
+        class="info-hint"
+        :class="{ 'info-hint--warning': tone === 'warning' }"
+        :aria-label="label"
+      >
+        <v-icon :icon="tone === 'warning' ? mdiAlertCircleOutline : mdiHelpCircleOutline" size="15" />
       </button>
     </template>
     <v-card class="pa-4 text-body-2">
@@ -41,6 +52,14 @@ withDefaults(defineProps<{ text?: string; label?: string }>(), { text: "", label
 .info-hint:focus-visible,
 .info-hint[aria-expanded="true"] {
   color: rgba(var(--v-theme-on-surface), var(--v-high-emphasis-opacity));
+}
+
+/* A warning has to be noticed before acting, so it keeps the warning color at rest. */
+.info-hint--warning,
+.info-hint--warning:hover,
+.info-hint--warning:focus-visible,
+.info-hint--warning[aria-expanded="true"] {
+  color: rgb(var(--v-theme-warning));
 }
 
 .info-hint:focus-visible {
