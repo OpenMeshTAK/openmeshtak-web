@@ -59,13 +59,17 @@ onMounted(async () => {
     <div v-if="page.state.value === 'loading'" class="pa-4"><v-skeleton-loader type="article" /></div>
     <div v-else-if="page.state.value === 'error' || page.data.value === null" class="pa-4"><ErrorState :message="page.error.value" @retry="page.load" /></div>
     <div v-else class="px-4 pb-4 pt-3">
-      <v-alert v-if="page.data.value.version === 0" type="info" variant="tonal" density="compact" class="mb-3">
-        OpenStreetMap's public tiles are a default for development and small events. Their usage
-        policy forbids heavy use and bulk downloads; use your own or a contracted provider for real
-        operations.
-      </v-alert>
       <v-row dense>
-        <v-col cols="12" sm="8"><v-text-field v-model="form.providerName" label="Provider name" /></v-col>
+        <v-col cols="12" sm="8">
+          <v-text-field v-model="form.providerName" label="Provider name">
+            <template #append-inner>
+              <InfoHint
+                label="About the tile provider"
+                text="OpenStreetMap's public tiles are a default for development and small events. Their usage policy forbids heavy use and bulk downloads; use your own or a contracted provider for real operations."
+              />
+            </template>
+          </v-text-field>
+        </v-col>
         <v-col cols="12" sm="4"><v-text-field v-model.number="form.maxZoom" type="number" label="Max zoom" /></v-col>
         <v-col cols="12">
           <v-text-field
