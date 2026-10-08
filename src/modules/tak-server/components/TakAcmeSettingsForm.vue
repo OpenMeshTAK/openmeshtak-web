@@ -36,6 +36,8 @@ const solverKey = computed({
     }
   },
 });
+/** Only the Cloudflare solver needs a zone and a token; HTTP-01 works through the Web address. */
+const usesCloudflare = computed(() => form.value.provider === "cloudflare");
 const solverItems = computed(() =>
   props.settings.availableSolvers.map((solver) => ({
     title: solver.label,
@@ -115,7 +117,7 @@ async function renew(): Promise<void> {
           <template #append-inner>
             <InfoHint
               label="About the challenge solver"
-              text="How Let's Encrypt checks that you own the host name. DNS-01 creates a short-lived DNS record, so no web port has to be reachable and a web server such as CloudPanel on port 80 is not affected."
+              text="How Let's Encrypt checks that you own the host name. HTTP-01 answers through the Web address, so it needs no account at a DNS provider, but the TAK host name must be the Web host name and port 80 must reach your reverse proxy. DNS-01 creates a short-lived DNS record at Cloudflare and needs no open web port."
             />
           </template>
         </v-select>
@@ -132,7 +134,7 @@ async function renew(): Promise<void> {
           </template>
         </v-text-field>
       </v-col>
-      <v-col cols="12">
+      <v-col v-if="usesCloudflare" cols="12">
         <v-text-field
           v-model="form.cloudflareZoneId"
           label="Cloudflare zone ID"
@@ -146,7 +148,7 @@ async function renew(): Promise<void> {
           </template>
         </v-text-field>
       </v-col>
-      <v-col cols="12">
+      <v-col v-if="usesCloudflare" cols="12">
         <v-text-field
           v-model="newApiToken"
           type="password"

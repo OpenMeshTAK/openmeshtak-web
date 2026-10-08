@@ -109,7 +109,8 @@ async function useCa(): Promise<void> {
         </p>
         <p class="mb-2">
           <strong>Let's Encrypt (automatic):</strong> OpenMeshTak requests a free, publicly trusted
-          certificate and renews it by itself. Needs the host name's DNS zone at Cloudflare.
+          certificate and renews it by itself, either through the Web address (TAK and Web share one host
+          name) or through a DNS record at Cloudflare.
         </p>
         <p class="mb-0">
           <strong>Uploaded certificate:</strong> a publicly trusted certificate you already have, e.g.
