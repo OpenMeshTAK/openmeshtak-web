@@ -91,9 +91,10 @@ function confirmEndpointChange(): void {
       </div>
       <v-switch
         v-model="form.enabled"
-        class="flex-grow-0 flex-shrink-0 ml-4"
+        class="flex-grow-0 flex-shrink-0 ml-4 my-n2"
         color="primary"
         inset
+        density="compact"
         hide-details
         aria-label="Enable the TAK server"
       />
@@ -116,6 +117,7 @@ function confirmEndpointChange(): void {
           <v-text-field
             v-model="form.hostName"
             label="Public host name"
+            hide-details="auto"
             :error-messages="messagesFor(errors, 'hostName')"
           >
             <template #append-inner>
@@ -124,13 +126,34 @@ function confirmEndpointChange(): void {
           </v-text-field>
         </v-col>
         <v-col cols="12" sm="4">
-          <v-text-field v-model.number="form.enrollmentPort" type="number" label="Enrollment port" :error-messages="messagesFor(errors, 'enrollmentPort')" />
+          <v-text-field
+            v-model.number="form.enrollmentPort"
+            type="number"
+            label="Enrollment port"
+            hide-spin-buttons
+            hide-details="auto"
+            :error-messages="messagesFor(errors, 'enrollmentPort')"
+          />
         </v-col>
         <v-col cols="12" sm="4">
-          <v-text-field v-model.number="form.martiPort" type="number" label="Data Package port" :error-messages="messagesFor(errors, 'martiPort')" />
+          <v-text-field
+            v-model.number="form.martiPort"
+            type="number"
+            label="Data Package port"
+            hide-spin-buttons
+            hide-details="auto"
+            :error-messages="messagesFor(errors, 'martiPort')"
+          />
         </v-col>
         <v-col cols="12" sm="4">
-          <v-text-field v-model.number="form.streamingPort" type="number" label="Streaming port" :error-messages="messagesFor(errors, 'streamingPort')" />
+          <v-text-field
+            v-model.number="form.streamingPort"
+            type="number"
+            label="Streaming port"
+            hide-spin-buttons
+            hide-details="auto"
+            :error-messages="messagesFor(errors, 'streamingPort')"
+          />
         </v-col>
         <v-col cols="12" sm="4">
           <v-text-field
@@ -138,13 +161,19 @@ function confirmEndpointChange(): void {
             type="number"
             label="Client certificate lifetime"
             suffix="days"
+            hide-spin-buttons
+            hide-details="auto"
             :error-messages="messagesFor(errors, 'clientCertificateDays')"
           />
         </v-col>
+        <!-- Save shares the last row so the lone lifetime field leaves no empty band below it. -->
+        <v-col cols="12" sm="8" class="d-flex align-center justify-end">
+          <v-btn color="primary" :loading="saving" @click="save()">Save</v-btn>
+        </v-col>
       </v-row>
     </template>
-    <!-- Disabled and saved as disabled: nothing to save, so the card stays a single line. -->
-    <div v-if="form.enabled || props.settings.enabled" class="d-flex justify-end mt-2">
+    <!-- Switched off but still saved as on: only the Save button remains. -->
+    <div v-else-if="props.settings.enabled" class="d-flex justify-end">
       <v-btn color="primary" :loading="saving" @click="save()">Save</v-btn>
     </div>
     <ConfirmDialog v-model="confirming" title="Change how devices connect?" confirm-label="Save" @confirm="confirmEndpointChange">
