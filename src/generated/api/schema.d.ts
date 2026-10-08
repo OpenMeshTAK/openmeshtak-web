@@ -323,10 +323,30 @@ export interface paths {
         put: operations["AddTakServerCertificate"];
         post?: never;
         /**
-         * @description Removes an added or ACME certificate and disables ACME; the server then uses one issued by the
+         * @description Removes an added, ACME or file certificate and disables ACME and the file reload; the server then uses one issued by the
          *     OpenMeshTak CA.
          */
         delete: operations["RemoveTakServerCertificate"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tak-server/server-certificate/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * @description Uses the reverse proxy's certificate files, mounted read-only below `certificateDirectory`.
+         *     Core reloads them every twelve hours, so a certificate the proxy renews is picked up. Disables ACME.
+         */
+        put: operations["UseTakCertificateFiles"];
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -2441,15 +2461,21 @@ export interface components {
         /** @description The certificate the TAK listeners present. The private key is never returned. */
         TakServerCertificateDto: {
             /**
-             * @description OpenMeshTak-issued, administrator-added, or obtained automatically through ACME.
+             * @description OpenMeshTak-issued, administrator-added, obtained automatically through ACME, or read from the reverse proxy's files.
              * @enum {string}
              */
-            source: "issued" | "added" | "acme";
+            source: "issued" | "added" | "acme" | "file";
             hostName: string;
             subject: string;
             fingerprintSha256: string;
             /** Format: date-time */
             notAfter: string;
+        };
+        TakCertificateFilesDto: {
+            /** @description Full chain, server certificate first, e.g. `live/tak.example.org/fullchain.pem`. */
+            certificateFile: string;
+            /** @description Unencrypted private key, e.g. `live/tak.example.org/privkey.pem`. */
+            keyFile: string;
         };
         TakServerSettingsDto: {
             /** @description Whether the TAK listeners run. Requires a host name. */
@@ -2469,6 +2495,10 @@ export interface components {
             clientCertificateDays: number;
             /** @description `null` until the server first starts or a certificate is added. */
             serverCertificate: components["schemas"]["TakServerCertificateDto"] | null;
+            /** @description The reverse proxy's certificate files Core reads, relative to `certificateDirectory`; `null` unless used. */
+            certificateFiles: components["schemas"]["TakCertificateFilesDto"] | null;
+            /** @description Where the proxy's certificate directory must be mounted for `certificateFiles`. */
+            certificateDirectory: string;
             /**
              * Format: date-time
              * @description When the public host name or a port last changed after setup; `null` if never. Apps enrolled
@@ -2525,6 +2555,11 @@ export interface components {
              *     rest and never returned.
              */
             privateKeyPem: string;
+        };
+        /** @description Use the reverse proxy's certificate files; both paths are relative to the mounted directory. */
+        UseTakCertificateFilesRequest: {
+            certificateFile: string;
+            keyFile: string;
         };
         LiveTakConnectionDto: {
             id: components["schemas"]["Uuid"];
@@ -5953,6 +5988,57 @@ export interface operations {
             };
             /** @description Access denied */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UseTakCertificateFiles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UseTakCertificateFilesRequest"];
+            };
+        };
+        responses: {
+            /** @description Certificate files in use */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TakServerSettingsDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

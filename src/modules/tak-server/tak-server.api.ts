@@ -41,6 +41,11 @@ export function addTakServerCertificate(certificateChainPem: string, privateKeyP
   return unwrap(api.PUT("/tak-server/server-certificate", { body: { certificateChainPem, privateKeyPem } }));
 }
 
+/** Paths are relative to the directory where the reverse proxy's certificates are mounted. */
+export function useTakCertificateFiles(files: Schemas["UseTakCertificateFilesRequest"]): Promise<TakServerSettingsDto> {
+  return unwrap(api.PUT("/tak-server/server-certificate/files", { body: files }));
+}
+
 export function removeTakServerCertificate(): Promise<TakServerSettingsDto> {
   return unwrap(api.DELETE("/tak-server/server-certificate"));
 }

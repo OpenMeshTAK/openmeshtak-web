@@ -12,6 +12,8 @@ const settings: TakServerSettingsDto = {
   streamingPort: 8089,
   clientCertificateDays: 365,
   serverCertificate: null,
+  certificateFiles: null,
+  certificateDirectory: "/server/certs",
   endpointChangedAt: null,
   validClientCertificates: 2,
   clientCertificatesToReEnroll: 0,

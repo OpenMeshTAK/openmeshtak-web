@@ -4,10 +4,12 @@ import { computed, ref, watch } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import InfoHint from "@/shared/components/InfoHint.vue";
 import { describeError } from "@/shared/errors/api-problem";
+import { fieldErrors, messagesFor } from "@/shared/errors/field-errors";
 import { useToast } from "@/shared/feedback/toast";
 import {
   addTakServerCertificate,
   removeTakServerCertificate,
+  useTakCertificateFiles,
   type TakAcmeSettingsDto,
   type TakServerSettingsDto,
 } from "../tak-server.api";
@@ -16,17 +18,18 @@ import TakAcmeSettingsForm from "./TakAcmeSettingsForm.vue";
 
 /**
  * The TLS certificate of the TAK ports and where it comes from: the OpenMeshTak CA, Let's Encrypt
- * through ACME, or an uploaded publicly trusted certificate. Only one source is active at a time.
+ * through ACME, the reverse proxy's certificate files, or an uploaded publicly trusted certificate. Only one source is active at a time.
  */
 const props = defineProps<{ settings: TakServerSettingsDto; acme: TakAcmeSettingsDto }>();
 const emit = defineEmits<{ changed: []; acmeChanged: [settings: TakAcmeSettingsDto] }>();
 const toast = useToast();
 
-type Source = "ca" | "acme" | "upload";
+type Source = "ca" | "acme" | "files" | "upload";
 
 const sourceLabels: Record<Source, string> = {
   ca: "OpenMeshTak CA",
   acme: "Let's Encrypt (automatic)",
+  files: "Reverse proxy files",
   upload: "Uploaded certificate",
 };
 
@@ -35,8 +38,40 @@ const activeSource = computed<Source>(() => {
   if (props.acme.enabled || certificate.value?.source === "acme") {
     return "acme";
   }
+  if (props.settings.certificateFiles !== null || certificate.value?.source === "file") {
+    return "files";
+  }
   return certificate.value?.source === "added" ? "upload" : "ca";
 });
+
+/** Certbot's layout is the common case, so it is the starting suggestion. */
+function filesOf(settings: TakServerSettingsDto) {
+  const host = settings.hostName ?? "tak.example.org";
+  return settings.certificateFiles ?? { certificateFile: `live/${host}/fullchain.pem`, keyFile: `live/${host}/privkey.pem` };
+}
+const files = ref(filesOf(props.settings));
+const fileErrors = ref<Record<string, string>>({});
+watch(
+  () => props.settings,
+  (settings) => {
+    files.value = filesOf(settings);
+  },
+);
+
+async function useFiles(): Promise<void> {
+  saving.value = true;
+  fileErrors.value = {};
+  try {
+    await useTakCertificateFiles(files.value);
+    toast.success("The TAK server now uses your reverse proxy's certificate.");
+    emit("changed");
+  } catch (caught: unknown) {
+    fileErrors.value = fieldErrors(caught);
+    toast.error(caught);
+  } finally {
+    saving.value = false;
+  }
+}
 const source = ref<Source>(activeSource.value);
 watch(activeSource, (value) => {
   source.value = value;
@@ -105,16 +140,21 @@ async function useCa(): Promise<void> {
       <InfoHint label="About the certificate sources">
         <p class="mb-2">
           <strong>OpenMeshTak CA:</strong> works without any setup, but phones do not trust it on their
-          own. ATAK's QR enrollment needs one of the other two sources.
+          own. The QR codes for ATAK and iTAK need one of the other sources.
         </p>
         <p class="mb-2">
           <strong>Let's Encrypt (automatic):</strong> OpenMeshTak requests a free, publicly trusted
           certificate and renews it by itself, either through the Web address (TAK and Web share one host
           name) or through a DNS record at Cloudflare.
         </p>
+        <p class="mb-2">
+          <strong>Reverse proxy files:</strong> the certificate your reverse proxy already has for the
+          TAK host name, read from its mounted certificate directory. OpenMeshTak picks up renewals by
+          itself.
+        </p>
         <p class="mb-0">
-          <strong>Uploaded certificate:</strong> a publicly trusted certificate you already have, e.g.
-          from CloudPanel or certbot. You must upload the renewed one before it expires.
+          <strong>Uploaded certificate:</strong> a publicly trusted certificate you already have. You
+          must upload the renewed one before it expires.
         </p>
       </InfoHint>
     </div>
@@ -122,6 +162,7 @@ async function useCa(): Promise<void> {
       <v-btn-toggle v-model="source" mandatory divided variant="outlined" density="comfortable" class="flex-wrap">
         <v-btn value="ca">OpenMeshTak CA</v-btn>
         <v-btn value="acme">Let's Encrypt (automatic)</v-btn>
+        <v-btn value="files">Reverse proxy files</v-btn>
         <v-btn value="upload">Upload certificate</v-btn>
       </v-btn-toggle>
       <InfoHint v-if="source === 'ca'" tone="warning" label="Limits of the OpenMeshTak CA">
@@ -148,6 +189,31 @@ async function useCa(): Promise<void> {
       :host-name="settings.hostName"
       @changed="emit('acmeChanged', $event)"
     />
+
+    <div v-else-if="source === 'files'">
+      <p class="text-body-medium mt-0 mb-3">
+        Mount your reverse proxy's certificate directory read-only at
+        <code>{{ settings.certificateDirectory }}</code> (see <code>docker-compose.yml</code>), then enter
+        the files relative to it.
+      </p>
+      <v-row dense>
+        <v-col cols="12" sm="6">
+          <v-text-field
+            v-model="files.certificateFile"
+            label="Certificate chain file"
+            :error-messages="messagesFor(fileErrors, 'certificateFile')"
+          />
+        </v-col>
+        <v-col cols="12" sm="6">
+          <v-text-field v-model="files.keyFile" label="Private key file" :error-messages="messagesFor(fileErrors, 'keyFile')" />
+        </v-col>
+      </v-row>
+      <div class="d-flex justify-end">
+        <v-btn color="primary" :loading="saving" :disabled="settings.hostName === null" @click="useFiles">
+          {{ activeSource === "files" ? "Save and reload" : "Use these files" }}
+        </v-btn>
+      </div>
+    </div>
 
     <div v-else-if="source === 'upload'" class="d-flex justify-end">
       <v-btn color="primary" :disabled="settings.hostName === null" @click="dialogOpen = true">
