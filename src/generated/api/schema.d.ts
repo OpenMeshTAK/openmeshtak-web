@@ -576,6 +576,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tak-server/acme/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Runs the saved settings against Let's Encrypt staging to check the setup without touching the
+         *     production rate limits. Nothing is installed; a failure is returned as `succeeded: false`.
+         */
+        post: operations["Test"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/events/{eventId}/tak/configuration": {
         parameters: {
             query?: never;
@@ -2669,6 +2689,12 @@ export interface components {
             cloudflareZoneId: string | null;
             /** @description Omit to keep the stored token, `null` to remove it. The token is encrypted and write-only. */
             apiToken?: string | null;
+        };
+        /** @description Result of a test run against Let's Encrypt staging. */
+        TakAcmeTestResultDto: {
+            succeeded: boolean;
+            /** @description What happened, safe to show to the administrator. */
+            message: string;
         };
         /**
          * @description - `none`: OpenMeshTak gives no TAK connection guidance.
@@ -6562,6 +6588,53 @@ export interface operations {
             };
             /** @description ACME renewal failed */
             502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    Test: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Test finished */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TakAcmeTestResultDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

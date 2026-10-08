@@ -6,8 +6,10 @@ import { useToast } from "@/shared/feedback/toast";
 import {
   renewTakAcmeCertificate,
   saveTakAcmeSettings,
+  testTakAcmeSetup,
   type TakAcmeSettingsChanges,
   type TakAcmeSettingsDto,
+  type TakAcmeTestResultDto,
 } from "../tak-server.api";
 
 /**
@@ -23,6 +25,8 @@ const newApiToken = ref("");
 const removeApiToken = ref(false);
 const saving = ref(false);
 const renewing = ref(false);
+const testing = ref(false);
+const testResult = ref<TakAcmeTestResultDto | null>(null);
 const errors = ref<Record<string, string>>({});
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
 
@@ -69,25 +73,47 @@ watch(
   },
 );
 
+/** Stores the form; `enabled` decides whether Core starts requesting the real certificate. */
+async function persist(enabled: boolean): Promise<TakAcmeSettingsDto> {
+  const apiToken = removeApiToken.value ? { apiToken: null } : newApiToken.value === "" ? {} : { apiToken: newApiToken.value };
+  const saved = await saveTakAcmeSettings(props.settings.version, {
+    ...form.value,
+    enabled,
+    email: form.value.email?.trim() || null,
+    cloudflareZoneId: form.value.cloudflareZoneId?.trim() || null,
+    ...apiToken,
+  });
+  show(saved);
+  return saved;
+}
+
 async function save(): Promise<void> {
   saving.value = true;
   errors.value = {};
-  const apiToken = removeApiToken.value ? { apiToken: null } : newApiToken.value === "" ? {} : { apiToken: newApiToken.value };
   try {
-    show(
-      await saveTakAcmeSettings(props.settings.version, {
-        ...form.value,
-        email: form.value.email?.trim() || null,
-        cloudflareZoneId: form.value.cloudflareZoneId?.trim() || null,
-        ...apiToken,
-      }),
-    );
+    await persist(true);
     toast.success("Let's Encrypt is set up. The certificate is requested in the background.");
   } catch (caught: unknown) {
     errors.value = fieldErrors(caught);
     toast.error(caught);
   } finally {
     saving.value = false;
+  }
+}
+
+/** Saves without switching Let's Encrypt on, then tries the setup against its staging service. */
+async function testSetup(): Promise<void> {
+  testing.value = true;
+  errors.value = {};
+  testResult.value = null;
+  try {
+    await persist(props.settings.enabled);
+    testResult.value = await testTakAcmeSetup();
+  } catch (caught: unknown) {
+    errors.value = fieldErrors(caught);
+    toast.error(caught);
+  } finally {
+    testing.value = false;
   }
 }
 
@@ -176,7 +202,17 @@ async function renew(): Promise<void> {
     <p v-else-if="settings.lastSuccessAt" class="text-body-small text-medium-emphasis mt-2 mb-0">
       Last renewed {{ dateFormat.format(new Date(settings.lastSuccessAt)) }}.
     </p>
-    <div class="d-flex justify-end ga-2 mt-4">
+    <v-alert v-if="testResult" :type="testResult.succeeded ? 'success' : 'error'" variant="tonal" density="compact" class="mt-2">
+      {{ testResult.message }}
+    </v-alert>
+    <div class="d-flex justify-end flex-wrap ga-2 mt-4">
+      <div class="d-flex align-center">
+        <v-btn variant="text" :loading="testing" :disabled="hostName === null" @click="testSetup">Test setup</v-btn>
+        <InfoHint
+          label="About the setup test"
+          text="Saves the form and runs it against Let's Encrypt's test service. Nothing is installed and the limits of the real service are not touched, so you can try until it works."
+        />
+      </div>
       <v-btn v-if="settings.enabled" variant="tonal" :loading="renewing" @click="renew">Renew now</v-btn>
       <v-btn color="primary" :loading="saving" :disabled="hostName === null" @click="save">
         {{ settings.enabled ? "Save" : "Use Let's Encrypt" }}

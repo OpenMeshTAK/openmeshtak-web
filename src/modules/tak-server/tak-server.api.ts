@@ -6,6 +6,7 @@ export type TakCertificateAuthorityDto = Schemas["TakCertificateAuthorityDto"];
 export type TakClientCertificateDto = Schemas["TakClientCertificateDto"];
 export type TakEnrollmentDto = Schemas["TakEnrollmentDto"];
 export type TakAcmeSettingsDto = Schemas["TakAcmeSettingsDto"];
+export type TakAcmeTestResultDto = Schemas["TakAcmeTestResultDto"];
 export type TakServerSettingsChanges = Omit<Schemas["UpdateTakServerSettingsRequest"], "version">;
 export type TakAcmeSettingsChanges = Omit<Schemas["UpdateTakAcmeSettingsRequest"], "version">;
 
@@ -28,6 +29,11 @@ export function saveTakAcmeSettings(version: number, changes: TakAcmeSettingsCha
 
 export function renewTakAcmeCertificate(): Promise<TakAcmeSettingsDto> {
   return unwrap(api.POST("/tak-server/acme/renew"));
+}
+
+/** Runs the saved settings against Let's Encrypt staging; nothing is installed. */
+export function testTakAcmeSetup(): Promise<TakAcmeTestResultDto> {
+  return unwrap(api.POST("/tak-server/acme/test"));
 }
 
 /** The key is sent once and never returned by Core. */
