@@ -20,6 +20,6 @@ defineEmits<{ retry: [] }>();
 
 <style scoped>
 .view-content {
-  padding: 12px 24px 24px;
+  padding: 20px 24px 24px;
 }
 </style>
