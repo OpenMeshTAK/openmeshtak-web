@@ -31,10 +31,14 @@ onMounted(() => {
   <v-app>
     <CoreConnectingScreen v-if="coreConnection.waiting" />
     <CoreConnectingScreen v-else-if="connectionLost && !lostDismissed" lost @dismiss="lostDismissed = true" />
-    <div v-if="connectionLost && lostDismissed" class="offline-notice text-body-medium" role="alert">
-      <v-progress-circular indeterminate size="16" width="2" />
-      No connection to the server. Changes cannot be saved until it is back.
-    </div>
+    <Teleport to="body">
+      <v-theme-provider>
+        <div v-if="connectionLost && lostDismissed" class="offline-notice text-body-medium" role="alert">
+          <v-progress-circular indeterminate size="16" width="2" />
+          No connection to the server. Changes cannot be saved until it is back.
+        </div>
+      </v-theme-provider>
+    </Teleport>
     <VersionMismatchBar />
     <router-view />
     <ToastHost />
@@ -43,12 +47,12 @@ onMounted(() => {
 </template>
 
 <style scoped>
-/* Floats above the page instead of covering its header; the page reconnects by itself. */
+/* Floats above the page and open dialogs instead of covering the header; the page reconnects by itself. */
 .offline-notice {
   position: fixed;
   left: 50%;
   bottom: 24px;
-  z-index: 1900;
+  z-index: 8900;
   display: flex;
   align-items: center;
   gap: 10px;

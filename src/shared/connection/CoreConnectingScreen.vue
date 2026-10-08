@@ -13,32 +13,37 @@ const emit = defineEmits<{ dismiss: [] }>();
 </script>
 
 <template>
-  <div class="connecting" :class="{ 'connecting--lost': lost }" role="status" aria-live="polite">
-    <v-btn
-      v-if="lost"
-      class="connecting__close"
-      :icon="mdiClose"
-      variant="text"
-      aria-label="Continue without a connection"
-      title="Continue without a connection"
-      @click="emit('dismiss')"
-    />
-    <AppLogo v-if="!lost" :size="56" class="mb-8" />
-    <v-progress-circular indeterminate color="primary" size="44" width="4" class="mb-6" />
-    <div class="text-title-large mb-2 text-center">{{ lost ? "The connection to the server was lost" : "Connecting to the server…" }}</div>
-    <div class="text-body-medium text-medium-emphasis text-center connecting__text">
-      <template v-if="lost">Reconnecting… What you already saved is safe. This page continues by itself as soon as the server answers.</template>
-      <template v-else>OpenMeshTak is starting or briefly unreachable. This page continues by itself as soon as it answers.</template>
-      <template v-if="coreConnection.attempts > 3"><br>Still trying ({{ coreConnection.attempts }} attempts).</template>
-    </div>
-  </div>
+  <!-- Vuetify teleports dialogs to the body with z-indexes from 2000 up; this must cover them too. -->
+  <Teleport to="body">
+    <v-theme-provider>
+      <div class="connecting" :class="{ 'connecting--lost': lost }" role="status" aria-live="polite">
+        <v-btn
+          v-if="lost"
+          class="connecting__close"
+          :icon="mdiClose"
+          variant="text"
+          aria-label="Continue without a connection"
+          title="Continue without a connection"
+          @click="emit('dismiss')"
+        />
+        <AppLogo v-if="!lost" :size="56" class="mb-8" />
+        <v-progress-circular indeterminate color="primary" size="44" width="4" class="mb-6" />
+        <div class="text-title-large mb-2 text-center">{{ lost ? "The connection to the server was lost" : "Connecting to the server…" }}</div>
+        <div class="text-body-medium text-medium-emphasis text-center connecting__text">
+          <template v-if="lost">Reconnecting… What you already saved is safe. This page continues by itself as soon as the server answers.</template>
+          <template v-else>OpenMeshTak is starting or briefly unreachable. This page continues by itself as soon as it answers.</template>
+          <template v-if="coreConnection.attempts > 3"><br>Still trying ({{ coreConnection.attempts }} attempts).</template>
+        </div>
+      </div>
+    </v-theme-provider>
+  </Teleport>
 </template>
 
 <style scoped>
 .connecting {
   position: fixed;
   inset: 0;
-  z-index: 2000;
+  z-index: 9000;
   display: flex;
   flex-direction: column;
   align-items: center;
