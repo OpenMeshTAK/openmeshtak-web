@@ -1605,6 +1605,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/events/{eventId}/configuration-revisions/pending-changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Lists what publishing would change compared with the published revision. Requires `events.read`. */
+        get: operations["GetPendingConfigurationChanges"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/events/{eventId}/configuration-revisions/{revisionId}": {
         parameters: {
             query?: never;
@@ -3994,6 +4011,30 @@ export interface components {
             /** @description `false` when the configuration was unchanged and the latest revision is returned instead. */
             created: boolean;
             revision: components["schemas"]["ConfigurationRevisionDto"];
+        };
+        /** @enum {string} */
+        ConfigurationChangeArea: "event" | "roles" | "groups" | "channels" | "meshtastic" | "tak";
+        /** @enum {string} */
+        ConfigurationChangeKind: "added" | "removed" | "changed";
+        ConfigurationChangeDto: {
+            area: components["schemas"]["ConfigurationChangeArea"];
+            kind: components["schemas"]["ConfigurationChangeKind"];
+            /** @description Name of the role, group or channel, a Meshtastic setting key, or a short description. */
+            name: string;
+            /** @description Dotted paths of the changed fields of a changed item; empty otherwise. */
+            fields: string[];
+        };
+        PendingConfigurationChangesDto: {
+            /**
+             * Format: double
+             * @description Number of the revision participants receive; `null` before the first one.
+             */
+            publishedRevision: number | null;
+            /**
+             * @description What publishing would change. Empty when nothing is pending, and always empty for drafts
+             *     (activation publishes) and archived events (read-only).
+             */
+            changes: components["schemas"]["ConfigurationChangeDto"][];
         };
         /** @enum {string} */
         SmtpSecurity: "starttls" | "tls" | "none";
@@ -10803,6 +10844,46 @@ export interface operations {
             };
             /** @description Event not active; Idempotency-Key conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetPendingConfigurationChanges: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pending configuration changes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PendingConfigurationChangesDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -1,17 +1,21 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import { isApiProblem, type ProblemFieldError } from "@/shared/errors/api-problem";
 import { useToast } from "@/shared/feedback/toast";
 import { useSession } from "@/modules/auth/session";
+import { describeChange } from "../configuration-changes";
 import {
+  getPendingConfigurationChanges,
   publishConfiguration,
   transitionEvent,
+  type ConfigurationChange,
   type EventDto,
   type EventTransition,
 } from "../events.api";
 
-const props = defineProps<{ event: EventDto }>();
+/** `visible` refreshes the pending changes whenever the Overview tab is shown again. */
+const props = defineProps<{ event: EventDto; visible: boolean }>();
 const emit = defineEmits<{ changed: [event: EventDto] }>();
 const session = useSession();
 const toast = useToast();
@@ -44,6 +48,9 @@ const dialog = computed(() => {
 });
 
 const publishing = ref(false);
+const publishOpen = ref(false);
+const changes = ref<ConfigurationChange[]>([]);
+const changeLines = computed(() => changes.value.map(describeChange));
 
 const TRANSITION_DONE: Record<EventTransition, string> = {
   activate: "Event activated. Participants can now see it.",
@@ -51,7 +58,20 @@ const TRANSITION_DONE: Record<EventTransition, string> = {
   reactivate: "Event reactivated.",
 };
 
-/** Group and role changes reach participants only after they are published as a new revision. */
+/** A failed load only leaves the button disabled; publishing itself reports its own errors. */
+async function loadChanges(): Promise<void> {
+  if (props.event.status !== "active" || !canManage.value) {
+    changes.value = [];
+    return;
+  }
+  try {
+    changes.value = (await getPendingConfigurationChanges(props.event.id)).changes;
+  } catch {
+    changes.value = [];
+  }
+}
+
+/** Configuration changes reach participants only after they are published as a new revision. */
 async function publish(): Promise<void> {
   publishing.value = true;
   try {
@@ -61,12 +81,29 @@ async function publish(): Promise<void> {
     } else {
       toast.info(`No changes since revision ${String(result.revision.number)}.`);
     }
+    publishOpen.value = false;
   } catch (caught: unknown) {
     toast.error(caught);
   } finally {
     publishing.value = false;
   }
+  await loadChanges();
 }
+
+async function openPublish(): Promise<void> {
+  await loadChanges();
+  publishOpen.value = changes.value.length > 0;
+}
+
+onMounted(loadChanges);
+watch(
+  () => [props.visible, props.event.status],
+  async () => {
+    if (props.visible) {
+      await loadChanges();
+    }
+  },
+);
 
 async function run(): Promise<void> {
   const transition = pending.value;
@@ -113,11 +150,17 @@ async function run(): Promise<void> {
         open access links and deletes the event's event accounts.
       </p>
       <div class="d-flex flex-wrap ga-3">
-        <v-btn v-if="canManage" color="primary" :loading="publishing" @click="publish">Publish configuration</v-btn>
+        <v-btn v-if="canManage" color="primary" :disabled="changes.length === 0" @click="openPublish">
+          Publish configuration…
+        </v-btn>
         <v-btn v-if="canManage" color="error" variant="outlined" @click="pending = 'archive'">Archive event…</v-btn>
       </div>
       <p class="text-body-small text-medium-emphasis mt-2 mb-0">
-        Changes to roles and groups reach participants once you publish them.
+        {{
+          changes.length === 0
+            ? "Participants have the current configuration."
+            : `${String(changes.length)} unpublished ${changes.length === 1 ? "change reaches" : "changes reach"} participants once you publish them.`
+        }}
       </p>
     </template>
 
@@ -162,5 +205,31 @@ async function run(): Promise<void> {
         where needed.
       </template>
     </ConfirmDialog>
+
+    <ConfirmDialog
+      v-model="publishOpen"
+      title="Publish configuration?"
+      confirm-label="Publish"
+      :loading="publishing"
+      @confirm="publish"
+    >
+      Participants receive these changes in profiles and artifacts generated from now on. Artifacts
+      issued earlier are not changed.
+      <v-list density="compact" class="change-list mt-3 pa-0">
+        <v-list-item v-for="line in changeLines" :key="line.key" class="px-0">
+          <v-list-item-title class="text-wrap">
+            <span class="text-medium-emphasis">{{ line.kind }}</span> · {{ line.title }}
+          </v-list-item-title>
+          <v-list-item-subtitle v-if="line.detail" class="text-wrap">{{ line.detail }}</v-list-item-subtitle>
+        </v-list-item>
+      </v-list>
+    </ConfirmDialog>
   </v-card>
 </template>
+
+<style scoped>
+.change-list {
+  max-height: 50vh;
+  overflow-y: auto;
+}
+</style>

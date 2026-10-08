@@ -37,3 +37,9 @@ export function transitionEvent(eventId: string, transition: EventTransition, ve
 export function publishConfiguration(eventId: string): Promise<Schemas["PublishConfigurationResponse"]> {
   return unwrap(api.POST("/events/{eventId}/configuration-revisions", { params: { path: { eventId } } }));
 }
+
+export type ConfigurationChange = Schemas["ConfigurationChangeDto"];
+
+export function getPendingConfigurationChanges(eventId: string): Promise<Schemas["PendingConfigurationChangesDto"]> {
+  return unwrap(api.GET("/events/{eventId}/configuration-revisions/pending-changes", { params: { path: { eventId } } }));
+}

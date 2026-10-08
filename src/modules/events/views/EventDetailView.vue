@@ -162,7 +162,7 @@ onMounted(load);
 
       <v-window v-model="tab">
         <v-window-item value="overview">
-          <EventOverviewPanel :key="event.id" :event="event" @changed="show" @open="tab = $event" />
+          <EventOverviewPanel :key="event.id" :event="event" :visible="tab === 'overview'" @changed="show" @open="tab = $event" />
         </v-window-item>
         <v-window-item value="settings">
           <v-row>
@@ -196,7 +196,7 @@ onMounted(load);
           <EventMembersPanel :event="event" />
         </v-window-item>
         <v-window-item v-if="event.meshtasticEnabled" value="meshtastic">
-          <MeshtasticPanel :event-id="event.id" :editable="editable" :active="event.status === 'active'" />
+          <MeshtasticPanel :event-id="event.id" :editable="editable" />
         </v-window-item>
         <v-window-item value="sync-issues">
           <SyncIssuesPanel :event="event" @loaded="openSyncIssues = $event" />

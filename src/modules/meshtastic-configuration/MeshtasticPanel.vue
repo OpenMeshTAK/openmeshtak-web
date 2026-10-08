@@ -26,7 +26,7 @@ import {
  * firmware profile on the left, the selected part on the right. Sections and fields come from the
  * profile, so a new firmware line needs no change here.
  */
-const props = defineProps<{ eventId: string; editable: boolean; active: boolean }>();
+const props = defineProps<{ eventId: string; editable: boolean }>();
 const toast = useToast();
 
 const configuration = ref<MeshtasticConfigurationDto | null>(null);
@@ -136,10 +136,6 @@ onMounted(load);
 
 <template>
   <div>
-    <v-alert v-if="active" type="info" density="compact" class="mb-4">
-      Changes reach participants after you publish the configuration on the Overview tab.
-    </v-alert>
-
     <v-skeleton-loader v-if="state === 'loading'" type="list-item@6" />
     <ErrorState v-else-if="state === 'error' || configuration === null" :message="loadError" @retry="load" />
 

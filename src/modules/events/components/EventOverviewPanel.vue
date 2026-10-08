@@ -11,7 +11,7 @@ import { scheduleHint } from "../event-schedule";
 import type { EventDto } from "../events.api";
 import EventLifecycleCard from "./EventLifecycleCard.vue";
 
-const props = defineProps<{ event: EventDto }>();
+const props = defineProps<{ event: EventDto; visible: boolean }>();
 const emit = defineEmits<{ changed: [event: EventDto]; open: [tab: string] }>();
 const session = useSession();
 
@@ -140,7 +140,7 @@ onMounted(load);
           </template>
         </dl>
       </v-card>
-      <EventLifecycleCard :event="event" @changed="emit('changed', $event)" />
+      <EventLifecycleCard :event="event" :visible="visible" @changed="emit('changed', $event)" />
     </v-col>
   </v-row>
 </template>
