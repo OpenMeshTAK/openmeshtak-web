@@ -210,6 +210,7 @@ async function run(): Promise<void> {
       v-model="publishOpen"
       title="Publish configuration?"
       confirm-label="Publish"
+      :max-width="760"
       :loading="publishing"
       @confirm="publish"
     >
@@ -229,7 +230,7 @@ async function run(): Promise<void> {
 
 <style scoped>
 .change-list {
-  max-height: 50vh;
+  max-height: 60vh;
   overflow-y: auto;
 }
 </style>

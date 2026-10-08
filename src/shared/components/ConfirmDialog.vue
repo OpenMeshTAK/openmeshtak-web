@@ -8,13 +8,15 @@ defineProps<{
   confirmLabel: string;
   confirmColor?: string;
   loading?: boolean;
+  /** Wider dialogs suit consequences that list several items. */
+  maxWidth?: number;
 }>();
 const open = defineModel<boolean>({ required: true });
 defineEmits<{ confirm: [] }>();
 </script>
 
 <template>
-  <v-dialog v-model="open" max-width="520">
+  <v-dialog v-model="open" :max-width="maxWidth ?? 520">
     <v-card class="pa-2">
       <v-card-title class="text-title-large font-weight-medium text-wrap">{{ title }}</v-card-title>
       <v-card-text class="text-body-medium"><slot /></v-card-text>
