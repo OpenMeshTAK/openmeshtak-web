@@ -1,5 +1,9 @@
 # OpenMeshTak Web
 
+[![License](https://img.shields.io/github/license/OpenMeshTAK/openmeshtak-web)](LICENSE) [![CI](https://github.com/OpenMeshTAK/openmeshtak-web/actions/workflows/ci.yml/badge.svg)](https://github.com/OpenMeshTAK/openmeshtak-web/actions/workflows/ci.yml)
+
+📖 Documentation: https://openmeshtak.github.io/openmeshtak-docs/
+
 OpenMeshTak Web is the dashboard-first PWA for participants, administrators and mission editors. It is a client of the OpenMeshTak Core API and contains no authorization, profile-resolution, format-conversion or package-generation rules of its own.
 
 OpenMeshTak is under active development. Provisioning actions rely on Core's tested delivery-capability data and must not be interpreted as unverified TAK, iTAK or Meshtastic compatibility claims.
