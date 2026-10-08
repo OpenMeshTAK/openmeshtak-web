@@ -16,7 +16,6 @@ import DataPackagesStep from "./components/DataPackagesStep.vue";
 import TakEnrollmentCard from "@/modules/tak-server/components/TakEnrollmentCard.vue";
 import TakSetupGuide from "./components/TakSetupGuide.vue";
 import MeshtasticProfileCard from "./components/MeshtasticProfileCard.vue";
-import ProvisioningActions from "./components/ProvisioningActions.vue";
 import SetupStep from "./components/SetupStep.vue";
 import { fetchMyMemberships, fetchProfile } from "./dashboard.api";
 
@@ -32,11 +31,14 @@ const selected = computed(
 );
 const canAdministerEvents = computed(() => session.can("events.read"));
 const isTakAdministrator = computed(() => session.can("tak-server.admin-access"));
-const takMode = computed(() => profile.value?.tak.connection?.mode ?? null);
-const isKeyHolder = computed(() => profile.value?.meshtastic.channels.some(({ keyHolder }) => keyHolder) ?? false);
-/** TAK administrators may connect even when the event itself does not use the built-in server. */
-const showAdminTakCard = computed(() => isTakAdministrator.value && takMode.value !== "built-in-server");
-const hasAside = computed(() => isKeyHolder.value || showAdminTakCard.value);
+/**
+ * Meshtastic events set up the radio, then TAK over the Meshtastic app, then Data Packages; the TAK
+ * server card sits beside them for CoT and Data Packages whenever there is network. TAK-only events
+ * connect the TAK app to the TAK server first.
+ */
+const meshtastic = computed(() => profile.value?.meshtastic ?? null);
+const isKeyHolder = computed(() => meshtastic.value?.channels.some(({ keyHolder }) => keyHolder) ?? false);
+const hasAside = computed(() => meshtastic.value !== null);
 
 async function loadProfile(): Promise<void> {
   profile.value =
@@ -141,33 +143,35 @@ onMounted(load);
 
       <div class="dashboard-grid" :class="{ 'dashboard-grid--aside': hasAside }">
         <section aria-label="Set up your devices">
-          <ol class="setup-steps">
+          <ol v-if="meshtastic" class="setup-steps">
             <SetupStep :number="1">
               <MeshtasticProfileCard :profile="profile" />
             </SetupStep>
             <SetupStep :number="2">
-              <TakSetupGuide v-if="takMode === 'meshtastic-local-server'" :profile="profile" />
-              <TakEnrollmentCard v-else-if="takMode === 'built-in-server'" />
-              <ProvisioningActions v-else />
+              <TakSetupGuide :profile="profile" />
             </SetupStep>
             <SetupStep :number="3" last>
-              <DataPackagesStep
-                :event-id="profile.eventId"
-                :member-id="profile.memberId"
-                :enrolled-in-setup="takMode === 'built-in-server'"
-              />
+              <DataPackagesStep :event-id="profile.eventId" :member-id="profile.memberId" :enrolled-in-setup="false" />
+            </SetupStep>
+          </ol>
+          <ol v-else class="setup-steps">
+            <SetupStep :number="1">
+              <TakEnrollmentCard />
+            </SetupStep>
+            <SetupStep :number="2" last>
+              <DataPackagesStep :event-id="profile.eventId" :member-id="profile.memberId" :enrolled-in-setup="true" />
             </SetupStep>
           </ol>
         </section>
 
         <aside v-if="hasAside" class="dashboard-aside">
           <ChannelHandoutsCard
-            v-if="isKeyHolder"
+            v-if="isKeyHolder && meshtastic"
             :event-id="profile.eventId"
             :member-id="profile.memberId"
-            :channels="profile.meshtastic.channels"
+            :channels="meshtastic.channels"
           />
-          <TakEnrollmentCard v-if="showAdminTakCard" />
+          <TakEnrollmentCard />
         </aside>
       </div>
     </template>

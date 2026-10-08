@@ -23,7 +23,7 @@ const toast = useToast();
 const acknowledged = ref(false);
 const downloading = ref(false);
 
-const firmware = computed(() => props.profile.meshtastic.firmware);
+const firmware = computed(() => props.profile.meshtastic?.firmware ?? null);
 const acknowledgement = computed(() => {
   const version = firmware.value?.minimumVersion ?? "";
   return props.onBehalf

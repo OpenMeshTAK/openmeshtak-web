@@ -113,7 +113,9 @@ function quickLinks(event: EventDto): QuickLink[] {
       { label: "Map editor", icon: mdiMapLegend, to: { name: "event-editor", params: { eventId: event.id } } },
     );
   }
-  links.push({ label: "Meshtastic", icon: mdiRadioTower, to: tab("meshtastic") });
+  if (event.meshtasticEnabled) {
+    links.push({ label: "Meshtastic", icon: mdiRadioTower, to: tab("meshtastic") });
+  }
   if (event.status === "active" && session.can("tak-traffic.view", event.id)) {
     links.push({ label: "Live TAK", icon: mdiAccessPointNetwork, to: { name: "event-live", params: { eventId: event.id } } });
   }

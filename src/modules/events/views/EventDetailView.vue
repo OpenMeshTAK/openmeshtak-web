@@ -17,6 +17,7 @@ import DataPackagesPanel from "@/modules/data-packages/DataPackagesPanel.vue";
 import MeshtasticPanel from "@/modules/meshtastic-configuration/MeshtasticPanel.vue";
 import EventOverviewPanel from "../components/EventOverviewPanel.vue";
 import EventAccountsCard from "../components/EventAccountsCard.vue";
+import EventOptionsCard from "../components/EventOptionsCard.vue";
 import EventSettingsForm from "../components/EventSettingsForm.vue";
 import EventStatusBadge from "../components/EventStatusBadge.vue";
 import { emptySettings, settingsFromEvent, settingsToRequest } from "../event-settings";
@@ -38,7 +39,8 @@ const TABS = ["overview", "settings", "roles", "groups", "members", "meshtastic"
 const tab = computed({
   get: () => {
     const requested = String(route.params.tab ?? "");
-    return TABS.includes(requested) ? requested : "overview";
+    const hidden = requested === "meshtastic" && event.value?.meshtasticEnabled === false;
+    return TABS.includes(requested) && !hidden ? requested : "overview";
   },
   set: (next: string) => {
     void router.replace({ name: "event-detail", params: { eventId: eventId.value, tab: next === "overview" ? undefined : next } });
@@ -113,8 +115,8 @@ async function save(): Promise<void> {
   }
 }
 
-/** The account toggle saves on its own; unsaved edits in the settings form stay untouched. */
-function onAccountSettingSaved(updated: EventDto): void {
+/** The option switches save on their own; unsaved edits in the settings form stay untouched. */
+function onOptionSaved(updated: EventDto): void {
   event.value = updated;
   settings.value.permanentAccounts = updated.permanentAccounts;
 }
@@ -150,7 +152,7 @@ onMounted(load);
         <v-tab value="roles">Roles</v-tab>
         <v-tab value="groups">Groups</v-tab>
         <v-tab value="members">Members</v-tab>
-        <v-tab value="meshtastic">Meshtastic</v-tab>
+        <v-tab v-if="event.meshtasticEnabled" value="meshtastic">Meshtastic</v-tab>
         <v-tab value="sync-issues">
           Sync issues
           <v-badge v-if="openSyncIssues > 0" :content="openSyncIssues" color="error" inline />
@@ -164,7 +166,7 @@ onMounted(load);
         </v-window-item>
         <v-window-item value="settings">
           <v-row>
-            <v-col cols="12" lg="7">
+            <v-col cols="12" lg="8">
               <v-card class="pa-5 h-100">
                 <v-alert v-if="conflict" type="warning" class="mb-4">
                   Someone else changed this event. Reload to see their changes before saving again.
@@ -176,8 +178,11 @@ onMounted(load);
                 </v-btn>
               </v-card>
             </v-col>
-            <v-col cols="12" lg="5">
-              <EventAccountsCard :event="event" :editable="editable" class="h-100" @updated="onAccountSettingSaved" />
+            <v-col cols="12" lg="4">
+              <EventOptionsCard :event="event" :editable="editable" class="h-100" @updated="onOptionSaved" />
+            </v-col>
+            <v-col v-if="session.can('users.read')" cols="12">
+              <EventAccountsCard :event="event" />
             </v-col>
           </v-row>
         </v-window-item>
@@ -190,7 +195,7 @@ onMounted(load);
         <v-window-item value="members">
           <EventMembersPanel :event="event" />
         </v-window-item>
-        <v-window-item value="meshtastic">
+        <v-window-item v-if="event.meshtasticEnabled" value="meshtastic">
           <MeshtasticPanel :event-id="event.id" :editable="editable" :active="event.status === 'active'" />
         </v-window-item>
         <v-window-item value="sync-issues">

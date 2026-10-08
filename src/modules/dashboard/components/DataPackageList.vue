@@ -19,6 +19,18 @@ const state = ref<"loading" | "ready" | "error">("loading");
 const error = ref("");
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
 
+/** Organizers choose per package whether the TAK server installs it in connected apps by itself. */
+function subtitle(dataPackage: Schemas["MemberDataPackageDto"]): string {
+  const published = `Revision ${String(dataPackage.revision)} · ${dateFormat.format(new Date(dataPackage.publishedAt))}`;
+  if (dataPackage.installOnConnection) {
+    return `${published} · Your TAK app gets it by itself`;
+  }
+  if (dataPackage.installOnEnrollment) {
+    return `${published} · Your TAK app gets it when it is connected`;
+  }
+  return published;
+}
+
 async function load(): Promise<void> {
   state.value = "loading";
   try {
@@ -49,7 +61,7 @@ onMounted(load);
       :key="dataPackage.id"
       :prepend-icon="mdiMapOutline"
       :title="dataPackage.name"
-      :subtitle="`Revision ${dataPackage.revision} · ${dateFormat.format(new Date(dataPackage.publishedAt))}`"
+      :subtitle="subtitle(dataPackage)"
     >
       <!-- On phones the button sits below the name so long package names keep their width. -->
       <template v-if="!xs" #append>

@@ -11,7 +11,11 @@ const props = defineProps<{ eventName: string; profile: Schemas["ResolvedProfile
  * never as a UI color. An outline keeps light swatches such as White visible on the surface.
  */
 const teamSwatch = computed(() => takTeamSwatches[props.profile.tak.team]);
+/** `null` in TAK-only events, which have no radio name or channels. */
 const meshtasticName = computed(() => {
+  if (props.profile.meshtastic === null) {
+    return null;
+  }
   const { shortName, longName } = props.profile.meshtastic;
   return shortName === null ? longName : `${shortName} · ${longName}`;
 });
@@ -43,11 +47,11 @@ const meshtasticName = computed(() => {
             {{ profile.eventRole.name }}
           </dd>
         </div>
-        <div>
+        <div v-if="meshtasticName !== null">
           <dt>Meshtastic name</dt>
           <dd>{{ meshtasticName }}</dd>
         </div>
-        <div class="profile-facts__wide">
+        <div v-if="profile.meshtastic" class="profile-facts__wide">
           <dt>Channels</dt>
           <dd v-if="profile.meshtastic.channels.length === 0">—</dd>
           <dd v-else class="d-flex flex-wrap ga-1">

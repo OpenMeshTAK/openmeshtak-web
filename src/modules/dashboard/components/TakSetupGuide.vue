@@ -14,9 +14,8 @@ const props = defineProps<{ profile: Schemas["ResolvedProfileDto"] }>();
 const platform = ref<"android" | "ios">("android");
 
 const channelText = computed(() => {
-  const connection = props.profile.tak.connection;
-  const channel = connection?.mode === "meshtastic-local-server" ? connection.meshChannel : null;
-  return channel === null || channel === undefined
+  const channel = props.profile.tak.meshtasticLocalServer?.meshChannel ?? null;
+  return channel === null
     ? "the primary channel (0)"
     : `${String(channel.slot)} · ${channel.name}`;
 });
