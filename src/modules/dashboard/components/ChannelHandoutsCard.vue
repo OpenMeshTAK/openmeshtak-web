@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { mdiContentCopy, mdiOpenInNew, mdiQrcode } from "@mdi/js";
+import { mdiClose, mdiContentCopy, mdiKeyAlert, mdiOpenInNew, mdiQrcode } from "@mdi/js";
 import { computed, ref, watch } from "vue";
 import { useDisplay } from "vuetify";
 import type { Schemas } from "@/shared/api/types";
@@ -91,31 +91,37 @@ watch(dialogOpen, (open) => {
 
   <v-dialog v-model="dialogOpen" max-width="560" :fullscreen="xs">
     <v-card>
-      <v-card-title>Handout for {{ selected?.name }}</v-card-title>
-      <v-card-text>
+      <v-card-title class="d-flex align-center pt-4 pl-6 pr-3">
+        <span class="flex-grow-1">Handout for {{ selected?.name }}</span>
+        <v-btn :icon="mdiClose" variant="text" size="small" aria-label="Close" @click="dialogOpen = false" />
+      </v-card-title>
+      <v-card-text class="px-6 pt-2">
         <v-skeleton-loader v-if="loading" type="image, text" />
         <v-alert v-else-if="error" type="error" variant="tonal">
           {{ error }}
           <template #append><v-btn variant="text" size="small" @click="load">Retry</v-btn></template>
         </v-alert>
         <div v-else-if="handout" class="d-flex flex-column align-center ga-4">
-          <v-alert type="warning" variant="tonal" density="compact">
-            This QR code and link contain the channel key. Share them only with the intended
-            participants. Key rotation makes this handout obsolete. This handout carries only this
-            channel, not the event's complete radio setup.
+          <v-alert type="warning" density="compact" :icon="mdiKeyAlert" class="w-100">
+            <div class="d-flex align-center ga-1">
+              <strong>Contains the channel key. Share it only with the intended participants.</strong>
+              <InfoHint label="About this handout">
+                It carries only this channel, not the event's complete radio setup. Rotating the channel key makes
+                this handout obsolete.
+              </InfoHint>
+            </div>
           </v-alert>
-          <p v-if="handout.primary" class="text-body-medium text-medium-emphasis my-0">
-            This is the primary channel. Its standard Meshtastic link uses replacement semantics;
-            review the target app's import confirmation before applying it.
-          </p>
           <QrCode :value="handout.url" :label="`QR handout for ${handout.channelName}`" :size="260" />
-          <div class="text-body-small text-medium-emphasis">
-            Channel key version {{ handout.pskVersion }}
+          <div class="d-flex align-center ga-1 text-body-small text-medium-emphasis">
+            {{ handout.primary ? "Primary channel" : "Secondary channel" }} · Key version {{ handout.pskVersion }}
+            <InfoHint v-if="handout.primary" label="About primary channel links">
+              Opening a primary channel link replaces the channels in the Meshtastic app. Check the app's import
+              confirmation before you apply it.
+            </InfoHint>
           </div>
         </div>
       </v-card-text>
-      <v-card-actions>
-        <v-btn @click="dialogOpen = false">Close</v-btn>
+      <v-card-actions v-if="handout" class="px-6 pb-4">
         <v-spacer />
         <v-btn
           v-if="handout"

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { mdiDownload } from "@mdi/js";
+import { mdiAndroid, mdiApple, mdiClose, mdiDownload } from "@mdi/js";
 import type { Socket } from "socket.io-client";
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useDisplay } from "vuetify";
@@ -26,6 +26,10 @@ const enrollment = ref<TakEnrollmentDto | null>(null);
 const creating = ref(false);
 const unavailable = ref(false);
 const client = ref<"atak" | "itak">("atak");
+const clientOptions = [
+  { value: "atak", app: "ATAK", platform: "Android", icon: mdiAndroid },
+  { value: "itak", app: "iTAK", platform: "iPhone", icon: mdiApple },
+] as const;
 const method = ref<"qr" | "package" | "login">("qr");
 const session = useSession();
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
@@ -155,12 +159,30 @@ function close(): void {
 
   <v-dialog :model-value="enrollment !== null" max-width="520" :fullscreen="xs" @update:model-value="close">
     <v-card v-if="enrollment">
-      <v-card-title class="pt-4 px-6">Connect a TAK app</v-card-title>
+      <v-card-title class="d-flex align-center pt-4 pl-6 pr-3">
+        <span class="flex-grow-1">Connect a TAK app</span>
+        <v-btn :icon="mdiClose" variant="text" size="small" aria-label="Close" @click="close" />
+      </v-card-title>
       <div class="px-6 pb-3">
-        <v-btn-toggle v-model="client" mandatory divided density="comfortable" class="w-100">
-          <v-btn value="atak" class="flex-grow-1">Android · ATAK</v-btn>
-          <v-btn value="itak" class="flex-grow-1">iPhone · iTAK</v-btn>
-        </v-btn-toggle>
+        <div class="client-choice" role="radiogroup" aria-label="TAK app">
+          <v-btn
+            v-for="option in clientOptions"
+            :key="option.value"
+            role="radio"
+            :aria-checked="client === option.value"
+            variant="tonal"
+            :color="client === option.value ? 'primary' : undefined"
+            :prepend-icon="option.icon"
+            height="56"
+            class="client-choice__option"
+            @click="client = option.value"
+          >
+            <span class="d-flex flex-column align-start text-none">
+              <span class="text-body-large font-weight-medium">{{ option.app }}</span>
+              <span class="text-body-small text-medium-emphasis">{{ option.platform }}</span>
+            </span>
+          </v-btn>
+        </div>
       </div>
       <v-tabs v-model="method" density="compact" grow>
         <v-tab v-if="qrAvailable" value="qr">QR code</v-tab>
@@ -171,10 +193,6 @@ function close(): void {
       <v-card-text>
         <v-alert v-if="appEnrolled" type="success" density="compact" class="mb-4">
           Your TAK app is set up and received its certificate. You can close this dialog.
-        </v-alert>
-        <v-alert v-if="!qrAvailable" type="info" density="compact" class="mb-4">
-          QR setup needs a publicly trusted TAK server certificate. Import the {{ client === "atak" ? "ATAK" : "iTAK" }}
-          connection package instead so the app receives the required trust material.
         </v-alert>
         <v-alert v-if="showPasswordWarning" type="warning" density="compact" class="mb-4">
           You have no password yet. <RouterLink to="/account">Set one on your account page</RouterLink> to log in here,
@@ -228,10 +246,6 @@ function close(): void {
               </p>
               <v-btn color="error" variant="tonal" @click="confirmingRevoke = true">Revoke old iTAK certificate</v-btn>
             </template>
-            <v-alert v-else type="warning" density="compact" class="mb-4">
-              This personal iTAK package contains a newly issued client certificate and private key. Import it only on
-              your device and do not share it. It configures the secure API port as <code>{{ enrollment.martiPort }}</code>.
-            </v-alert>
             <div v-if="!itakPackageIssued" class="d-flex flex-wrap ga-2">
               <v-btn :href="packageHref" download color="primary" :prepend-icon="mdiDownload" @click="packageDownloaded">
                 Download {{ client === "atak" ? "ATAK" : "iTAK" }} package
@@ -257,10 +271,6 @@ function close(): void {
           </v-window-item>
         </v-window>
       </v-card-text>
-      <v-card-actions>
-        <v-spacer />
-        <v-btn variant="text" @click="close">Done</v-btn>
-      </v-card-actions>
     </v-card>
   </v-dialog>
   <ConfirmDialog
@@ -274,3 +284,15 @@ function close(): void {
     The iPhone that imported the earlier package loses its TAK connection and cannot reconnect with it.
   </ConfirmDialog>
 </template>
+
+<style scoped>
+.client-choice {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.client-choice__option {
+  justify-content: flex-start;
+}
+</style>
