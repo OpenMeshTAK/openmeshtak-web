@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { mdiClose } from "@mdi/js";
+import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import InfoHint from "@/shared/components/InfoHint.vue";
 import { computed, ref, watch } from "vue";
 import { fieldErrors, messagesFor } from "@/shared/errors/field-errors";
@@ -22,7 +24,7 @@ const toast = useToast();
 
 const form = ref<TakAcmeSettingsChanges>(formOf(props.settings));
 const newApiToken = ref("");
-const removeApiToken = ref(false);
+const confirmRemoveApiToken = ref(false);
 const saving = ref(false);
 const renewing = ref(false);
 const testing = ref(false);
@@ -63,7 +65,6 @@ function show(settings: TakAcmeSettingsDto): void {
   emit("changed", settings);
   form.value = formOf(settings);
   newApiToken.value = "";
-  removeApiToken.value = false;
 }
 
 watch(
@@ -75,7 +76,7 @@ watch(
 
 /** Stores the form; `enabled` decides whether Core starts requesting the real certificate. */
 async function persist(enabled: boolean): Promise<TakAcmeSettingsDto> {
-  const apiToken = removeApiToken.value ? { apiToken: null } : newApiToken.value === "" ? {} : { apiToken: newApiToken.value };
+  const apiToken = newApiToken.value === "" ? {} : { apiToken: newApiToken.value };
   const saved = await saveTakAcmeSettings(props.settings.version, {
     ...form.value,
     enabled,
@@ -114,6 +115,17 @@ async function testSetup(): Promise<void> {
     toast.error(caught);
   } finally {
     testing.value = false;
+  }
+}
+
+/** Removes the stored Cloudflare token right away, keeping the other stored settings unchanged. */
+async function removeApiToken(): Promise<void> {
+  confirmRemoveApiToken.value = false;
+  try {
+    show(await saveTakAcmeSettings(props.settings.version, { ...formOf(props.settings), enabled: props.settings.enabled, apiToken: null }));
+    toast.success("The Cloudflare API token was removed.");
+  } catch (caught: unknown) {
+    toast.error(caught);
   }
 }
 
@@ -180,20 +192,19 @@ async function renew(): Promise<void> {
           type="password"
           autocomplete="new-password"
           :label="settings.apiTokenSet ? 'New Cloudflare API token (leave empty to keep)' : 'Cloudflare API token'"
-          :disabled="removeApiToken"
           :error-messages="messagesFor(errors, 'apiToken')"
         >
           <template #append-inner>
+            <v-icon
+              v-if="settings.apiTokenSet && newApiToken === ''"
+              :icon="mdiClose"
+              aria-label="Remove stored token"
+              class="mr-1"
+              @click="confirmRemoveApiToken = true"
+            />
             <InfoHint label="About the API token" text="Use a token limited to DNS Write for this zone. It is encrypted and never shown again." />
           </template>
         </v-text-field>
-        <v-checkbox
-          v-if="settings.apiTokenSet"
-          v-model="removeApiToken"
-          label="Remove stored token"
-          density="compact"
-          hide-details
-        />
       </v-col>
     </v-row>
     <v-alert v-if="settings.lastError" type="error" variant="tonal" density="compact" class="mt-2">
@@ -218,5 +229,15 @@ async function renew(): Promise<void> {
         {{ settings.enabled ? "Save" : "Use Let's Encrypt" }}
       </v-btn>
     </div>
+    <ConfirmDialog
+      :model-value="confirmRemoveApiToken"
+      title="Remove the stored Cloudflare API token?"
+      confirm-label="Remove"
+      confirm-color="error"
+      @update:model-value="confirmRemoveApiToken = false"
+      @confirm="removeApiToken"
+    >
+      Let's Encrypt can then no longer renew the certificate through Cloudflare until you enter a new token.
+    </ConfirmDialog>
   </div>
 </template>

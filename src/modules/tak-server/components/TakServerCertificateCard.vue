@@ -33,6 +33,18 @@ const sourceLabels: Record<Source, string> = {
   upload: "Uploaded certificate",
 };
 
+/** Each source with its one-line tradeoff, explained together behind the hint next to the buttons. */
+const sourceItems: { value: Source; title: string; subtitle: string }[] = [
+  { value: "ca", title: "OpenMeshTak CA", subtitle: "No setup, but phones do not trust it on their own and QR enrollment does not work." },
+  {
+    value: "acme",
+    title: "Let's Encrypt (automatic)",
+    subtitle: "Free, publicly trusted and renewed by itself, through the Web address or a Cloudflare DNS record.",
+  },
+  { value: "files", title: "Reverse proxy files", subtitle: "Reads your reverse proxy's certificate for the TAK host name and picks up its renewals." },
+  { value: "upload", title: "Upload certificate", subtitle: "A publicly trusted certificate you already have. You upload each renewal yourself." },
+];
+
 const certificate = computed(() => props.settings.serverCertificate);
 const activeSource = computed<Source>(() => {
   if (props.acme.enabled || certificate.value?.source === "acme") {
@@ -135,36 +147,26 @@ async function useCa(): Promise<void> {
     </template>
     <p v-else class="text-body-medium text-medium-emphasis my-0">Issued by the OpenMeshTak CA when the TAK server starts.</p>
 
-    <div class="d-flex align-center ga-1 mt-5 mb-2">
-      <span class="text-body-medium font-weight-medium">Source</span>
+    <div class="d-flex align-center flex-wrap ga-1 mt-4 mb-3">
+      <div role="radiogroup" aria-label="Certificate source" class="d-flex flex-wrap ga-1">
+        <v-btn
+          v-for="item in sourceItems"
+          :key="item.value"
+          :variant="source === item.value ? 'tonal' : 'text'"
+          :color="source === item.value ? 'primary' : undefined"
+          role="radio"
+          :aria-checked="source === item.value"
+          class="text-none"
+          @click="source = item.value"
+        >
+          {{ item.title }}
+        </v-btn>
+      </div>
       <InfoHint label="About the certificate sources">
-        <p class="mb-2">
-          <strong>OpenMeshTak CA:</strong> works without any setup, but phones do not trust it on their
-          own. The QR codes for ATAK and iTAK need one of the other sources.
-        </p>
-        <p class="mb-2">
-          <strong>Let's Encrypt (automatic):</strong> OpenMeshTak requests a free, publicly trusted
-          certificate and renews it by itself, either through the Web address (TAK and Web share one host
-          name) or through a DNS record at Cloudflare.
-        </p>
-        <p class="mb-2">
-          <strong>Reverse proxy files:</strong> the certificate your reverse proxy already has for the
-          TAK host name, read from its mounted certificate directory. OpenMeshTak picks up renewals by
-          itself.
-        </p>
-        <p class="mb-0">
-          <strong>Uploaded certificate:</strong> a publicly trusted certificate you already have. You
-          must upload the renewed one before it expires.
+        <p v-for="item in sourceItems" :key="item.value" class="mb-2">
+          <strong>{{ item.title }}:</strong> {{ item.subtitle }}
         </p>
       </InfoHint>
-    </div>
-    <div class="d-flex align-center flex-wrap ga-2 mb-4">
-      <v-btn-toggle v-model="source" mandatory divided variant="outlined" density="comfortable" class="flex-wrap">
-        <v-btn value="ca">OpenMeshTak CA</v-btn>
-        <v-btn value="acme">Let's Encrypt (automatic)</v-btn>
-        <v-btn value="files">Reverse proxy files</v-btn>
-        <v-btn value="upload">Upload certificate</v-btn>
-      </v-btn-toggle>
       <InfoHint v-if="source === 'ca'" tone="warning" label="Limits of the OpenMeshTak CA">
         Phones must install the OpenMeshTak CA before they trust the server, and ATAK's QR enrollment
         does not work.
@@ -191,18 +193,21 @@ async function useCa(): Promise<void> {
     />
 
     <div v-else-if="source === 'files'">
-      <p class="text-body-medium mt-0 mb-3">
-        Mount your reverse proxy's certificate directory read-only at
-        <code>{{ settings.certificateDirectory }}</code> (see <code>docker-compose.yml</code>), then enter
-        the files relative to it.
-      </p>
       <v-row dense>
         <v-col cols="12" sm="6">
           <v-text-field
             v-model="files.certificateFile"
             label="Certificate chain file"
             :error-messages="messagesFor(fileErrors, 'certificateFile')"
-          />
+          >
+            <template #append-inner>
+              <InfoHint label="About the certificate files">
+                Mount your reverse proxy's certificate directory read-only at
+                <code>{{ settings.certificateDirectory }}</code> (see <code>docker-compose.yml</code>), then
+                enter both files relative to it.
+              </InfoHint>
+            </template>
+          </v-text-field>
         </v-col>
         <v-col cols="12" sm="6">
           <v-text-field v-model="files.keyFile" label="Private key file" :error-messages="messagesFor(fileErrors, 'keyFile')" />
