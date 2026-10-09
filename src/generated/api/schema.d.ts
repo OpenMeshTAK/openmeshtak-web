@@ -1370,9 +1370,9 @@ export interface paths {
             cookie?: never;
         };
         /** @description The installation-wide library summary. Readable by signed-in users. */
-        get: operations["GetSettings"];
+        get: operations["GetIconSettings"];
         /** @description Replaces installation-wide PNG icons using raw WinTAK SQLite bytes (10 MiB). Requires settings.manage. */
-        put: operations["UpdateSettings"];
+        put: operations["UpdateIconSettings"];
         post?: never;
         /** @description Clears shared icons without changing stored marker paths. Requires settings.manage. */
         delete: operations["ClearSettings"];
@@ -10353,7 +10353,7 @@ export interface operations {
             };
         };
     };
-    GetSettings: {
+    GetIconSettings: {
         parameters: {
             query?: never;
             header?: never;
@@ -10382,7 +10382,7 @@ export interface operations {
             };
         };
     };
-    UpdateSettings: {
+    UpdateIconSettings: {
         parameters: {
             query: {
                 version: number;
