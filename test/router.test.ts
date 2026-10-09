@@ -24,6 +24,13 @@ describe("route table", () => {
     },
   );
 
+  it("resolves the offline HQ without a session or Core", () => {
+    expect(router.resolve("/offline").name).toBe("offline-home");
+    expect(router.resolve("/offline/00000000-0000-0000-0000-000000000000").name).toBe("offline-live");
+    expect(router.resolve("/offline").meta.offline).toBe(true);
+    expect(router.resolve("/").meta.offline).toBeUndefined();
+  });
+
   it("treats only setup, sign-in and claim as public", () => {
     expect(router.resolve("/").meta.public).toBeUndefined();
     expect(router.resolve("/claim").meta.public).toBe(true);

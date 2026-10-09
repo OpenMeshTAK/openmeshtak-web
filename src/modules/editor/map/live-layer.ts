@@ -3,15 +3,19 @@ import Point from "ol/geom/Point";
 import VectorLayer from "ol/layer/Vector";
 import { fromLonLat } from "ol/proj";
 import VectorSource from "ol/source/Vector";
-import { Circle, Fill, Stroke, Style, Text } from "ol/style";
+import { Circle, Fill, RegularShape, Stroke, Style, Text } from "ol/style";
 
-/** A live CoT item as the map needs it; the view converts API data into this shape. */
+/** A live CoT item or mesh node as the map needs it; the view converts its data into this shape. */
 export interface LiveMapItem {
   uid: string;
   type: string;
   callsign: string | null;
   lat: number;
   lon: number;
+  /** `mesh`: a Meshtastic node heard by the HQ radio, drawn as a square instead of a CoT dot. */
+  source?: "tak" | "mesh";
+  /** A last known position older than the staleness threshold. */
+  outdated?: boolean;
 }
 
 /**
@@ -38,13 +42,22 @@ function colorFor(type: string): string {
   }
 }
 
+const MESH_COLOR = "#8e24aa";
+const STALE_COLOR = "#9e9e9e";
+
+/** Mesh observations are squares so they are never mistaken for TAK/CoT markers. */
+function markerFor(item: LiveMapItem): Circle | RegularShape {
+  const color = item.outdated === true ? STALE_COLOR : item.source === "mesh" ? MESH_COLOR : colorFor(item.type);
+  const fill = new Fill({ color });
+  const stroke = new Stroke({ color: "#ffffff", width: 2, lineDash: item.outdated === true ? [3, 3] : undefined });
+  return item.source === "mesh"
+    ? new RegularShape({ points: 4, radius: 9, angle: Math.PI / 4, fill, stroke })
+    : new Circle({ radius: 7, fill, stroke });
+}
+
 function styleFor(item: LiveMapItem): Style {
   return new Style({
-    image: new Circle({
-      radius: 7,
-      fill: new Fill({ color: colorFor(item.type) }),
-      stroke: new Stroke({ color: "#ffffff", width: 2 }),
-    }),
+    image: markerFor(item),
     text:
       item.callsign === null
         ? undefined

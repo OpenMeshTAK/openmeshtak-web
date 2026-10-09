@@ -45,6 +45,12 @@ const reviewedExceptions = new Map<string, Set<string>>([
   ["(MIT OR CC0-1.0)", new Set(["type-fest@4.41.0", "type-fest@0.16.0"])],
   // Browserslist data pulled in by workbox-build (vite-plugin-pwa) at build time only (reviewed 2026-10-06).
   ["CC-BY-4.0", new Set(["caniuse-lite@1.0.30001814"])],
+  // Bundled into the offline HQ view to decode Meshtastic radio frames, the same pinned packages
+  // Core already uses. Both protobuf runtime terms are individually allowlisted.
+  ["(Apache-2.0 AND BSD-3-Clause)", new Set(["@bufbuild/protobuf@2.16.0"])],
+  // Official Meshtastic protobufs (GPL-3.0, compatible with this AGPL-3.0 app). pnpm has no license
+  // metadata for JSR packages and misreads the shipped GPL text as "lgpl".
+  ["lgpl", new Set(["@jsr/meshtastic__protobufs@2.8.1"])],
 ]);
 
 const report = readInstalledLicenses();

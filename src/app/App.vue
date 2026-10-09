@@ -1,14 +1,32 @@
 <script setup lang="ts">
-import { onMounted, ref, watch, watchEffect } from "vue";
+import { computed, onMounted, ref, watch, watchEffect } from "vue";
+import { useRoute } from "vue-router";
 import StepUpHost from "@/modules/auth/StepUpHost.vue";
 import { useLiveSession } from "@/modules/auth/useLiveSession";
 import { instanceName, loadInstanceSettings } from "@/modules/instance-settings/instance-settings.api";
+import { listSnapshots } from "@/modules/offline/offline-store";
 import { coreConnection } from "@/shared/connection/core-connection";
 import CoreConnectingScreen from "@/shared/connection/CoreConnectingScreen.vue";
 import ToastHost from "@/shared/feedback/ToastHost.vue";
 import VersionMismatchBar from "@/shared/version/VersionMismatchBar.vue";
 
 const { connectionLost } = useLiveSession();
+/** The offline HQ never needs Core, so no connection screen may cover it. */
+const route = useRoute();
+const offlineRoute = computed(() => route.meta.offline === true);
+/** Whether this browser stores an event for the offline HQ, checked once Core does not answer. */
+const offlineEvents = ref(false);
+watch(
+  () => coreConnection.waiting,
+  (waiting) => {
+    if (waiting) {
+      listSnapshots()
+        .then((snapshots) => (offlineEvents.value = snapshots.some(({ complete }) => complete)))
+        .catch(() => (offlineEvents.value = false));
+    }
+  },
+  { immediate: true },
+);
 /** The lost-connection overlay can be closed; a warning bar then stays until the connection is back. */
 const lostDismissed = ref(false);
 watch(connectionLost, (lost) => {
@@ -29,11 +47,13 @@ onMounted(() => {
 
 <template>
   <v-app>
-    <CoreConnectingScreen v-if="coreConnection.waiting" />
-    <CoreConnectingScreen v-else-if="connectionLost && !lostDismissed" lost @dismiss="lostDismissed = true" />
+    <template v-if="!offlineRoute">
+      <CoreConnectingScreen v-if="coreConnection.waiting" :offline-available="offlineEvents" />
+      <CoreConnectingScreen v-else-if="connectionLost && !lostDismissed" lost @dismiss="lostDismissed = true" />
+    </template>
     <Teleport to="body">
       <v-theme-provider>
-        <div v-if="connectionLost && lostDismissed" class="offline-notice text-body-medium" role="alert">
+        <div v-if="connectionLost && lostDismissed && !offlineRoute" class="offline-notice text-body-medium" role="alert">
           <v-progress-circular indeterminate size="16" width="2" />
           No connection to the server. Changes cannot be saved until it is back.
         </div>
