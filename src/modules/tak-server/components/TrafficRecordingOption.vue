@@ -1,10 +1,17 @@
 <script setup lang="ts">
-import { mdiDownload } from "@mdi/js";
+import { mdiDeleteOutline, mdiDownload, mdiMapClock } from "@mdi/js";
 import { onMounted, ref } from "vue";
+import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import InfoHint from "@/shared/components/InfoHint.vue";
 import { useToast } from "@/shared/feedback/toast";
 import { useSession } from "@/modules/auth/session";
-import { getTakTrafficRecording, saveTakTrafficRecording, takTrafficExportUrl, type TakTrafficRecordingDto } from "../tak-server.api";
+import {
+  deleteRecordedTakTraffic,
+  getTakTrafficRecording,
+  saveTakTrafficRecording,
+  takTrafficExportUrl,
+  type TakTrafficRecordingDto,
+} from "../tak-server.api";
 
 /**
  * Opt-in recording of the event's TAK traffic, a switch in the event options. Positions are personal data,
@@ -19,6 +26,8 @@ const recording = ref<TakTrafficRecordingDto | null>(null);
 const retentionDays = ref(30);
 const saving = ref(false);
 const canManage = session.can("events.manage", props.eventId);
+const confirmDelete = ref(false);
+const deleting = ref(false);
 
 function show(loaded: TakTrafficRecordingDto): void {
   recording.value = loaded;
@@ -37,6 +46,21 @@ async function save(enabled: boolean): Promise<void> {
     toast.error(caught);
   } finally {
     saving.value = false;
+  }
+}
+
+/** Deletes all stored traffic now, e.g. after the event or when participants ask for it. */
+async function deleteStored(): Promise<void> {
+  deleting.value = true;
+  try {
+    const { deleted } = await deleteRecordedTakTraffic(props.eventId);
+    toast.success(`${String(deleted)} recorded items deleted.`);
+    confirmDelete.value = false;
+    show(await getTakTrafficRecording(props.eventId));
+  } catch (caught: unknown) {
+    toast.error(caught);
+  } finally {
+    deleting.value = false;
   }
 }
 
@@ -69,8 +93,8 @@ onMounted(async () => {
     />
     <InfoHint label="About TAK traffic recording">
       <p class="mb-2">
-        Stores the positions, markers and drawings of this event so they can be exported and so members' TAK apps can
-        ask the server for a track history. Chats and direct messages are never stored.
+        Stores the positions, markers and drawings of this event so they can be replayed under History, exported, and so
+        members' TAK apps can ask the server for a track history. Chats and direct messages are never stored.
       </p>
       <p>Positions are personal data: recording is off by default and stored items are deleted after the retention period.</p>
     </InfoHint>
@@ -107,5 +131,34 @@ onMounted(async () => {
     >
       Export
     </v-btn>
+    <v-btn
+      v-if="recording.storedItems > 0"
+      :to="{ name: 'event-history', params: { eventId } }"
+      size="small"
+      variant="text"
+      :prepend-icon="mdiMapClock"
+    >
+      History
+    </v-btn>
+    <v-btn
+      v-if="canManage && recording.storedItems > 0"
+      size="small"
+      variant="text"
+      :prepend-icon="mdiDeleteOutline"
+      @click="confirmDelete = true"
+    >
+      Delete stored
+    </v-btn>
+    <ConfirmDialog
+      v-model="confirmDelete"
+      title="Delete all recorded TAK traffic?"
+      confirm-label="Delete"
+      confirm-color="error"
+      :loading="deleting"
+      @confirm="deleteStored"
+    >
+      All {{ recording.storedItems }} stored positions, markers and drawings of this event are deleted now instead of after the
+      retention. History, exports and TAK apps' history queries no longer find them. This cannot be undone.
+    </ConfirmDialog>
   </div>
 </template>

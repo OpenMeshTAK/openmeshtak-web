@@ -446,6 +446,20 @@ export class PackageMap {
     }
   }
 
+  /** Read-only layers of another view, such as recorded tracks, drawn above the package content. */
+  addOverlayLayers(layers: readonly BaseLayer[]): void {
+    for (const layer of layers) this.map.addLayer(layer);
+  }
+
+  fitExtent(extent: number[]): void {
+    if (!isEmpty(extent)) this.map.getView().fit(extent, { padding: [48, 48, 48, 48], maxZoom: 16, duration: 250 });
+  }
+
+  /** Centres on a Web Mercator coordinate, zooming in to street level if needed. */
+  centerOn(coordinate: number[]): void {
+    this.map.getView().animate({ center: coordinate, zoom: Math.max(this.map.getView().getZoom() ?? 14, 14), duration: 250 });
+  }
+
   /** Recalculates the size after the surrounding layout changed, e.g. a panel was resized. */
   updateSize(): void {
     this.map.updateSize();

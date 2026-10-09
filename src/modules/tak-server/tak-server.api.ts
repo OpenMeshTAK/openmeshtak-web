@@ -113,3 +113,48 @@ export function saveTakTrafficRecording(
 export function takTrafficExportUrl(eventId: string): string {
   return `/api/v1/events/${encodeURIComponent(eventId)}/tak-traffic/recording/export`;
 }
+
+export type TakTrafficHistoryDto = Schemas["TakTrafficHistoryDto"];
+export type TakTrackDto = Schemas["TakTrackDto"];
+export type TakTrackPointDto = Schemas["TakTrackPointDto"];
+
+export interface TakTrafficHistoryFilter {
+  from: string;
+  to: string;
+  groupId?: string | undefined;
+  uid?: string | undefined;
+  gapSeconds?: number | undefined;
+}
+
+function historyQuery(filter: TakTrafficHistoryFilter): Record<string, string> {
+  const query: Record<string, string> = { from: filter.from, to: filter.to };
+  if (filter.groupId !== undefined) query.groupId = filter.groupId;
+  if (filter.uid !== undefined) query.uid = filter.uid;
+  if (filter.gapSeconds !== undefined) query.gapSeconds = String(filter.gapSeconds);
+  return query;
+}
+
+/** Recorded positions of the event as tracks; Core audits every request. */
+export function getTakTrafficHistory(eventId: string, filter: TakTrafficHistoryFilter): Promise<TakTrafficHistoryDto> {
+  const query = {
+    from: filter.from,
+    to: filter.to,
+    ...(filter.groupId === undefined ? {} : { groupId: filter.groupId }),
+    ...(filter.uid === undefined ? {} : { uid: filter.uid }),
+    ...(filter.gapSeconds === undefined ? {} : { gapSeconds: filter.gapSeconds }),
+  };
+  return unwrap(api.GET("/events/{eventId}/tak-traffic/history", { params: { path: { eventId }, query } }));
+}
+
+/** Same-origin download link for the tracks of the current filter as GeoJSON or GPX. */
+export function takTrackExportUrl(eventId: string, format: "geojson" | "gpx", filter: TakTrafficHistoryFilter): string {
+  const query = new URLSearchParams({ format, ...historyQuery(filter) });
+  return `/api/v1/events/${encodeURIComponent(eventId)}/tak-traffic/history/export?${query.toString()}`;
+}
+
+/** Deletes the event's recorded traffic now, or only that of one CoT UID. */
+export function deleteRecordedTakTraffic(eventId: string, uid?: string): Promise<{ deleted: number }> {
+  return unwrap(
+    api.DELETE("/events/{eventId}/tak-traffic/recording/items", { params: { path: { eventId }, query: uid === undefined ? {} : { uid } } }),
+  );
+}
