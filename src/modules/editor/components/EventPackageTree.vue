@@ -12,6 +12,7 @@ import { ref, watch } from "vue";
 import { VueDraggable } from "vue-draggable-plus";
 import type { ContentChanges, PackageLayerDto } from "@/modules/data-packages/data-packages.api";
 import type { EventPackageBranch } from "../event-editor.types";
+import type { KindWords } from "../editor-kind";
 import LayerPanel, { type LayerChanges, type LayerExportFormat } from "./LayerPanel.vue";
 
 const props = defineProps<{
@@ -21,6 +22,7 @@ const props = defineProps<{
   selectedId: string | null;
   editable: boolean;
   canPublish: boolean;
+  words: KindWords;
 }>();
 const emit = defineEmits<{
   activatePackage: [branch: EventPackageBranch];
@@ -75,7 +77,7 @@ function togglePackage(packageId: string): void {
 
 <template>
   <div class="event-tree h-100 overflow-y-auto pa-2">
-    <div class="text-title-small px-2 pt-1 pb-2">Data packages</div>
+    <div class="text-title-small px-2 pt-1 pb-2">{{ words.Many }}</div>
     <VueDraggable
       v-model="ordered"
       :animation="180"
@@ -114,7 +116,7 @@ function togglePackage(packageId: string): void {
           <v-list-item-subtitle>
             {{ branch.layers.length }} {{ branch.layers.length === 1 ? "layer" : "layers" }} ·
             {{ branch.objects.length }} {{ branch.objects.length === 1 ? "item" : "items" }} ·
-            {{ branch.dataPackage.latestRevision ? `revision ${branch.dataPackage.latestRevision}` : "not published" }}
+            {{ branch.dataPackage.latestRevision ? `revision ${branch.dataPackage.latestRevision}` : words.notPublished }}
           </v-list-item-subtitle>
           <template #append>
             <v-menu>
@@ -129,9 +131,15 @@ function togglePackage(packageId: string): void {
                 />
               </template>
               <v-list density="compact" min-width="230">
-                <v-list-item title="Open only this data package" :prepend-icon="mdiOpenInNew" @click="emit('openPackage', branch.dataPackage.id)" />
+                <!-- Missions are edited together; the single-package editor is for Data Packages. -->
                 <v-list-item
-                  title="Publish data package"
+                  v-if="branch.dataPackage.kind === 'package'"
+                  :title="`Open only this ${words.one}`"
+                  :prepend-icon="mdiOpenInNew"
+                  @click="emit('openPackage', branch.dataPackage.id)"
+                />
+                <v-list-item
+                  :title="`${words.Publish} ${words.one}`"
                   :prepend-icon="mdiPublish"
                   :disabled="!canPublish"
                   @click="emit('publishPackage', branch)"
@@ -139,7 +147,7 @@ function togglePackage(packageId: string): void {
                 <v-divider />
                 <v-list-item
                   title="Export as ATAK package"
-                  :subtitle="branch.dataPackage.latestRevision === null ? 'Publish first' : ''"
+                  :subtitle="branch.dataPackage.latestRevision === null ? words.publishFirst : ''"
                   :prepend-icon="mdiDownload"
                   :disabled="branch.dataPackage.latestRevision === null"
                   @click="emit('exportPackage', branch, 'atak')"

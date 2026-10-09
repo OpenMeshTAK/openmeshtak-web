@@ -29,10 +29,17 @@ async function allPages<T>(fetchPage: (cursor?: string) => Promise<{ items: T[];
   return items;
 }
 
-export function listDataPackages(eventId: string): Promise<DataPackageDto[]> {
+export type DataPackageKind = Schemas["DataPackageKind"];
+
+/** Data packages and missions are listed separately; callers that do not say get Data Packages. */
+export function listDataPackages(eventId: string, kind: DataPackageKind = "package"): Promise<DataPackageDto[]> {
   return allPages((cursor) =>
-    unwrap(api.GET("/events/{eventId}/data-packages", { params: { path: { eventId }, query: pageQuery(cursor) } })),
+    unwrap(api.GET("/events/{eventId}/data-packages", { params: { path: { eventId }, query: { ...pageQuery(cursor), kind } } })),
   );
+}
+
+export function updateMissionWriters(path: PackagePath, version: number, writers: Schemas["EventAudience"]): Promise<DataPackageDto> {
+  return unwrap(api.PUT("/events/{eventId}/data-packages/{packageId}/writers", { params: { path }, body: { version, writers } }));
 }
 
 export function getDataPackage(path: PackagePath): Promise<DataPackageDto> {
@@ -265,8 +272,8 @@ export function contentImageUrl(path: PackagePath, contentId: string): string {
 }
 
 /** Replaces the drawing order of all packages of an event; IDs bottom first. */
-export function reorderDataPackages(eventId: string, packageIds: string[]): Promise<DataPackageDto[]> {
-  return unwrap(api.PUT("/events/{eventId}/data-package-order", { params: { path: { eventId } }, body: { packageIds } }));
+export function reorderDataPackages(eventId: string, packageIds: string[], kind: DataPackageKind = "package"): Promise<DataPackageDto[]> {
+  return unwrap(api.PUT("/events/{eventId}/data-package-order", { params: { path: { eventId } }, body: { packageIds, kind } }));
 }
 
 export type ContentChanges = Partial<Pick<PackageContentDto, "name" | "layerId" | "visible" | "opacity">>;

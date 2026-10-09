@@ -7,10 +7,11 @@ import {
   mdiDownload,
   mdiMapPlus,
   mdiPublish,
+  mdiSync,
   mdiUpload,
 } from "@mdi/js";
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
 import EmptyState from "@/shared/components/EmptyState.vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
 import { useSubmission } from "@/shared/composables/useSubmission";
@@ -30,6 +31,7 @@ import {
   reorderDataPackages,
   publishDataPackage,
   type DataPackageDto,
+  type DataPackageKind,
   type ImportReport,
   type PackageGeometry,
   type PackageLayerDto,
@@ -47,6 +49,7 @@ import PackageMapView from "./components/PackageMapView.vue";
 import { topFirst } from "@/modules/data-packages/package-order";
 import { mapContentItems } from "./map/map-content";
 import { readLayersOpen, storeLayersOpen } from "./editor-preferences";
+import { wordsFor } from "./editor-kind";
 import type { EventPackageBranch } from "./event-editor.types";
 import type { EditorTool } from "./map/package-map";
 import { usePackageChangeSync, type PackageChangeNotice } from "./usePackageChangeSync";
@@ -57,6 +60,9 @@ const router = useRouter();
 const session = useSession();
 const toast = useToast();
 const eventId = String(route.params.eventId);
+/** The same editor edits Data Packages or missions; missions are synced instead of published. */
+const kind: DataPackageKind = route.name === "mission-editor" ? "mission" : "package";
+const words = wordsFor(kind);
 
 const event = ref<EventDto | null>(null);
 const editors = shallowRef<PackageEditor[]>([]);
@@ -171,7 +177,7 @@ async function makeEditor(packageId: string): Promise<PackageEditor> {
 /** Saves a dragged package order (top first) and applies the stored positions to the open editors. */
 async function reorderPackages(topFirstIds: string[]): Promise<void> {
   try {
-    const stored = await reorderDataPackages(eventId, [...topFirstIds].reverse());
+    const stored = await reorderDataPackages(eventId, [...topFirstIds].reverse(), kind);
     for (const editor of editors.value) {
       const fresh = stored.find(({ id }) => id === editor.path.packageId);
       if (fresh !== undefined && editor.dataPackage.value !== null) {
@@ -186,10 +192,10 @@ async function reorderPackages(topFirstIds: string[]): Promise<void> {
 async function load(): Promise<void> {
   state.value = "loading";
   try {
-    const [loadedEvent, packages] = await Promise.all([getEvent(eventId), listDataPackages(eventId)]);
+    const [loadedEvent, packages] = await Promise.all([getEvent(eventId), listDataPackages(eventId, kind)]);
     const loadedEditors = await Promise.all(packages.map(({ id }) => makeEditor(id)));
     if (loadedEditors.some(({ loadState }) => loadState.value === "error")) {
-      throw new Error("One or more data packages could not be loaded.");
+      throw new Error(`One or more ${words.Many.toLowerCase()} could not be loaded.`);
     }
     event.value = loadedEvent;
     editors.value = loadedEditors;
@@ -268,13 +274,13 @@ async function redoLast(): Promise<void> {
 }
 
 async function createPackage(): Promise<void> {
-  const created = await creation.run(() => createDataPackage(eventId, { name: packageName.value.trim() }));
+  const created = await creation.run(() => createDataPackage(eventId, { name: packageName.value.trim(), kind }));
   if (created !== null) {
     const editor = await makeEditor(created.value.id);
     editors.value = [...editors.value, editor];
     activePackageId.value = editor.path.packageId;
     createOpen.value = false;
-    toast.success(`Data package ${created.value.name} was created.`);
+    toast.success(`${words.One} ${created.value.name} was created.`);
   }
 }
 
@@ -290,7 +296,7 @@ async function publish(branch: EventPackageBranch): Promise<void> {
       editor.dataPackage.value = { ...editor.dataPackage.value, latestRevision: result.revision.number };
     }
     if (result.created) {
-      toast.success(`Published ${branch.dataPackage.name} revision ${String(result.revision.number)}.`);
+      toast.success(`${words.Published} ${branch.dataPackage.name} revision ${String(result.revision.number)}.`);
     } else {
       toast.info(`${branch.dataPackage.name} is unchanged since revision ${String(result.revision.number)}.`);
     }
@@ -388,14 +394,14 @@ async function exportKml(editor: PackageEditor, layer?: PackageLayerDto): Promis
 async function exportAtak(editor: PackageEditor, layer?: PackageLayerDto): Promise<void> {
   const revision = editor.dataPackage.value?.latestRevision;
   if (revision === null || revision === undefined) {
-    toast.info("Publish the data package first; ATAK packages are built from published revisions.");
+    toast.info(`${words.publishFirst}: ATAK packages are built from the latest revision.`);
     return;
   }
   try {
     const { blob, fileName } = await downloadAtak(editor.path, revision, layer?.id);
     saveFile(blob, fileName);
   } catch (caught: unknown) {
-    toast.error(isApiProblem(caught, "NOT_FOUND") ? "Publish first: this layer is not in the latest revision." : caught);
+    toast.error(isApiProblem(caught, "NOT_FOUND") ? `${words.publishFirst}: this layer is not in the latest revision.` : caught);
   }
 }
 
@@ -557,7 +563,7 @@ function queueChange(change: PackageChangeNotice): void {
 }
 
 async function syncPackageList(): Promise<void> {
-  const packages = await listDataPackages(eventId);
+  const packages = await listDataPackages(eventId, kind);
   const ids = new Set(packages.map(({ id }) => id));
   const kept = editors.value.filter(({ path }) => ids.has(path.packageId));
   for (const editor of kept) {
@@ -621,6 +627,61 @@ watch(selectedId, (objectId) => {
   packageSync.reportSelection(editor?.path.packageId ?? activePackageId.value, objectId);
 });
 
+/*
+ * Leaving the mission editor with unsynced missions asks whether to sync them first. Drafts are
+ * saved continuously, so "save and leave" only leaves; "sync and leave" syncs every changed mission.
+ */
+const leaveOpen = ref(false);
+const leaving = ref<"save" | "sync" | null>(null);
+const unsynced = ref<DataPackageDto[]>([]);
+let pendingLeave: string | null = null;
+let leaveConfirmed = false;
+
+async function unsyncedMissions(): Promise<DataPackageDto[]> {
+  // Running saves first, so the check compares the latest draft.
+  while (editors.value.some(({ saveState }) => saveState.value === "saving")) {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  return (await listDataPackages(eventId, "mission")).filter(({ hasUnpublishedChanges }) => hasUnpublishedChanges);
+}
+
+onBeforeRouteLeave(async (to) => {
+  if (kind !== "mission" || leaveConfirmed || !canPublish.value) {
+    return true;
+  }
+  try {
+    unsynced.value = await unsyncedMissions();
+  } catch {
+    return true;
+  }
+  if (unsynced.value.length === 0) {
+    return true;
+  }
+  pendingLeave = to.fullPath;
+  leaveOpen.value = true;
+  return false;
+});
+
+async function leave(sync: boolean): Promise<void> {
+  leaving.value = sync ? "sync" : "save";
+  try {
+    if (sync) {
+      for (const mission of unsynced.value) {
+        await publishDataPackage({ eventId, packageId: mission.id });
+      }
+    }
+    leaveConfirmed = true;
+    leaveOpen.value = false;
+    if (pendingLeave !== null) {
+      await router.push(pendingLeave);
+    }
+  } catch (caught: unknown) {
+    toast.error(caught);
+  } finally {
+    leaving.value = null;
+  }
+}
+
 onMounted(async () => {
   window.addEventListener("keydown", onKeydown);
   await load();
@@ -640,13 +701,13 @@ onBeforeUnmount(() => {
         :icon="mdiArrowLeft"
         variant="text"
         aria-label="Back to the event"
-        :to="{ name: 'event-detail', params: { eventId, tab: 'data-packages' } }"
+        :to="{ name: 'event-detail', params: { eventId, tab: words.tab } }"
       />
       <div class="flex-grow-1" style="min-width: 0">
         <div class="text-title-large font-weight-medium text-truncate">{{ event?.name ?? "Event" }} map</div>
         <div class="text-body-small text-medium-emphasis">
-          {{ activeEditor?.dataPackage.value?.name ?? "Choose a data package" }} ·
-          {{ branches.length }} packages · {{ layers.length }} layers · {{ objects.length }} items
+          {{ activeEditor?.dataPackage.value?.name ?? `Choose a ${words.one}` }} ·
+          {{ branches.length }} {{ words.Many.toLowerCase() }} · {{ layers.length }} layers · {{ objects.length }} items
         </div>
       </div>
       <EditorPresence :editors="otherEditors" :object-name="objectNameOf" />
@@ -655,7 +716,7 @@ onBeforeUnmount(() => {
       </v-chip>
       <input ref="fileInput" type="file" accept=".zip,.cot,.xml,.geojson,.json" hidden @change="onFileChosen">
       <v-btn v-if="editable" variant="text" :prepend-icon="mdiMapPlus" @click="(packageName = ''), creation.reset(), (createOpen = true)">
-        Data package
+        {{ words.One }}
       </v-btn>
       <v-btn v-if="editable" variant="text" :prepend-icon="mdiUpload" :loading="importing" @click="importIntoActive">Import</v-btn>
       <v-menu v-if="activeEditor">
@@ -665,7 +726,7 @@ onBeforeUnmount(() => {
         <v-list density="compact">
           <v-list-item
             title="ATAK Data Package (.zip)"
-            :subtitle="activeEditor.dataPackage.value?.latestRevision ? `Revision ${activeEditor.dataPackage.value.latestRevision}` : 'Publish first'"
+            :subtitle="activeEditor.dataPackage.value?.latestRevision ? `Revision ${activeEditor.dataPackage.value.latestRevision}` : words.publishFirst"
             @click="exportAtak(activeEditor)"
           />
           <v-list-item title="GeoJSON of the draft" @click="exportDraft(activeEditor)" />
@@ -674,11 +735,11 @@ onBeforeUnmount(() => {
       <v-btn
         v-if="canPublish && activeEditor"
         color="primary"
-        :prepend-icon="mdiPublish"
+        :prepend-icon="kind === 'mission' ? mdiSync : mdiPublish"
         :loading="publishingId === activeEditor.path.packageId"
         @click="publishActive"
       >
-        Publish
+        {{ words.Publish }}
       </v-btn>
     </header>
 
@@ -687,11 +748,11 @@ onBeforeUnmount(() => {
     <EmptyState
       v-else-if="branches.length === 0"
       class="ma-6"
-      title="No data packages"
-      text="Create a data package to start drawing on the event map."
+      :title="`No ${words.Many.toLowerCase()}`"
+      :text="kind === 'mission' ? 'Create a mission to plan together with the TAK apps that subscribe to it.' : 'Create a data package to start drawing on the event map.'"
     >
       <v-btn v-if="editable" color="primary" :prepend-icon="mdiMapPlus" @click="(packageName = ''), creation.reset(), (createOpen = true)">
-        New data package
+        New {{ words.one }}
       </v-btn>
     </EmptyState>
 
@@ -718,6 +779,7 @@ onBeforeUnmount(() => {
           :selected-id="selectedId"
           :editable="editable"
           :can-publish="canPublish"
+          :words="words"
           @activate-package="activatePackage"
           @activate-layer="activateLayer"
           @select="selectObject"
@@ -777,12 +839,13 @@ onBeforeUnmount(() => {
       :default-name="`${copySource.branch.dataPackage.name} - ${copySource.layer.name}`"
       :source-label="`layer ${copySource.layer.name}`"
       :selection="[{ packageId: copySource.branch.dataPackage.id, layerIds: [copySource.layer.id] }]"
+      :kind="kind"
       @created="addCopiedPackage"
     />
 
     <v-dialog v-model="createOpen" max-width="480">
       <v-card class="pa-2">
-        <v-card-title>New data package</v-card-title>
+        <v-card-title>New {{ words.one }}</v-card-title>
         <v-card-text>
           <v-alert v-if="creation.error.value" type="error" class="mb-4">{{ creation.error.value }}</v-alert>
           <v-text-field
@@ -799,6 +862,27 @@ onBeforeUnmount(() => {
           <v-btn variant="text" @click="createOpen = false">Cancel</v-btn>
           <v-btn color="primary" :loading="creation.submitting.value" :disabled="packageName.trim() === ''" @click="createPackage">
             Create
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <v-dialog v-model="leaveOpen" max-width="520" persistent>
+      <v-card class="pa-2">
+        <v-card-title>Unsynced changes</v-card-title>
+        <v-card-text>
+          <p class="mb-2">These missions have changes that subscribed TAK apps have not received yet:</p>
+          <ul class="ml-5">
+            <li v-for="mission in unsynced" :key="mission.id">{{ mission.name }}</li>
+          </ul>
+          <p class="mt-2 mb-0">The changes are saved either way.</p>
+        </v-card-text>
+        <v-card-actions class="flex-wrap">
+          <v-btn variant="text" :disabled="leaving !== null" @click="leaveOpen = false">Stay</v-btn>
+          <v-spacer />
+          <v-btn variant="text" :loading="leaving === 'save'" :disabled="leaving !== null" @click="leave(false)">Save and leave</v-btn>
+          <v-btn color="primary" variant="flat" :prepend-icon="mdiSync" :loading="leaving === 'sync'" :disabled="leaving !== null" @click="leave(true)">
+            Sync and leave
           </v-btn>
         </v-card-actions>
       </v-card>

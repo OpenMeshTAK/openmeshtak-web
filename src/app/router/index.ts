@@ -58,6 +58,12 @@ const routes: RouteRecordRaw[] = [
     name: "event-editor",
     component: () => import("@/modules/editor/EventEditorView.vue"),
   },
+  // Missions use the same editor; the route name tells it to edit missions.
+  {
+    path: "/admin/events/:eventId/missions/editor",
+    name: "mission-editor",
+    component: () => import("@/modules/editor/EventEditorView.vue"),
+  },
   {
     path: "/admin/events/:eventId/live",
     name: "event-live",

@@ -2157,7 +2157,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Lists the event's data packages ordered by creation time, oldest first. */
+        /**
+         * @description Lists the event's data packages and missions ordered by creation time, oldest first; `kind`
+         *     limits the list to one kind.
+         */
         get: operations["ListDataPackages"];
         put?: never;
         /** @description Creates a data package with one empty layer. */
@@ -2199,6 +2202,26 @@ export interface paths {
          *     and members. Requires `data-packages.publish` and the current `version`.
          */
         put: operations["UpdateDataPackageAudience"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{eventId}/data-packages/{packageId}/writers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * @description Missions only: sets the groups, roles and members that may change the mission from a TAK app.
+         *     Requires `data-packages.publish` and the current `version`.
+         */
+        put: operations["UpdateMissionWriters"];
         post?: never;
         delete?: never;
         options?: never;
@@ -4524,6 +4547,12 @@ export interface components {
             created: boolean;
             revision: components["schemas"]["PackageRevisionDto"];
         };
+        /**
+         * @description `package`: a Data Package, published as revisions and installed by members. `mission`: an ATAK
+         *     Data Sync mission edited with the same editor; each revision is synced to subscribed TAK apps.
+         * @enum {string}
+         */
+        DataPackageKind: "package" | "mission";
         DataPackageContentSummary: {
             /** Format: double */
             points: number;
@@ -4572,6 +4601,7 @@ export interface components {
         DataPackageDto: {
             id: components["schemas"]["Uuid"];
             eventId: components["schemas"]["Uuid"];
+            kind: components["schemas"]["DataPackageKind"];
             name: string;
             description: string | null;
             /**
@@ -4592,6 +4622,8 @@ export interface components {
             /** @description Published package revisions whose content was copied into this package's initial draft. */
             sources: components["schemas"]["DataPackageSourceDto"][];
             audience: components["schemas"]["PackageAudience"];
+            /** @description Missions only: who may change the mission from a TAK app; empty for packages. */
+            writers: components["schemas"]["EventAudience"];
             takDelivery: components["schemas"]["PackageTakDelivery"];
             /**
              * Format: double
@@ -4609,8 +4641,10 @@ export interface components {
             updatedAt: string;
         };
         ReorderDataPackagesRequest: {
-            /** @description Every data package of the event, bottom first; the last one is drawn on top. */
+            /** @description Every data package of the event of `kind`, bottom first; the last one is drawn on top. */
             packageIds: string[];
+            /** @description Packages and missions are ordered separately; `package` when omitted. */
+            kind?: components["schemas"]["DataPackageKind"];
         };
         PackageObjectDto: {
             id: components["schemas"]["Uuid"];
@@ -4742,6 +4776,8 @@ export interface components {
         CreateDataPackageCopyRequest: {
             name: string;
             description?: string | null;
+            /** @description The kind of the new package, e.g. `mission` to start a mission from published packages; `package` when omitted. */
+            kind?: components["schemas"]["DataPackageKind"];
             /** @description Published package revisions and optional layer selections to copy. */
             packages: components["schemas"]["CombinedExportSelection"][];
         };
@@ -4810,6 +4846,8 @@ export interface components {
         CreateDataPackageRequest: {
             name: string;
             description?: string | null;
+            /** @description Fixed at creation; `package` when omitted. */
+            kind?: components["schemas"]["DataPackageKind"];
         };
         UpdateDataPackageRequest: {
             /**
@@ -4827,6 +4865,14 @@ export interface components {
              */
             version: number;
             audience: components["schemas"]["PackageAudience"];
+        };
+        UpdatePackageWritersRequest: {
+            /**
+             * Format: int32
+             * @description Version the client last read.
+             */
+            version: number;
+            writers: components["schemas"]["EventAudience"];
         };
         UpdatePackageTakDeliveryRequest: {
             /**
@@ -13564,6 +13610,7 @@ export interface operations {
             query?: {
                 limit?: number;
                 cursor?: string;
+                kind?: components["schemas"]["DataPackageKind"];
             };
             header?: never;
             path: {
@@ -13926,6 +13973,78 @@ export interface operations {
                 };
             };
             /** @description Version conflict or event archived */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateMissionWriters: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+                packageId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePackageWritersRequest"];
+            };
+        };
+        responses: {
+            /** @description Writers updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataPackageDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Version conflict, not a mission or event archived */
             409: {
                 headers: {
                     [name: string]: unknown;

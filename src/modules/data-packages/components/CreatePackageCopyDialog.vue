@@ -7,6 +7,7 @@ import {
   createDataPackageCopy,
   type CombinedExportSelection,
   type DataPackageDto,
+  type DataPackageKind,
 } from "../data-packages.api";
 
 const open = defineModel<boolean>({ required: true });
@@ -15,6 +16,8 @@ const props = defineProps<{
   defaultName: string;
   sourceLabel: string;
   selection: CombinedExportSelection[];
+  /** The kind of the new package; a mission editor copies into a new mission. */
+  kind?: DataPackageKind;
 }>();
 const emit = defineEmits<{ created: [dataPackage: DataPackageDto] }>();
 const name = ref("");
@@ -29,7 +32,7 @@ watch(open, (isOpen) => {
 
 async function create(): Promise<void> {
   const created = await creation.run(() =>
-    createDataPackageCopy(props.eventId, { name: name.value.trim(), packages: props.selection }),
+    createDataPackageCopy(props.eventId, { name: name.value.trim(), kind: props.kind ?? "package", packages: props.selection }),
   );
   if (created !== null) {
     open.value = false;
@@ -41,7 +44,7 @@ async function create(): Promise<void> {
 <template>
   <v-dialog v-model="open" max-width="520">
     <v-card class="pa-2">
-      <v-card-title>Create data package from layer</v-card-title>
+      <v-card-title>Create {{ kind === "mission" ? "mission" : "data package" }} from layer</v-card-title>
       <v-card-text>
         <p class="text-body-medium text-medium-emphasis mt-0 mb-4">
           Copies {{ sourceLabel }} from its latest published revision. The new draft receives independent layer and item IDs.
@@ -49,7 +52,7 @@ async function create(): Promise<void> {
         <v-alert v-if="creation.error.value" type="error" class="mb-4">{{ creation.error.value }}</v-alert>
         <v-text-field
           v-model="name"
-          label="New data package name"
+          :label="kind === 'mission' ? 'New mission name' : 'New data package name'"
           maxlength="100"
           autofocus
           :error-messages="messagesFor(creation.fields.value, 'name')"

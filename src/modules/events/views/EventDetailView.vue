@@ -14,6 +14,7 @@ import EventMembersPanel from "@/modules/members/EventMembersPanel.vue";
 import SyncIssuesPanel from "@/modules/members/SyncIssuesPanel.vue";
 import { listOpenSyncIssues } from "@/modules/members/members.api";
 import DataPackagesPanel from "@/modules/data-packages/DataPackagesPanel.vue";
+import MissionsPanel from "@/modules/missions/MissionsPanel.vue";
 import MeshtasticPanel from "@/modules/meshtastic-configuration/MeshtasticPanel.vue";
 import EventOverviewPanel from "../components/EventOverviewPanel.vue";
 import EventAccountsCard from "../components/EventAccountsCard.vue";
@@ -35,7 +36,7 @@ const event = ref<EventDto | null>(null);
 const settings = ref(emptySettings());
 const state = ref<"loading" | "ready" | "error">("loading");
 const loadError = ref("");
-const TABS = ["overview", "settings", "roles", "groups", "members", "meshtastic", "tak", "sync-issues", "data-packages"];
+const TABS = ["overview", "settings", "roles", "groups", "members", "meshtastic", "tak", "sync-issues", "data-packages", "missions"];
 
 /** The open tab lives in the URL, so reloads, links and the back button keep it. */
 const tab = computed({
@@ -162,6 +163,7 @@ onMounted(load);
           <v-badge v-if="openSyncIssues > 0" :content="openSyncIssues" color="error" inline />
         </v-tab>
         <v-tab v-if="session.can('data-packages.read', event.id)" value="data-packages">Data packages</v-tab>
+        <v-tab v-if="session.can('data-packages.read', event.id)" value="missions">Missions</v-tab>
       </v-tabs>
 
       <v-window v-model="tab">
@@ -217,6 +219,9 @@ onMounted(load);
         </v-window-item>
         <v-window-item value="data-packages">
           <DataPackagesPanel :event="event" />
+        </v-window-item>
+        <v-window-item value="missions">
+          <MissionsPanel :event="event" />
         </v-window-item>
       </v-window>
     </template>
