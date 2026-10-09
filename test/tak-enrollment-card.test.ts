@@ -17,6 +17,9 @@ function certificate(id: string, clientUid: string, status: "valid" | "revoked")
     notAfter: "2027-10-07T00:00:00Z",
     revokedAt: status === "revoked" ? "2026-10-07T00:00:00Z" : null,
     revocationReason: null,
+    firstConnectedAt: null,
+    lastConnectedAt: null,
+    device: null,
     issuedForOldEndpoint: false,
   };
 }
@@ -54,6 +57,20 @@ describe("TAK enrollment card", () => {
     const rows = wrapper.findAll('[role="listitem"]');
     expect(rows.map((row) => row.text().split("…")[0]?.trim())).toEqual(["iOS TAK app", "Android TAK app"]);
     expect(wrapper.text()).toContain("Earlier apps (1)");
+  });
+
+  it("names packages after the device that connected with them", async () => {
+    const connected = {
+      ...certificate("6", "ITAK-PACKAGE-1", "valid"),
+      firstConnectedAt: "2026-10-09T10:00:00Z",
+      device: { name: "iPhone 17", app: "iTAK", appVersion: "2.12.3", os: "26.6.2", callsign: "Peter" },
+    };
+    const waiting = certificate("7", "WINTAK-PACKAGE-1", "valid");
+    const wrapper = await mountCard(vi.fn(() => Promise.resolve(jsonResponse([connected, waiting]))));
+
+    const rows = wrapper.findAll('[role="listitem"]').map((row) => row.text());
+    expect(rows[0]).toContain("iPhone 17 · iTAK 2.12.3 · Peter");
+    expect(rows[1]).toContain("WinTAK package, not connected yet");
   });
 
   it("revokes every valid certificate of a device", async () => {

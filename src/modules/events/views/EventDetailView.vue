@@ -18,6 +18,8 @@ import MeshtasticPanel from "@/modules/meshtastic-configuration/MeshtasticPanel.
 import EventOverviewPanel from "../components/EventOverviewPanel.vue";
 import EventAccountsCard from "../components/EventAccountsCard.vue";
 import EventOptionsCard from "../components/EventOptionsCard.vue";
+import AtakSettingsCard from "@/modules/tak-configuration/AtakSettingsCard.vue";
+import TakGroupModeCard from "@/modules/tak-configuration/TakGroupModeCard.vue";
 import EventSettingsForm from "../components/EventSettingsForm.vue";
 import EventStatusBadge from "../components/EventStatusBadge.vue";
 import { emptySettings, settingsFromEvent, settingsToRequest } from "../event-settings";
@@ -33,7 +35,7 @@ const event = ref<EventDto | null>(null);
 const settings = ref(emptySettings());
 const state = ref<"loading" | "ready" | "error">("loading");
 const loadError = ref("");
-const TABS = ["overview", "settings", "roles", "groups", "members", "meshtastic", "sync-issues", "data-packages"];
+const TABS = ["overview", "settings", "roles", "groups", "members", "meshtastic", "tak", "sync-issues", "data-packages"];
 
 /** The open tab lives in the URL, so reloads, links and the back button keep it. */
 const tab = computed({
@@ -63,7 +65,7 @@ function show(loaded: EventDto): void {
   settings.value = settingsFromEvent(loaded);
 }
 
-/** Shown as a badge on the Sync issues tab; a failed count only hides the badge. */
+/** Shown as a badge on the Sync issues tab, which is hidden while the count is 0. */
 const openSyncIssues = ref(0);
 
 async function loadSyncIssueCount(): Promise<void> {
@@ -153,7 +155,9 @@ onMounted(load);
         <v-tab value="groups">Groups</v-tab>
         <v-tab value="members">Members</v-tab>
         <v-tab v-if="event.meshtasticEnabled" value="meshtastic">Meshtastic</v-tab>
-        <v-tab value="sync-issues">
+        <v-tab value="tak">TAK</v-tab>
+        <!-- Hidden while there is nothing to fix, but kept while it is open, e.g. after fixing the last issue. -->
+        <v-tab v-if="openSyncIssues > 0 || tab === 'sync-issues'" value="sync-issues">
           Sync issues
           <v-badge v-if="openSyncIssues > 0" :content="openSyncIssues" color="error" inline />
         </v-tab>
@@ -197,6 +201,16 @@ onMounted(load);
         </v-window-item>
         <v-window-item v-if="event.meshtasticEnabled" value="meshtastic">
           <MeshtasticPanel :event-id="event.id" :editable="editable" />
+        </v-window-item>
+        <v-window-item value="tak">
+          <v-row>
+            <v-col cols="12">
+              <AtakSettingsCard :event-id="event.id" :editable="editable" />
+            </v-col>
+            <v-col cols="12">
+              <TakGroupModeCard :event-id="event.id" :editable="editable" />
+            </v-col>
+          </v-row>
         </v-window-item>
         <v-window-item value="sync-issues">
           <SyncIssuesPanel :event="event" @loaded="openSyncIssues = $event" />

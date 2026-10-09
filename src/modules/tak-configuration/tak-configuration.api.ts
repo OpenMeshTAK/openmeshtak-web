@@ -13,3 +13,12 @@ export function updateTakConfiguration(
 ): Promise<TakConfigurationDto> {
   return unwrap(api.PUT("/events/{eventId}/tak/configuration", { params: { path: { eventId } }, body }));
 }
+
+export type AtakSettingsDto = Schemas["AtakSettingsDto"];
+
+export function updateAtakPreferenceFile(
+  eventId: string,
+  body: Schemas["UpdateAtakPreferenceFileRequest"],
+): Promise<Schemas["UpdateAtakPreferenceFileResponse"]> {
+  return unwrap(api.PUT("/events/{eventId}/tak/configuration/atak-preferences", { params: { path: { eventId } }, body }));
+}

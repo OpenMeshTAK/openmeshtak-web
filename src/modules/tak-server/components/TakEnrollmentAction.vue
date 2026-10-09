@@ -1,16 +1,16 @@
 <script setup lang="ts">
-import { mdiAndroid, mdiApple, mdiClose, mdiDownload } from "@mdi/js";
+import { mdiAndroid, mdiApple, mdiClose, mdiDownload, mdiMicrosoftWindows } from "@mdi/js";
 import type { Socket } from "socket.io-client";
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useDisplay } from "vuetify";
-import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import DownloadQrButton from "@/shared/components/DownloadQrButton.vue";
+import InfoHint from "@/shared/components/InfoHint.vue";
 import QrCode from "@/shared/components/QrCode.vue";
 import { isApiProblem } from "@/shared/errors/api-problem";
 import { connectRealtime } from "@/shared/realtime/realtime";
 import { useToast } from "@/shared/feedback/toast";
 import { useSession } from "@/modules/auth/session";
-import { createTakEnrollment, listMyTakCertificates, revokeMyTakCertificate, type TakEnrollmentDto } from "../tak-server.api";
+import { createTakEnrollment, type TakEnrollmentDto } from "../tak-server.api";
 
 /**
  * Connects a TAK app to the built-in TAK server: QR code for ATAK, the connection package and
@@ -25,31 +25,37 @@ const { xs } = useDisplay();
 const enrollment = ref<TakEnrollmentDto | null>(null);
 const creating = ref(false);
 const unavailable = ref(false);
-const client = ref<"atak" | "itak">("atak");
+type TakClient = "atak" | "itak" | "wintak";
+const client = ref<TakClient>("atak");
 const clientOptions = [
   { value: "atak", app: "ATAK", platform: "Android", icon: mdiAndroid },
   { value: "itak", app: "iTAK", platform: "iPhone", icon: mdiApple },
+  { value: "wintak", app: "WinTAK", platform: "Windows", icon: mdiMicrosoftWindows },
 ] as const;
+const appName = computed(() => clientOptions.find(({ value }) => value === client.value)?.app ?? "ATAK");
+const packageHrefs = {
+  atak: "/api/v1/me/tak-connection-package",
+  itak: "/api/v1/me/itak-connection-package",
+  wintak: "/api/v1/me/wintak-connection-package",
+} as const;
+const packageUidPrefixes = { itak: "ITAK-PACKAGE-", wintak: "WINTAK-PACKAGE-" } as const;
 const method = ref<"qr" | "package" | "login">("qr");
 const session = useSession();
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
 const needsPassword = computed(() => session.state.principal?.hasPassword === false);
-const qrValue = computed(() =>
-  client.value === "atak" ? enrollment.value?.atakEnrollmentUrl : enrollment.value?.itakQrString,
-);
+// WinTAK has neither a QR scanner nor a working login enrollment; it only imports its package.
+const qrValue = computed(() => {
+  if (client.value === "atak") return enrollment.value?.atakEnrollmentUrl;
+  return client.value === "itak" ? enrollment.value?.itakQrString : null;
+});
 const qrAvailable = computed(() => qrValue.value !== null && qrValue.value !== undefined);
-const packageHref = computed(() =>
-  client.value === "atak" ? "/api/v1/me/tak-connection-package" : "/api/v1/me/itak-connection-package",
-);
-const packageGrantKind = computed((): "tak-connection-package" | "itak-connection-package" =>
-  client.value === "atak" ? "tak-connection-package" : "itak-connection-package",
-);
+const packageHref = computed(() => packageHrefs[client.value]);
 const downloadQrProps = computed(() => {
   const common = {
-    request: { kind: packageGrantKind.value },
-    fileLabel: `the ${client.value === "atak" ? "ATAK" : "iTAK"} connection package`,
+    request: { kind: `${client.value === "atak" ? "tak" : client.value}-connection-package` as const },
+    fileLabel: `the ${appName.value} connection package`,
   };
-  return client.value === "itak"
+  return client.value !== "atak"
     ? { ...common, secretNotice: "This package contains your private TAK client key. Do not share the QR code or downloaded file." }
     : common;
 });
@@ -57,37 +63,8 @@ const showPasswordWarning = computed(
   () => needsPassword.value && (method.value === "login" || (client.value === "itak" && method.value === "qr")),
 );
 
-// Each iTAK package carries its own private key, so Core issues one at a time per user.
-const itakDownloaded = ref(false);
-const itakPackageIssued = computed(
-  () => client.value === "itak" && (itakDownloaded.value || enrollment.value?.itakPackageCertificateId != null),
-);
-const confirmingRevoke = ref(false);
-const revokingPackage = ref(false);
-
-function packageDownloaded(): void {
-  if (client.value === "itak") itakDownloaded.value = true;
-}
-
-async function revokeItakPackage(): Promise<void> {
-  revokingPackage.value = true;
-  try {
-    // A download in this dialog does not return the certificate ID, so look it up.
-    const id =
-      enrollment.value?.itakPackageCertificateId ??
-      (await listMyTakCertificates()).find(
-        ({ status, clientUid }) => status === "valid" && clientUid?.startsWith("ITAK-PACKAGE-") === true,
-      )?.id;
-    if (id !== undefined) await revokeMyTakCertificate(id);
-    if (enrollment.value) enrollment.value.itakPackageCertificateId = null;
-    itakDownloaded.value = false;
-    confirmingRevoke.value = false;
-  } catch (caught: unknown) {
-    toast.error(caught);
-  } finally {
-    revokingPackage.value = false;
-  }
-}
+// iTAK and WinTAK packages carry a ready-made key; Core revokes one that no app imports in time.
+const packageClient = computed(() => client.value !== "atak");
 
 // While the dialog is open, Core tells this tab when one of the user's TAK apps enrolls.
 const appEnrolled = ref(false);
@@ -97,8 +74,8 @@ function listenForEnrollment(): void {
   certificates?.disconnect();
   certificates = connectRealtime("/my-tak-certificates");
   certificates.on("issued", ({ clientUid }: { clientUid: string | null }) => {
-    // Downloading an iTAK package also issues a certificate; only a real enrollment counts here.
-    if (clientUid?.startsWith("ITAK-PACKAGE-") !== true) {
+    // Downloading an iTAK or WinTAK package also issues a certificate; only a real enrollment counts here.
+    if (!Object.values(packageUidPrefixes).some((prefix) => clientUid?.startsWith(prefix) === true)) {
       appEnrolled.value = true;
     }
   });
@@ -123,7 +100,7 @@ watch(
 onBeforeUnmount(stopListening);
 
 watch(client, () => {
-  if (method.value === "qr" && !qrAvailable.value) method.value = "package";
+  if ((method.value === "qr" && !qrAvailable.value) || client.value === "wintak") method.value = "package";
 });
 
 async function create(): Promise<void> {
@@ -146,7 +123,6 @@ function close(): void {
   enrollment.value = null;
   client.value = "atak";
   method.value = "qr";
-  itakDownloaded.value = false;
   emit("closed");
 }
 </script>
@@ -187,7 +163,7 @@ function close(): void {
       <v-tabs v-model="method" density="compact" grow>
         <v-tab v-if="qrAvailable" value="qr">QR code</v-tab>
         <v-tab value="package">Connection package</v-tab>
-        <v-tab value="login">Login data</v-tab>
+        <v-tab v-if="client !== 'wintak'" value="login">Login data</v-tab>
       </v-tabs>
       <v-divider />
       <v-card-text>
@@ -238,20 +214,23 @@ function close(): void {
                 </tbody>
               </v-table>
             </template>
-            <template v-else-if="itakPackageIssued">
-              <p class="text-body-medium mt-0 mb-3">
-                Your iTAK package was downloaded and its certificate is still valid. Each package belongs to one device:
-                to set up another iPhone or replace a lost file, revoke the old certificate first. The device using it is
-                disconnected.
-              </p>
-              <v-btn color="error" variant="tonal" @click="confirmingRevoke = true">Revoke old iTAK certificate</v-btn>
-            </template>
-            <div v-if="!itakPackageIssued" class="d-flex flex-wrap ga-2">
-              <v-btn :href="packageHref" download color="primary" :prepend-icon="mdiDownload" @click="packageDownloaded">
-                Download {{ client === "atak" ? "ATAK" : "iTAK" }} package
+            <p v-else-if="client === 'wintak'" class="d-flex align-center ga-1 text-body-medium mt-0 mb-3">
+              Download the WinTAK package and import it in WinTAK.
+              <InfoHint label="How to import in WinTAK">
+                In WinTAK, open the main menu, then Import Manager → Import Files, and choose the downloaded file. WinTAK
+                cannot sign in with a username and password, so the package brings its own certificate.
+              </InfoHint>
+            </p>
+            <div class="d-flex flex-wrap ga-2">
+              <v-btn :href="packageHref" download color="primary" :prepend-icon="mdiDownload">
+                Download {{ appName }} package
               </v-btn>
-              <DownloadQrButton v-bind="downloadQrProps" />
+              <DownloadQrButton v-if="client !== 'wintak'" v-bind="downloadQrProps" />
             </div>
+            <p v-if="packageClient" class="text-body-small text-medium-emphasis mt-3 mb-0">
+              Each download is a new login for one device. Import it within {{ enrollment.unusedPackageHours }} hours,
+              otherwise it stops working.
+            </p>
           </v-window-item>
 
           <v-window-item value="login">
@@ -273,23 +252,20 @@ function close(): void {
       </v-card-text>
     </v-card>
   </v-dialog>
-  <ConfirmDialog
-    v-model="confirmingRevoke"
-    title="Revoke the old iTAK certificate?"
-    confirm-label="Revoke"
-    confirm-color="error"
-    :loading="revokingPackage"
-    @confirm="revokeItakPackage"
-  >
-    The iPhone that imported the earlier package loses its TAK connection and cannot reconnect with it.
-  </ConfirmDialog>
 </template>
 
 <style scoped>
 .client-choice {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
+}
+
+/* Three app buttons do not fit side by side on a phone. */
+@media (max-width: 599px) {
+  .client-choice {
+    grid-template-columns: 1fr;
+  }
 }
 
 .client-choice__option {

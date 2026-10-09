@@ -3,6 +3,7 @@ import { computed, ref } from "vue";
 import InfoHint from "@/shared/components/InfoHint.vue";
 import { useToast } from "@/shared/feedback/toast";
 import { useSession } from "@/modules/auth/session";
+import TrafficRecordingOption from "@/modules/tak-server/components/TrafficRecordingOption.vue";
 import { settingsFromEvent, settingsToRequest } from "../event-settings";
 import { updateEvent, type EventDto } from "../events.api";
 
@@ -89,5 +90,7 @@ async function save(option: "meshtasticEnabled" | "permanentAccounts", value: bo
         <p>Turn this on to keep them as permanent users instead. Accounts that already exist do not change.</p>
       </InfoHint>
     </div>
+
+    <TrafficRecordingOption v-if="session.can('tak-traffic.view', event.id)" :event-id="event.id" />
   </v-card>
 </template>

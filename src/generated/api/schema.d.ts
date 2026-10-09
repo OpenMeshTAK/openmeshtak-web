@@ -436,6 +436,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/wintak-connection-package": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description A WinTAK connection package in the iTAK layout, with a newly issued user-bound client identity.
+         *     WinTAK cannot enroll with a username and password, so it imports this ready-made certificate.
+         *     The private client key exists only in this download.
+         */
+        get: operations["GetWintakConnectionPackage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tak-server/client-certificates": {
         parameters: {
             query?: never;
@@ -616,6 +637,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/events/{eventId}/tak/groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Lists the event's TAK groups ordered by creation time, oldest first. */
+        get: operations["ListTakGroups"];
+        put?: never;
+        post: operations["CreateTakGroup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{eventId}/tak/groups/{groupId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Returns the group with its members. */
+        get: operations["GetTakGroup"];
+        /** @description Replaces name and description, and the members when given. Requires the current `version`. */
+        put: operations["UpdateTakGroup"];
+        post?: never;
+        delete: operations["DeleteTakGroup"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/events/{eventId}/tak/configuration": {
         parameters: {
             query?: never;
@@ -626,6 +682,26 @@ export interface paths {
         get: operations["GetTakConfiguration"];
         /** @description Replaces the TAK connection settings. Requires the current `version` (0 before the first save). */
         put: operations["UpdateTakConfiguration"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{eventId}/tak/configuration/atak-preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * @description Uploads or removes the event's ATAK preference file (`.pref`, such as ATAK's settings
+         *     export). Keys OpenMeshTak sets per member are removed and listed in the response.
+         */
+        put: operations["UpdateAtakPreferenceFile"];
         post?: never;
         delete?: never;
         options?: never;
@@ -2510,6 +2586,11 @@ export interface components {
              * @description Lifetime of newly enrolled client certificates.
              */
             clientCertificateDays: number;
+            /**
+             * Format: double
+             * @description Hours after which a downloaded iTAK or WinTAK package that never connected is revoked.
+             */
+            unusedPackageHours: number;
             /** @description `null` until the server first starts or a certificate is added. */
             serverCertificate: components["schemas"]["TakServerCertificateDto"] | null;
             /** @description The reverse proxy's certificate files Core reads, relative to `certificateDirectory`; `null` unless used. */
@@ -2558,6 +2639,12 @@ export interface components {
             streamingPort: number;
             /** Format: int32 */
             clientCertificateDays: number;
+            /**
+             * Format: int32
+             * @description Hours after which a downloaded iTAK or WinTAK package that never connected is revoked; kept
+             *     when omitted.
+             */
+            unusedPackageHours?: number;
             /**
              * @description Required when this update moves a port to a non-standard value, or changes the host name or a
              *     port while apps are enrolled. Core never changes a public port on its own.
@@ -2648,10 +2735,24 @@ export interface components {
              */
             itakQrString: string | null;
             /**
-             * @description The still valid certificate from an earlier iTAK package download. A new package is refused
-             *     until it is revoked, so each downloaded package stays one device.
+             * Format: double
+             * @description Hours within which a downloaded iTAK or WinTAK package must connect once; otherwise its
+             *     certificate is revoked.
              */
-            itakPackageCertificateId: components["schemas"]["Uuid"] | null;
+            unusedPackageHours: number;
+        };
+        /**
+         * @description The app's own description from the `takv` and `contact` details of its position beacon. Set by
+         *     the app, so it names the device but proves nothing.
+         */
+        TakReportedDeviceDto: {
+            /** @description Device model, e.g. `iPhone 17`. */
+            name: string | null;
+            /** @description TAK app, e.g. `iTAK` or `WinTAK-CIV`. */
+            app: string | null;
+            appVersion: string | null;
+            os: string | null;
+            callsign: string | null;
         };
         /** @description A client certificate issued to a TAK app. Certificates are public; no key material exists here. */
         TakClientCertificateDto: {
@@ -2671,6 +2772,15 @@ export interface components {
             /** Format: date-time */
             revokedAt: string | null;
             revocationReason: string | null;
+            /**
+             * Format: date-time
+             * @description First streaming connection with this certificate; `null` while an app never connected.
+             */
+            firstConnectedAt: string | null;
+            /** Format: date-time */
+            lastConnectedAt: string | null;
+            /** @description What the app last reported about itself; `null` until it sent its own position. */
+            device: components["schemas"]["TakReportedDeviceDto"] | null;
             /**
              * @description Issued before the TAK server's host name or a port last changed; the app may still use the old
              *     endpoint and must enroll again.
@@ -2748,15 +2858,146 @@ export interface components {
             /** @description What happened, safe to show to the administrator. */
             message: string;
         };
+        TakGroupSummaryDto: {
+            id: components["schemas"]["Uuid"];
+            eventId: components["schemas"]["Uuid"];
+            name: string;
+            description: string | null;
+            /**
+             * Format: double
+             * @description Members that receive what is sent into the group.
+             */
+            receiverCount: number;
+            /**
+             * Format: double
+             * @description Members that send into the group.
+             */
+            senderCount: number;
+            /**
+             * Format: double
+             * @description Optimistic-concurrency version; send it back unchanged with updates.
+             */
+            version: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        TakGroupPage: {
+            items: components["schemas"]["TakGroupSummaryDto"][];
+            page: components["schemas"]["PageInfo"];
+        };
+        /** @description A member's place in a TAK group: receiving what is sent into it (in), sending into it (out). */
+        TakGroupMemberDto: {
+            memberId: components["schemas"]["Uuid"];
+            receive: boolean;
+            send: boolean;
+        };
         /**
-         * @description TAK settings of a Meshtastic event. Every event sends TAK clients to the built-in TAK server;
-         *     Meshtastic events (`meshtasticEnabled` on the event) also connect them to the Meshtastic app's
-         *     local TAK server, which carries CoT over this channel.
+         * @description A free TAK group of the advanced group mode, e.g. `Medics`. Members are assigned per group;
+         *     roles with `seesAllTakGroups` need no assignment.
+         */
+        TakGroupDto: {
+            id: components["schemas"]["Uuid"];
+            eventId: components["schemas"]["Uuid"];
+            name: string;
+            description: string | null;
+            /**
+             * Format: double
+             * @description Members that receive what is sent into the group.
+             */
+            receiverCount: number;
+            /**
+             * Format: double
+             * @description Members that send into the group.
+             */
+            senderCount: number;
+            /**
+             * Format: double
+             * @description Optimistic-concurrency version; send it back unchanged with updates.
+             */
+            version: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            members: components["schemas"]["TakGroupMemberDto"][];
+        };
+        CreateTakGroupRequest: {
+            name: string;
+            description?: string | null;
+            members?: components["schemas"]["TakGroupMemberDto"][];
+        };
+        UpdateTakGroupRequest: {
+            /**
+             * Format: int32
+             * @description Version the client last read.
+             */
+            version: number;
+            name: string;
+            description: string | null;
+            /**
+             * @description Replaces the group's members; omit to keep them. Entries with neither `receive` nor `send`
+             *     are dropped.
+             */
+            members?: components["schemas"]["TakGroupMemberDto"][];
+        };
+        /**
+         * @description ATAK display settings an event sets for its members; `null` leaves the setting to the
+         *     uploaded preference file or to ATAK's default.
+         */
+        AtakSettingsDto: {
+            /** @enum {string|null} */
+            coordinateFormat: "MGRS" | "DD" | "DM" | "DMS" | "UTM" | null;
+            /** @enum {string|null} */
+            altitudeReference: "HAE" | "MSL" | null;
+            /** @enum {string|null} */
+            altitudeUnit: "feet" | "meters" | null;
+            /** @enum {string|null} */
+            speedUnit: "mph" | "kmh" | "knots" | "mps" | null;
+            /** @enum {string|null} */
+            distanceUnit: "imperial" | "metric" | "nautical" | null;
+            /** @enum {string|null} */
+            northReference: "true" | "magnetic" | "grid" | null;
+        };
+        /** @enum {string} */
+        TakGroupMode: "off" | "simple" | "advanced";
+        /** @description One preference of an uploaded ATAK `.pref` file. */
+        AtakPreferenceDto: {
+            /** @description The `<preference name>` group, such as `com.atakmap.app_preferences`. */
+            preference: string;
+            key: string;
+            /** @enum {string} */
+            type: "string" | "boolean" | "integer" | "long" | "float";
+            value: string;
+        };
+        AtakPreferenceFileDto: {
+            fileName: string;
+            /** @description The file's entries after removing keys OpenMeshTak owns. */
+            entries: components["schemas"]["AtakPreferenceDto"][];
+        };
+        /**
+         * @description TAK settings of an event. Every event sends TAK clients to the built-in TAK server; Meshtastic
+         *     events (`meshtasticEnabled` on the event) also connect them to the Meshtastic app's local TAK
+         *     server, which carries CoT over the mesh channel. ATAK preferences reach members through the
+         *     device profiles once a configuration revision is published.
          */
         TakConfigurationDto: {
             eventId: components["schemas"]["Uuid"];
             /** @description Channel for the app's "TAK Mesh Channel"; `null` uses the primary channel. */
             meshChannelId: components["schemas"]["Uuid"] | null;
+            atakSettings: components["schemas"]["AtakSettingsDto"];
+            /**
+             * @description `off`: every member sees the whole event. `simple`: members see only their event group.
+             *     `advanced`: members receive what is sent into the event's TAK groups they receive from
+             *     (`/events/{eventId}/tak/groups`). In both separating modes roles with `seesAllTakGroups` see
+             *     and reach everyone. Applies to live connections within seconds, without publishing.
+             */
+            groupMode: components["schemas"]["TakGroupMode"];
+            /** @description In the advanced mode, TAK apps list their groups and may switch them on and off. */
+            groupsInApp: boolean;
+            /** @description `null` until a preference file is uploaded. */
+            atakPreferenceFile: components["schemas"]["AtakPreferenceFileDto"] | null;
             /**
              * Format: double
              * @description Optimistic-concurrency version; 0 until first saved.
@@ -2772,6 +3013,31 @@ export interface components {
              */
             version: number;
             meshChannelId: components["schemas"]["Uuid"] | null;
+            /** @description Omit to keep the current settings. */
+            atakSettings?: components["schemas"]["AtakSettingsDto"];
+            /** @description Omit to keep the current mode. */
+            groupMode?: components["schemas"]["TakGroupMode"];
+            /** @description Omit to keep the current value. */
+            groupsInApp?: boolean;
+        };
+        UpdateAtakPreferenceFileResponse: {
+            configuration: components["schemas"]["TakConfigurationDto"];
+            /** @description Keys of the uploaded file that were removed because OpenMeshTak sets them per member. */
+            removedKeys: string[];
+        };
+        AtakPreferenceFileUpload: {
+            fileName: string;
+            /** @description The `.pref` file's text. */
+            content: string;
+        };
+        UpdateAtakPreferenceFileRequest: {
+            /**
+             * Format: int32
+             * @description Version the client last read.
+             */
+            version: number;
+            /** @description `null` removes the file. */
+            file: components["schemas"]["AtakPreferenceFileUpload"] | null;
         };
         SetupStatusResponse: {
             /** @description `false` until the first administrator exists; the Web app then opens the setup flow. */
@@ -3664,6 +3930,11 @@ export interface components {
              */
             takRoleOverride: components["schemas"]["TakRole"] | null;
             /**
+             * @description Members of this role see and reach every event group when the event separates TAK groups,
+             *     e.g. platoon leaders.
+             */
+            seesAllTakGroups: boolean;
+            /**
              * Format: double
              * @description Optimistic-concurrency version; send it back unchanged with updates.
              */
@@ -3682,6 +3953,7 @@ export interface components {
             slug: components["schemas"]["Slug"];
             description?: string | null;
             takRoleOverride?: components["schemas"]["TakRole"] | null;
+            seesAllTakGroups?: boolean;
         };
         UpdateEventRoleRequest: {
             /**
@@ -3694,6 +3966,8 @@ export interface components {
             description: string | null;
             /** @description Omit to keep the current override; `null` removes it. */
             takRoleOverride?: components["schemas"]["TakRole"] | null;
+            /** @description Omit to keep the current value. */
+            seesAllTakGroups?: boolean;
         };
         /** @enum {string} */
         SyncIssueStatus: "open" | "resolved";
@@ -3965,11 +4239,24 @@ export interface components {
             profileSha256: string;
             settings: components["schemas"]["FirmwareSettingsDocument"];
         };
+        /** @enum {string} */
+        AtakPreferenceType: "string" | "boolean" | "integer" | "long" | "float";
+        /** @description One ATAK preference as a `.pref` file stores it. */
+        AtakPreference: {
+            /** @description The `<preference name>` group, such as `com.atakmap.app_preferences`. */
+            preference: string;
+            key: string;
+            type: components["schemas"]["AtakPreferenceType"];
+            value: string;
+        };
         CurrentTakConfiguration: {
             meshChannelId: string | null;
+            /** @description The preferences members' ATAK receives: the uploaded file with the form's choices on top. */
+            atakPreferences: components["schemas"]["AtakPreference"][];
         };
         /**
-         * @description The Meshtastic app's TAK mesh channel; `null` in revisions created before version 4. Revisions
+         * @description The Meshtastic app's TAK mesh channel and the ATAK preferences; `null` in revisions created
+         *     before version 4, and without ATAK preferences before version 7. Revisions
          *     before version 6 also stored a connection mode, which the switch `meshtasticEnabled` replaced.
          */
         SnapshotTak: components["schemas"]["CurrentTakConfiguration"];
@@ -3977,11 +4264,11 @@ export interface components {
          * @description Bump `schemaVersion` whenever the snapshot shape changes; old revisions are never rewritten.
          *     Version 2 added `channels` in device order, the first being the primary channel; version 3
          *     added `meshtastic`; version 4 added `tak`; version 5 added role TAK overrides; version 6 added
-         *     `meshtasticEnabled`.
+         *     `meshtasticEnabled`; version 7 added `tak.atakPreferences`.
          */
         ConfigurationSnapshot: {
             /** @enum {number} */
-            schemaVersion: 1 | 2 | 3 | 4 | 5 | 6;
+            schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7;
             /**
              * @description Whether the event provisions Meshtastic radios; `true` in revisions before version 6. When
              *     `false`, `channels` is empty and `meshtastic` is `null`.
@@ -4081,7 +4368,7 @@ export interface components {
             expiresAt: string;
         };
         /** @enum {string} */
-        DownloadGrantKind: "device-profile" | "member-data-package" | "tak-connection-package" | "itak-connection-package";
+        DownloadGrantKind: "device-profile" | "member-data-package" | "tak-connection-package" | "itak-connection-package" | "wintak-connection-package";
         CreateDownloadGrantRequest: {
             kind: components["schemas"]["DownloadGrantKind"];
             /** @description Required for `device-profile` and `member-data-package`. */
@@ -6306,6 +6593,53 @@ export interface operations {
             };
         };
     };
+    GetWintakConnectionPackage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description WinTAK Connection Data Package */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No TAK access */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description TAK server not enabled, or an earlier WinTAK package certificate is still valid */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     ListTakClientCertificates: {
         parameters: {
             query?: never;
@@ -6798,6 +7132,302 @@ export interface operations {
             };
         };
     };
+    ListTakGroups: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description TAK groups */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TakGroupPage"];
+                };
+            };
+            /** @description Invalid cursor */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateTakGroup: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Makes retries safe: a repeated request returns the original response. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                eventId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTakGroupRequest"];
+            };
+        };
+        responses: {
+            /** @description TAK group created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TakGroupDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Name already in use or event archived; Idempotency-Key conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetTakGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+                groupId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description TAK group */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TakGroupDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateTakGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+                groupId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTakGroupRequest"];
+            };
+        };
+        responses: {
+            /** @description TAK group updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TakGroupDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Version conflict, name already in use or event archived */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeleteTakGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+                groupId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description TAK group deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Event archived */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     GetTakConfiguration: {
         parameters: {
             query?: never;
@@ -6860,6 +7490,77 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TakConfigurationDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Version conflict or event archived */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateAtakPreferenceFile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAtakPreferenceFileRequest"];
+            };
+        };
+        responses: {
+            /** @description ATAK preference file updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateAtakPreferenceFileResponse"];
                 };
             };
             /** @description Authentication required */

@@ -22,11 +22,18 @@ const loadError = ref("");
 
 const dialogOpen = ref(false);
 const editing = ref<EventRoleDto | null>(null);
-const form = ref<{ name: string; slug: string; description: string; takRoleOverride: Schemas["TakRole"] | null }>({
+const form = ref<{
+  name: string;
+  slug: string;
+  description: string;
+  takRoleOverride: Schemas["TakRole"] | null;
+  seesAllTakGroups: boolean;
+}>({
   name: "",
   slug: "",
   description: "",
   takRoleOverride: null,
+  seesAllTakGroups: false,
 });
 const saving = ref(false);
 const formError = ref<string | null>(null);
@@ -57,6 +64,7 @@ function open(role: EventRoleDto | null): void {
     slug: role?.slug ?? "",
     description: role?.description ?? "",
     takRoleOverride: role?.takRoleOverride ?? null,
+    seesAllTakGroups: role?.seesAllTakGroups ?? false,
   };
   formError.value = null;
   formFields.value = {};
@@ -71,6 +79,7 @@ async function save(): Promise<void> {
     slug: form.value.slug,
     description: form.value.description || null,
     takRoleOverride: form.value.takRoleOverride,
+    seesAllTakGroups: form.value.seesAllTakGroups,
   };
   try {
     if (editing.value === null) {
@@ -138,6 +147,7 @@ onMounted(load);
             <td>
               <span v-if="role.takRoleOverride">{{ role.takRoleOverride }}</span>
               <span v-else class="text-medium-emphasis">From group</span>
+              <div v-if="role.seesAllTakGroups" class="text-body-small text-medium-emphasis">Sees all TAK groups</div>
             </td>
             <td class="d-none d-md-table-cell text-medium-emphasis">{{ role.description }}</td>
             <td v-if="editable" class="text-right text-no-wrap">
@@ -181,6 +191,13 @@ onMounted(load);
               <InfoHint label="About the TAK role" text="Replaces the group's TAK role for members with this role, e.g. Team Lead for platoon leaders." />
             </template>
           </v-select>
+          <div class="d-flex align-center mb-2">
+            <v-checkbox v-model="form.seesAllTakGroups" label="Sees all TAK groups" hide-details density="compact" />
+            <InfoHint
+              label="About seeing all TAK groups"
+              text="When the event shows members only their own group, members with this role still see and reach everyone, e.g. platoon leaders."
+            />
+          </div>
           <v-textarea v-model="form.description" label="Description (optional)" rows="2" auto-grow />
         </v-card-text>
         <v-card-actions>

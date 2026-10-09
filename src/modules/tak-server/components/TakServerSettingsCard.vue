@@ -40,6 +40,7 @@ function formOf(settings: TakServerSettingsDto): TakServerSettingsChanges {
     martiPort: settings.martiPort,
     streamingPort: settings.streamingPort,
     clientCertificateDays: settings.clientCertificateDays,
+    unusedPackageHours: settings.unusedPackageHours,
   };
 }
 
@@ -166,8 +167,26 @@ function confirmEndpointChange(): void {
             :error-messages="messagesFor(errors, 'clientCertificateDays')"
           />
         </v-col>
-        <!-- Save shares the last row so the lone lifetime field leaves no empty band below it. -->
-        <v-col cols="12" sm="8" class="d-flex align-center justify-end">
+        <v-col cols="12" sm="4">
+          <v-text-field
+            v-model.number="form.unusedPackageHours"
+            type="number"
+            label="Unused package expiry"
+            suffix="hours"
+            hide-spin-buttons
+            hide-details="auto"
+            :error-messages="messagesFor(errors, 'unusedPackageHours')"
+          >
+            <template #append-inner>
+              <InfoHint
+                label="About unused packages"
+                text="iTAK and WinTAK packages contain a ready-made login. One that no app connects with within this time is revoked, so forgotten downloads do not stay valid."
+              />
+            </template>
+          </v-text-field>
+        </v-col>
+        <!-- Save shares the last row so the two lifetime fields leave no empty band below them. -->
+        <v-col cols="12" sm="4" class="d-flex align-center justify-end">
           <v-btn color="primary" :loading="saving" @click="save()">Save</v-btn>
         </v-col>
       </v-row>

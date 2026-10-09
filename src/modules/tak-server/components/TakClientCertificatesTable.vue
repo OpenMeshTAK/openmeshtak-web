@@ -16,12 +16,29 @@ const revoking = ref<TakClientCertificateDto | null>(null);
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" });
 const statusColor = { valid: "success", expired: undefined, revoked: "error" } as const;
 
+/** The app's own description once it connected, e.g. "iPhone 17 · iTAK 2.12.3 · Peter". */
+function reportedName(certificate: TakClientCertificateDto): string | null {
+  const device = certificate.device;
+  if (device === null) {
+    return null;
+  }
+  const app = [device.app, device.appVersion].filter((part) => part !== null).join(" ");
+  const parts = [device.name, app === "" ? null : app, device.callsign].filter((part) => part !== null);
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
 function deviceName(certificate: TakClientCertificateDto): string {
+  const reported = reportedName(certificate);
+  if (reported !== null) {
+    return reported;
+  }
   if (certificate.clientUid === null) {
     return "Unknown TAK app";
   }
   const uid = certificate.clientUid.toUpperCase();
-  if (uid.startsWith("ITAK-PACKAGE-")) return "iTAK (connection package)";
+  const waiting = certificate.firstConnectedAt === null ? ", not connected yet" : "";
+  if (uid.startsWith("ITAK-PACKAGE-")) return `iTAK package${waiting}`;
+  if (uid.startsWith("WINTAK-PACKAGE-")) return `WinTAK package${waiting}`;
   if (uid.startsWith("ANDROID-")) return "Android TAK app";
   // iOS apps send a bare UUID as their device UID.
   return /^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/.test(uid) ? "iOS TAK app" : "TAK app";
@@ -97,7 +114,7 @@ function confirm(): void {
       <tbody>
         <tr v-for="certificate in props.certificates" :key="certificate.id">
           <td v-if="props.showUser">{{ certificate.userDisplayName }}</td>
-          <td class="text-truncate" style="max-width: 220px">{{ certificate.clientUid ?? "Unknown device" }}</td>
+          <td class="text-truncate" style="max-width: 260px" :title="certificate.clientUid ?? undefined">{{ deviceName(certificate) }}</td>
           <td>
             <v-chip size="small" variant="tonal" :color="statusColor[certificate.status]" class="text-capitalize">
               {{ certificate.status }}
