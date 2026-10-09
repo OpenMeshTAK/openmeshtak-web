@@ -2,6 +2,7 @@ import {
   mdiAccount,
   mdiAccountCog,
   mdiAccountGroup,
+  mdiBookshelf,
   mdiCalendarMultiple,
   mdiCogOutline,
   mdiConsole,
@@ -146,6 +147,12 @@ const routes: RouteRecordRaw[] = [
             name: "tak-server",
             component: () => import("@/modules/tak-server/TakServerPanel.vue"),
             meta: { navigation: { title: "TAK server", icon: mdiServerNetwork, permission: "tak-server.manage" } },
+          },
+          {
+            path: "presets",
+            name: "settings-presets",
+            component: () => import("@/modules/settings-presets/PresetLibraryView.vue"),
+            meta: { navigation: { title: "Presets", icon: mdiBookshelf, permission: "events.manage" } },
           },
           {
             path: "server-log",

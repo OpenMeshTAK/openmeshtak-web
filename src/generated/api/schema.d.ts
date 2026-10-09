@@ -781,6 +781,148 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/presets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Lists library presets ordered by creation time, oldest first. */
+        get: operations["ListSettingsPresets"];
+        put?: never;
+        /** @description Validates a preset document without an event and saves a copy to the library. */
+        post: operations["CreateSettingsPreset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/presets/{presetId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The preset with its portable document, ready to download or import into an event. */
+        get: operations["GetSettingsPreset"];
+        /** @description Renames the preset or replaces its settings. Requires the current `version`. */
+        put: operations["UpdateSettingsPreset"];
+        post?: never;
+        /** @description Deletes the preset. Events that used it keep their values. */
+        delete: operations["DeleteSettingsPreset"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{eventId}/meshtastic/preset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The event's Meshtastic settings without secrets, managed or member-specific values. */
+        get: operations["ExportMeshtasticPreset"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{eventId}/meshtastic/preset/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Checks a preset against the event's firmware profile and reports what an import would change. */
+        post: operations["PreviewMeshtasticPreset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{eventId}/meshtastic/preset/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Applies a previewed preset to the draft. Send the preview's `version` and `confirmation`. */
+        post: operations["ImportMeshtasticPreset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{eventId}/tak/preset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The event's ATAK preferences for the whole event, its groups and roles. */
+        get: operations["ExportTakPreset"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{eventId}/tak/preset/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Checks a preset against the ATAK catalog and the event, and reports what an import would add or
+         *     change. `confirmation` stays `null` until every group and role of the preset is mapped.
+         */
+        post: operations["PreviewTakPreset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{eventId}/tak/preset/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Merges a previewed preset into the draft. Send the preview's `version`, mappings and `confirmation`. */
+        post: operations["ImportTakPreset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/server-logs": {
         parameters: {
             query?: never;
@@ -3312,6 +3454,297 @@ export interface components {
             token: string;
         };
         /** @enum {string} */
+        PresetKind: "meshtastic" | "tak";
+        SettingsPresetSummaryDto: {
+            id: components["schemas"]["Uuid"];
+            kind: components["schemas"]["PresetKind"];
+            name: string;
+            description: string | null;
+            /** @description Meshtastic firmware or ATAK version the preset was made for. */
+            targetVersion: string | null;
+            /**
+             * Format: double
+             * @description Number of settings or ATAK preference entries.
+             */
+            itemCount: number;
+            /** Format: double */
+            version: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        SettingsPresetPage: {
+            items: components["schemas"]["SettingsPresetSummaryDto"][];
+            page: components["schemas"]["PageInfo"];
+        };
+        /**
+         * @description Where a preset document came from. Free text such as `note` lets a person or an assistant say
+         *     what they changed; Core never acts on it.
+         */
+        PresetSourceDto: {
+            application?: string;
+            applicationVersion?: string;
+            /** @enum {string} */
+            exportedFrom?: "event" | "library";
+            note?: string;
+        };
+        /** @description Values of Meshtastic firmware-profile fields, keyed by field key. */
+        PresetMeshtasticSettings: {
+            [key: string]: string | number | boolean;
+        };
+        MeshtasticPresetContentDto: {
+            /**
+             * @description The firmware the settings were made for, such as `2.8`. Imports check every value against the
+             *     target event's own firmware profile instead.
+             */
+            firmwareVersion: string;
+            settings: components["schemas"]["PresetMeshtasticSettings"];
+        };
+        /**
+         * @description Who a portable ATAK preference is for. Groups and roles are named by their slug, because their
+         *     IDs only exist in one event; importing maps each one explicitly onto the target event.
+         */
+        PresetAtakTargetDto: {
+            /** @enum {string} */
+            type: "event" | "group" | "role";
+            slug?: string;
+            /** @description Display name in the source event. */
+            name?: string;
+        };
+        PresetAtakPreferenceDto: {
+            target: components["schemas"]["PresetAtakTargetDto"];
+            preference: string;
+            key: string;
+            type: components["schemas"]["AtakPreferenceTypeDto"];
+            value: string;
+        };
+        TakPresetContentDto: {
+            atakVersion?: string;
+            atakPreferences: components["schemas"]["PresetAtakPreferenceDto"][];
+        };
+        /**
+         * @description A portable, self-describing OpenMeshTak settings preset (`format` `openmeshtak-preset`). It is not
+         *     an ATAK `.pref`, a Meshtastic `.cfg` or a firmware profile. It never holds channel keys,
+         *     passwords, fixed PINs, certificates, tokens or member-specific values.
+         */
+        PresetDocumentDto: {
+            /** @description Always `openmeshtak-preset`. */
+            format: string;
+            /**
+             * Format: int32
+             * @description Format version; this Core reads version 1.
+             */
+            formatVersion: number;
+            kind: components["schemas"]["PresetKind"];
+            name: string;
+            description?: string;
+            /** @description Human-readable explanation of the format. Ignored on import. */
+            about?: string;
+            /** Format: date-time */
+            exportedAt?: string;
+            source?: components["schemas"]["PresetSourceDto"];
+            /** @description Present when `kind` is `meshtastic`. */
+            meshtastic?: components["schemas"]["MeshtasticPresetContentDto"];
+            /** @description Present when `kind` is `tak`. */
+            tak?: components["schemas"]["TakPresetContentDto"];
+        };
+        SettingsPresetDto: {
+            id: components["schemas"]["Uuid"];
+            kind: components["schemas"]["PresetKind"];
+            name: string;
+            description: string | null;
+            /** @description Meshtastic firmware or ATAK version the preset was made for. */
+            targetVersion: string | null;
+            /**
+             * Format: double
+             * @description Number of settings or ATAK preference entries.
+             */
+            itemCount: number;
+            /** Format: double */
+            version: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            document: components["schemas"]["PresetDocumentDto"];
+        };
+        CreateSettingsPresetRequest: {
+            /** @description Name and description default to the document's. */
+            document: components["schemas"]["PresetDocumentDto"];
+            name?: string;
+            description?: string | null;
+        };
+        UpdateSettingsPresetRequest: {
+            /**
+             * Format: int32
+             * @description Version the client last read.
+             */
+            version: number;
+            name: string;
+            description: string | null;
+            /** @description Replaces the settings; omit to keep them. The kind cannot change. */
+            document?: components["schemas"]["PresetDocumentDto"];
+        };
+        PresetSettingChangeDto: {
+            key: string;
+            from: (string | number | boolean) | null;
+            to: string | number | boolean;
+        };
+        PresetSettingProblemDto: {
+            key: string;
+            message: string;
+        };
+        /**
+         * @description What importing a Meshtastic preset would change in the event's draft. Only `changed` values are
+         *     written; invalid and unsupported values are left out and current values stay.
+         */
+        MeshtasticPresetPreviewDto: {
+            /**
+             * Format: double
+             * @description Configuration version the preview was computed on; send it with the import.
+             */
+            version: number;
+            presetFirmwareVersion: string;
+            eventFirmwareVersion: string;
+            /** @description `false` when the preset was made for another firmware line than the event uses. */
+            sameFirmwareLine: boolean;
+            changed: components["schemas"]["PresetSettingChangeDto"][];
+            unchanged: string[];
+            /** @description Values the event's firmware profile rejects; the current value stays. */
+            invalid: components["schemas"]["PresetSettingProblemDto"][];
+            /** @description Keys the event's firmware cannot set: unknown, managed by OpenMeshTak, secret or newer. */
+            unsupported: string[];
+            /** @description Settings the preset does not mention; they keep their current value. */
+            notInPreset: string[];
+            /** @description Secrets set on the event. An import never changes them. */
+            secretsKept: string[];
+            /** @description Token to send with the import to confirm exactly this preview. */
+            confirmation: string;
+        };
+        PreviewMeshtasticPresetRequest: {
+            document: components["schemas"]["PresetDocumentDto"];
+        };
+        /** @description Values of a firmware profile's editable fields, keyed by field key. */
+        FirmwareSettingsDocument: {
+            [key: string]: string | number | boolean;
+        };
+        ConfigurationProblemDto: {
+            field: string;
+            code: string;
+            message: string;
+        };
+        MeshtasticConfigurationDto: {
+            eventId: components["schemas"]["Uuid"];
+            /** @description Recommended firmware: a line such as `2.8` or a minimum patch such as `2.8.3`. */
+            firmwareVersion: string;
+            /** @description The given patch or the profile minimum; `null` when the version is no longer supported. */
+            effectiveMinimumVersion: string | null;
+            profileId: string | null;
+            /** @description `false` when no tested patch reaches the effective minimum version. */
+            verified: boolean;
+            settings: components["schemas"]["FirmwareSettingsDocument"];
+            /** @description Secret fields available for the event's firmware version, set through `PUT secrets`. */
+            secretFields: string[];
+            /** @description Keys of secret fields that hold a value. The values themselves are never returned. */
+            secretsSet: string[];
+            /** @description Why the stored configuration is not valid for this Core release; empty when it is. */
+            problems: components["schemas"]["ConfigurationProblemDto"][];
+            /**
+             * Format: double
+             * @description Optimistic-concurrency version; 0 until the configuration is first saved.
+             */
+            version: number;
+            /** Format: date-time */
+            updatedAt: string | null;
+        };
+        ApplyMeshtasticPresetRequest: {
+            /**
+             * Format: int32
+             * @description Version the preview returned.
+             */
+            version: number;
+            document: components["schemas"]["PresetDocumentDto"];
+            confirmation: string;
+        };
+        PresetTargetDto: {
+            /** @enum {string} */
+            type: "group" | "role";
+            slug: string;
+            name: string;
+            /** Format: double */
+            entryCount: number;
+            /** @description A group or role of the target event with the same slug or name; never applied unless mapped. */
+            suggestedTargetId: components["schemas"]["Uuid"] | null;
+            /** @description The mapping sent with this preview; absent while unmapped. */
+            mapping?: {
+                targetId: components["schemas"]["Uuid"] | null;
+            };
+        };
+        PresetEntryChangeDto: {
+            target: components["schemas"]["AtakPreferenceTargetDto"];
+            preference: string;
+            key: string;
+            type: components["schemas"]["AtakPreferenceTypeDto"];
+            /** @description The event's current value for the same target and key; `null` when the key is new. */
+            from: string | null;
+            to: string;
+        };
+        PresetEntryProblemDto: {
+            target: components["schemas"]["PresetAtakTargetDto"];
+            key: string;
+            message: string;
+        };
+        /**
+         * @description What importing a TAK preset would change in the event's ATAK preference draft. Entries are merged:
+         *     a preset entry replaces the event's entry for the same target and key, other entries stay.
+         */
+        TakPresetPreviewDto: {
+            /**
+             * Format: double
+             * @description ATAK preference list version the preview was computed on; send it with the import.
+             */
+            version: number;
+            presetAtakVersion: string | null;
+            catalogAtakVersion: string;
+            /** @description Groups and roles the preset targets; each needs an explicit mapping. */
+            targets: components["schemas"]["PresetTargetDto"][];
+            added: components["schemas"]["PresetEntryChangeDto"][];
+            changed: components["schemas"]["PresetEntryChangeDto"][];
+            /** Format: double */
+            unchanged: number;
+            /** @description Entries the catalog or the target event rejects; they are left out. */
+            invalid: components["schemas"]["PresetEntryProblemDto"][];
+            /**
+             * Format: double
+             * @description Entries of groups or roles mapped to `null`.
+             */
+            skipped: number;
+            /** @description `null` until every group and role is mapped. */
+            confirmation: string | null;
+        };
+        /** @description Maps a group or role of a preset onto the target event; `targetId` `null` leaves its entries out. */
+        PresetTargetMappingDto: {
+            /** @enum {string} */
+            type: "group" | "role";
+            slug: string;
+            targetId: components["schemas"]["Uuid"] | null;
+        };
+        PreviewTakPresetRequest: {
+            document: components["schemas"]["PresetDocumentDto"];
+            mappings?: components["schemas"]["PresetTargetMappingDto"][];
+        };
+        ApplyTakPresetRequest: {
+            /**
+             * Format: int32
+             * @description Version the preview returned.
+             */
+            version: number;
+            document: components["schemas"]["PresetDocumentDto"];
+            mappings: components["schemas"]["PresetTargetMappingDto"][];
+            confirmation: string;
+        };
+        /** @enum {string} */
         ServerLogLevel: "trace" | "debug" | "info" | "warn" | "error" | "fatal";
         ServerLogEntryDto: {
             /**
@@ -3657,39 +4090,6 @@ export interface components {
             fields: components["schemas"]["FirmwareFieldDto"][];
             /** @description Allowed values per enum with English UI labels. */
             enums: components["schemas"]["Record_string.FirmwareEnumValueDto-Array_"];
-        };
-        /** @description Values of a firmware profile's editable fields, keyed by field key. */
-        FirmwareSettingsDocument: {
-            [key: string]: string | number | boolean;
-        };
-        ConfigurationProblemDto: {
-            field: string;
-            code: string;
-            message: string;
-        };
-        MeshtasticConfigurationDto: {
-            eventId: components["schemas"]["Uuid"];
-            /** @description Recommended firmware: a line such as `2.8` or a minimum patch such as `2.8.3`. */
-            firmwareVersion: string;
-            /** @description The given patch or the profile minimum; `null` when the version is no longer supported. */
-            effectiveMinimumVersion: string | null;
-            profileId: string | null;
-            /** @description `false` when no tested patch reaches the effective minimum version. */
-            verified: boolean;
-            settings: components["schemas"]["FirmwareSettingsDocument"];
-            /** @description Secret fields available for the event's firmware version, set through `PUT secrets`. */
-            secretFields: string[];
-            /** @description Keys of secret fields that hold a value. The values themselves are never returned. */
-            secretsSet: string[];
-            /** @description Why the stored configuration is not valid for this Core release; empty when it is. */
-            problems: components["schemas"]["ConfigurationProblemDto"][];
-            /**
-             * Format: double
-             * @description Optimistic-concurrency version; 0 until the configuration is first saved.
-             */
-            version: number;
-            /** Format: date-time */
-            updatedAt: string | null;
         };
         UpdateMeshtasticSettingsRequest: {
             /**
@@ -8282,6 +8682,639 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SetupResponse"];
+                };
+            };
+        };
+    };
+    ListSettingsPresets: {
+        parameters: {
+            query?: {
+                kind?: components["schemas"]["PresetKind"];
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Presets */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsPresetPage"];
+                };
+            };
+            /** @description Invalid cursor */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateSettingsPreset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSettingsPresetRequest"];
+            };
+        };
+        responses: {
+            /** @description Preset saved */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsPresetDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Invalid preset */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetSettingsPreset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                presetId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Preset */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsPresetDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateSettingsPreset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                presetId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateSettingsPresetRequest"];
+            };
+        };
+        responses: {
+            /** @description Preset updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsPresetDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Version conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Invalid preset */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeleteSettingsPreset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                presetId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Preset deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ExportMeshtasticPreset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Meshtastic preset */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PresetDocumentDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    PreviewMeshtasticPreset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreviewMeshtasticPresetRequest"];
+            };
+        };
+        responses: {
+            /** @description Import preview */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeshtasticPresetPreviewDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Event archived */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Invalid preset */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ImportMeshtasticPreset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApplyMeshtasticPresetRequest"];
+            };
+        };
+        responses: {
+            /** @description Preset imported into the draft */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeshtasticConfigurationDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Version conflict, unconfirmed import or event archived */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Invalid preset */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ExportTakPreset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description TAK preset */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PresetDocumentDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    PreviewTakPreset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreviewTakPresetRequest"];
+            };
+        };
+        responses: {
+            /** @description Import preview */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TakPresetPreviewDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Event archived */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Invalid preset or mapping */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ImportTakPreset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApplyTakPresetRequest"];
+            };
+        };
+        responses: {
+            /** @description Preset imported into the draft */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AtakPreferenceListDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Version conflict, unconfirmed import or event archived */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Invalid preset or mapping */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
                 };
             };
         };

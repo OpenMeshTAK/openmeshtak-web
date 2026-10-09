@@ -1,6 +1,7 @@
 import {
   mdiAccountGroup,
   mdiBellOutline,
+  mdiBookshelf,
   mdiBugOutline,
   mdiCardAccountDetailsOutline,
   mdiCog,
@@ -109,6 +110,13 @@ export function takSections(catalog: AtakPreferenceCatalogDto | null, problemSec
       group: "Setup",
       problem: problemSections.has("targeted"),
     },
+    {
+      id: "presets",
+      title: "Presets",
+      description: "Download these ATAK settings as a reusable preset, save them to the library or import a preset from another event.",
+      icon: mdiBookshelf,
+      group: "Setup",
+    },
     ...eventTopics(catalog).map((topic) => ({
       id: topicSectionId(topic.id),
       title: topic.title,
@@ -130,6 +138,8 @@ export function takSearchIndex(catalog: AtakPreferenceCatalogDto | null): Settin
     { id: "tak:restrictions", sectionId: "restrictions", sectionTitle: "Lock ATAK settings", label: "Locked settings", description: "Normal, greyed out or hidden in ATAK" },
     { id: "tak:import", sectionId: "targeted", sectionTitle: "Targeted & custom", label: "Import .pref file", description: "ATAK settings export" },
     { id: "tak:add", sectionId: "targeted", sectionTitle: "Targeted & custom", label: "Add setting", description: "Any key, including plugin settings" },
+    { id: "presets:download", sectionId: "presets", sectionTitle: "Presets", label: "Download preset", description: "Export the ATAK settings as a JSON preset" },
+    { id: "presets:import-file", sectionId: "presets", sectionTitle: "Presets", label: "Import preset", description: "Import ATAK settings from a preset file or the library" },
   ];
   const keys = eventTopics(catalog).flatMap((topic) =>
     topic.keys.map((definition) => ({

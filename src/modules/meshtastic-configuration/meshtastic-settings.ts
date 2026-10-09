@@ -1,4 +1,4 @@
-import { mdiAccessPointNetwork, mdiCellphoneLink, mdiChip } from "@mdi/js";
+import { mdiAccessPointNetwork, mdiBookshelf, mdiCellphoneLink, mdiChip } from "@mdi/js";
 import type { SettingsSearchEntry, SettingsSection } from "@/shared/settings/settings-search";
 import type { FirmwareEnumValueDto, FirmwareFieldDto, FirmwareSectionDto } from "./meshtastic-configuration.api";
 import { sectionIcon } from "./section-icons";
@@ -27,6 +27,12 @@ const SETUP: Array<Omit<SettingsSection, "group">> = [
     description:
       "ATAK or iTAK connect to the Meshtastic app, which carries TAK over the mesh. Participants get step-by-step instructions with this event's values on their dashboard.",
     icon: mdiCellphoneLink,
+  },
+  {
+    id: "presets",
+    title: "Presets",
+    description: "Download these radio settings as a reusable preset, save them to the library or import a preset from another event.",
+    icon: mdiBookshelf,
   },
 ];
 
@@ -61,6 +67,8 @@ export function meshtasticSearchIndex(
     { id: "meshtastic:firmware", sectionId: "firmware", sectionTitle: "Firmware", label: "Change firmware", description: "Firmware version and minimum patch" },
     { id: "meshtastic:add-channel", sectionId: "channels", sectionTitle: "Channels", label: "Add channel", description: "Primary and secondary channels, audiences, secret channels" },
     { id: "meshtastic:tak-channel", sectionId: "tak-connection", sectionTitle: "TAK connection", label: "TAK mesh channel", description: "Channel the Meshtastic app sends TAK on" },
+    { id: "presets:download", sectionId: "presets", sectionTitle: "Presets", label: "Download preset", description: "Export the radio settings as a JSON preset" },
+    { id: "presets:import-file", sectionId: "presets", sectionTitle: "Presets", label: "Import preset", description: "Import radio settings from a preset file or the library" },
   ];
   const profileFields = fields
     .filter((field) => titles.has(field.section))

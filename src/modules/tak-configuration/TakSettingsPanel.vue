@@ -9,6 +9,7 @@ import type { SettingsSearchEntry } from "@/shared/settings/settings-search";
 import { listGroups, type EventGroupDto } from "@/modules/event-groups/event-groups.api";
 import { listRoles, type EventRoleDto } from "@/modules/event-roles/event-roles.api";
 import { listMembers, type EventMemberDto } from "@/modules/members/members.api";
+import PresetsSection from "@/modules/settings-presets/PresetsSection.vue";
 import AtakRestrictionsSection from "./AtakRestrictionsSection.vue";
 import AtakTargetedSection from "./AtakTargetedSection.vue";
 import AtakTopicSection from "./AtakTopicSection.vue";
@@ -176,6 +177,15 @@ async function importFile(file: File): Promise<void> {
   }
 }
 
+/** An imported preset changed the draft on the server; show it without losing the catalog. */
+async function reloadList(): Promise<void> {
+  try {
+    show(await getAtakPreferences(props.eventId));
+  } catch (caught: unknown) {
+    toast.error(caught);
+  }
+}
+
 /** A search result for an advanced key turns advanced settings on; the target never changes. */
 function reveal(entry: SettingsSearchEntry): void {
   if (entry.advanced === true) {
@@ -200,6 +210,7 @@ onMounted(load);
       @reveal="reveal"
     >
       <TakGroupsSettings v-if="selected === 'groups'" :event-id="eventId" :editable="editable" />
+      <PresetsSection v-else-if="selected === 'presets'" kind="tak" :event-id="eventId" :editable="editable" :dirty="dirty" @imported="reloadList" />
       <template v-else>
         <AtakRestrictionsSection
           v-if="selected === 'restrictions'"
