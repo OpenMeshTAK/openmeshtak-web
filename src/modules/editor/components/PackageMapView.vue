@@ -23,7 +23,12 @@ const props = withDefaults(defineProps<{
   tool: EditorTool;
   editable?: boolean;
   iconLibraries?: IconLibraryRef[];
-}>(), { contents: () => [], live: () => [], remoteSelections: () => [], editable: false, iconLibraries: () => [] });
+  /**
+   * Offline HQ view: no request to Core or a tile provider. The online base map and uploaded
+   * icons stay off; markers use the built-in symbols and only stored map content is drawn.
+   */
+  offline?: boolean;
+}>(), { contents: () => [], live: () => [], remoteSelections: () => [], editable: false, iconLibraries: () => [], offline: false });
 const emit = defineEmits<{
   drawn: [geometry: PackageGeometry];
   modified: [objectId: string, geometry: PackageGeometry];
@@ -77,11 +82,11 @@ onMounted(() => {
   });
   map.setEditable(props.editable);
   map.setContent(props.layers, props.objects);
-  void loadIcons();
+  if (!props.offline) void loadIcons();
   map.setMapContent(props.contents, props.layers);
   map.setLiveItems(props.live);
   map.setRemoteSelections(props.remoteSelections);
-  void loadBaseMap().then((settings) => {
+  if (!props.offline) void loadBaseMap().then((settings) => {
     if (map === null) return;
     baseMaps.value = settings.layers;
     const remembered = readBaseMapId();
@@ -110,7 +115,7 @@ watch(
 watch(() => props.live, (items) => map?.setLiveItems(items));
 watch(() => props.remoteSelections, (selections) => map?.setRemoteSelections(selections));
 watch(() => props.tool, (tool) => map?.setTool(tool));
-watch(() => props.iconLibraries, () => { void loadIcons(); });
+watch(() => props.iconLibraries, () => { if (!props.offline) void loadIcons(); });
 watch(() => props.editable, (editable) => { map?.setEditable(editable); map?.setTool(props.tool); });
 watch(() => props.selectedId, (objectId) => map?.highlight(objectId));
 

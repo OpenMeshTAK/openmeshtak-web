@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { mdiAccessPointNetwork } from "@mdi/js";
+import { mdiAccessPointNetwork, mdiMapMarkerRadiusOutline } from "@mdi/js";
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import ErrorState from "@/shared/components/ErrorState.vue";
@@ -16,6 +16,7 @@ import { listOpenSyncIssues } from "@/modules/members/members.api";
 import DataPackagesPanel from "@/modules/data-packages/DataPackagesPanel.vue";
 import MissionsPanel from "@/modules/missions/MissionsPanel.vue";
 import MeshtasticPanel from "@/modules/meshtastic-configuration/MeshtasticPanel.vue";
+import OfflinePrepareDialog from "@/modules/offline/OfflinePrepareDialog.vue";
 import EventOverviewPanel from "../components/EventOverviewPanel.vue";
 import EventAccountsCard from "../components/EventAccountsCard.vue";
 import EventOptionsCard from "../components/EventOptionsCard.vue";
@@ -28,6 +29,7 @@ import { getEvent, updateEvent, type EventDto } from "../events.api";
 const route = useRoute();
 const router = useRouter();
 const session = useSession();
+const offlineOpen = ref(false);
 const toast = useToast();
 const eventId = computed(() => String(route.params.eventId));
 
@@ -144,6 +146,15 @@ onMounted(load);
           >
             Live TAK
           </v-btn>
+          <v-btn
+            v-if="event.status === 'active' && session.can('data-packages.read', event.id)"
+            variant="tonal"
+            size="small"
+            :prepend-icon="mdiMapMarkerRadiusOutline"
+            @click="offlineOpen = true"
+          >
+            Offline HQ
+          </v-btn>
           <EventStatusBadge :status="event.status" />
         </template>
       </ViewHeader>
@@ -216,6 +227,7 @@ onMounted(load);
           <MissionsPanel :event="event" />
         </v-window-item>
       </v-window>
+      <OfflinePrepareDialog v-model="offlineOpen" :event-id="event.id" :event-name="event.name" />
     </template>
   </v-container>
 </template>

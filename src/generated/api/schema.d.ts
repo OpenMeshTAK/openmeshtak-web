@@ -959,6 +959,60 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/events/{eventId}/offline-snapshots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Describes the published revisions of the selected packages: layers, objects and displayable
+         *     map content with sizes and checksums. Stores nothing on the server; audited.
+         */
+        post: operations["CreateOfflineSnapshot"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{eventId}/offline-snapshots/packages/{packageId}/revisions/{number}/contents/{contentId}/tiles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description One page of the tiles of a published offline map, base64-encoded with their SHA-256. */
+        get: operations["ListOfflineTiles"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{eventId}/offline-snapshots/packages/{packageId}/revisions/{number}/contents/{contentId}/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The image of a published rubber sheet. */
+        get: operations["GetOfflineImage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/meshtastic/firmware-releases": {
         parameters: {
             query?: never;
@@ -3540,6 +3594,306 @@ export interface components {
             /** @description Effective grants, deduplicated across all sources. */
             permissions: components["schemas"]["PermissionGrantDto"][];
         };
+        /**
+         * @description `package`: a Data Package, published as revisions and installed by members. `mission`: an ATAK
+         *     Data Sync mission edited with the same editor; each revision is synced to subscribed TAK apps.
+         * @enum {string}
+         */
+        DataPackageKind: "package" | "mission";
+        PackageSnapshotLayer: {
+            id: string;
+            name: string;
+            /** Format: double */
+            sortOrder: number;
+            visible: boolean;
+        };
+        /** @enum {string} */
+        PackageObjectKind: "point" | "line" | "polygon" | "circle" | "rectangle" | "ellipse" | "route";
+        /** @description GeoJSON position: `[longitude, latitude]` or `[longitude, latitude, altitudeMetresHae]`. */
+        Position: number[];
+        PointGeometry: {
+            /** @enum {string} */
+            type: "Point";
+            coordinates: components["schemas"]["Position"];
+        };
+        LineStringGeometry: {
+            /** @enum {string} */
+            type: "LineString";
+            coordinates: components["schemas"]["Position"][];
+        };
+        PolygonGeometry: {
+            /** @enum {string} */
+            type: "Polygon";
+            /** @description Outer ring first, then holes; every ring repeats its first position at the end. */
+            coordinates: components["schemas"]["Position"][][];
+        };
+        /**
+         * @description A true circle, which GeoJSON cannot express: centre plus radius in metres. It is never stored as
+         *     a silently approximated polygon and maps to ATAK `u-d-c-c` circles.
+         */
+        CircleGeometry: {
+            /** @enum {string} */
+            type: "Circle";
+            /** @description Centre position. */
+            coordinates: components["schemas"]["Position"];
+            /**
+             * Format: double
+             * @description Radius in metres.
+             */
+            radius: number;
+        };
+        RectangleGeometry: {
+            /** @enum {string} */
+            type: "Rectangle";
+            /** @description Four corners in drawing order, without a repeated closing position. */
+            coordinates: components["schemas"]["Position"][];
+        };
+        EllipseGeometry: {
+            /** @enum {string} */
+            type: "Ellipse";
+            /** @description Centre; axes are semi-axis lengths, matching TAK's ellipse major/minor. */
+            coordinates: components["schemas"]["Position"];
+            /** Format: double */
+            major: number;
+            /** Format: double */
+            minor: number;
+            /**
+             * Format: double
+             * @description Bearing of the major axis clockwise from north, in degrees.
+             */
+            rotation: number;
+        };
+        /** @description TAK routes refer to their own stable point identifiers in navigation cues. */
+        RoutePointId: string;
+        RoutePoint: {
+            id: components["schemas"]["RoutePointId"];
+            /** @enum {string} */
+            type: "waypoint" | "checkpoint";
+            name: string;
+            remarks: string;
+        };
+        RouteOption: string;
+        RouteOptions: {
+            transportationType?: components["schemas"]["RouteOption"];
+            method?: components["schemas"]["RouteOption"];
+            direction?: components["schemas"]["RouteOption"];
+            routeType?: components["schemas"]["RouteOption"];
+            order?: components["schemas"]["RouteOption"];
+            planningMethod?: components["schemas"]["RouteOption"];
+            prefix?: components["schemas"]["RouteOption"];
+        };
+        RouteCueTrigger: {
+            /** @enum {string} */
+            mode: "d" | "t";
+            /** Format: int32 */
+            value: number;
+        };
+        RouteNavigationCue: {
+            pointId: components["schemas"]["RoutePointId"];
+            text: string;
+            voice: string;
+            triggers: components["schemas"]["RouteCueTrigger"][];
+        };
+        RouteGeometry: {
+            /** @enum {string} */
+            type: "Route";
+            /** @description Ordered route positions; each has matching metadata in `points`. */
+            coordinates: components["schemas"]["Position"][];
+            points: components["schemas"]["RoutePoint"][];
+            options: components["schemas"]["RouteOptions"];
+            navigationCues: components["schemas"]["RouteNavigationCue"][];
+        };
+        /** @description RFC 7946 semantics in WGS84, with explicit parametric shapes and ordered TAK routes. */
+        PackageGeometry: components["schemas"]["PointGeometry"] | components["schemas"]["LineStringGeometry"] | components["schemas"]["PolygonGeometry"] | components["schemas"]["CircleGeometry"] | components["schemas"]["RectangleGeometry"] | components["schemas"]["EllipseGeometry"] | components["schemas"]["RouteGeometry"];
+        /** @description Colour as `#RRGGBB`. */
+        HexColor: string;
+        /**
+         * @description How lines, outlines and circles are drawn; ATAK writes it as `strokeStyle`.
+         * @enum {string}
+         */
+        StrokeStyle: "solid" | "dashed";
+        /**
+         * @description ATAK Span display units; the stored height itself is always metres.
+         * @enum {number}
+         */
+        HeightUnit: 0 | 1 | 2 | 3 | 4 | 5;
+        /** @enum {string} */
+        ExtrudeMode: "cylinder" | "cone_down";
+        PackageObjectStyle: {
+            /** @description Marker, line and polygon outline colour. */
+            color: components["schemas"]["HexColor"];
+            /**
+             * Format: int32
+             * @description Line and outline width in pixels.
+             */
+            strokeWidth: number;
+            /**
+             * Format: double
+             * @description Polygon and circle fill opacity.
+             */
+            fillOpacity: number;
+            /** @description Line style of lines, outlines and circles; `solid` when left out. */
+            strokeStyle?: components["schemas"]["StrokeStyle"];
+            /** @description Fill colour of areas and circles; `null` or left out fills with `color`. */
+            fillColor?: components["schemas"]["HexColor"] | null;
+            /**
+             * Format: double
+             * @description Shape extrusion height in metres, independent of coordinate altitude. Null/absent is unknown.
+             */
+            height?: number | null;
+            /** @description Preferred TAK height display unit (0 km, 1 m, 2 mi, 3 yd, 4 ft, 5 NM). */
+            heightUnit?: components["schemas"]["HeightUnit"] | null;
+            /** @description Circle extrusion mode; absent uses the client's default. */
+            extrudeMode?: components["schemas"]["ExtrudeMode"] | null;
+        };
+        /**
+         * @description CoT event type, e.g. `b-m-p-s-m` (spot marker) or `a-f-G-U-C-I` (MIL-STD-2525 friendly
+         *     infantry).
+         */
+        CotType: string;
+        /** @description Optional TAK presentation of a marker, kept so ATAK packages round-trip without loss. */
+        TakMarker: {
+            /** @description Defaults to the spot marker `b-m-p-s-m`; `a-*` types are drawn as military symbols. */
+            cotType: components["schemas"]["CotType"];
+            /**
+             * @description ATAK icon set path such as `COT_MAPPING_SPOTMAP/b-m-p-s-m/-35072` or an icon in a custom
+             *     icon set. Passed through unchanged; the editor shows a plain marker when it cannot draw it.
+             */
+            iconsetPath: string | null;
+        };
+        PackageSnapshotObject: {
+            id: string;
+            layerId: string;
+            kind: components["schemas"]["PackageObjectKind"];
+            name: string;
+            description: string | null;
+            geometry: components["schemas"]["PackageGeometry"];
+            style: components["schemas"]["PackageObjectStyle"];
+            tak: components["schemas"]["TakMarker"] | null;
+        };
+        /** @description An ATAK tile cache of the revision, copied tile by tile through the tiles endpoint. */
+        OfflineTileContentDto: {
+            id: components["schemas"]["Uuid"];
+            layerId: components["schemas"]["Uuid"];
+            /** @enum {string} */
+            kind: "tiles";
+            name: string;
+            /** Format: double */
+            minZoom: number;
+            /** Format: double */
+            maxZoom: number;
+            /** @description West, south, east, north in WGS84 degrees. */
+            bounds: number[];
+            /** Format: double */
+            tiles: number;
+            /**
+             * Format: double
+             * @description Size of the stored cache in bytes; the tiles alone usually need less.
+             */
+            size: number;
+        };
+        /** @description A rubber sheet of the revision, downloaded as one image through the image endpoint. */
+        OfflineImageContentDto: {
+            id: components["schemas"]["Uuid"];
+            layerId: components["schemas"]["Uuid"];
+            /** @enum {string} */
+            kind: "image";
+            name: string;
+            /** @description Lower left, lower right, upper right and upper left corner as [longitude, latitude]. */
+            corners: number[][];
+            /** @enum {string} */
+            mediaType: "image/png" | "image/jpeg";
+            /** @description SHA-256 of the image bytes, checked by the browser after the download. */
+            sha256: string;
+            /** Format: double */
+            size: number;
+        };
+        OfflineContentDto: components["schemas"]["OfflineTileContentDto"] | components["schemas"]["OfflineImageContentDto"];
+        /** @description Content of the revision that the offline view cannot show, listed so nothing is dropped silently. */
+        OfflineSkippedContentDto: {
+            id: components["schemas"]["Uuid"];
+            name: string;
+            kind: string;
+            /** @enum {string} */
+            reason: "not-displayable" | "unreadable";
+        };
+        OfflineSnapshotPackageDto: {
+            packageId: components["schemas"]["Uuid"];
+            kind: components["schemas"]["DataPackageKind"];
+            name: string;
+            /** Format: double */
+            revision: number;
+            revisionId: components["schemas"]["Uuid"];
+            /** @description SHA-256 of the published revision snapshot, for provenance. */
+            snapshotHash: string;
+            /** Format: date-time */
+            publishedAt: string;
+            layers: components["schemas"]["PackageSnapshotLayer"][];
+            objects: components["schemas"]["PackageSnapshotObject"][];
+            contents: components["schemas"]["OfflineContentDto"][];
+            skippedContents: components["schemas"]["OfflineSkippedContentDto"][];
+        };
+        /**
+         * @description Everything the browser stores for the offline HQ view of one event: published revisions only,
+         *     never drafts, credentials, certificates, channel keys or member data.
+         */
+        OfflineSnapshotDto: {
+            /**
+             * Format: double
+             * @description Version of this document; the browser refuses formats it does not know.
+             */
+            format: number;
+            event: {
+                timeZone: string;
+                name: string;
+                id: components["schemas"]["Uuid"];
+            };
+            /** Format: date-time */
+            preparedAt: string;
+            packages: components["schemas"]["OfflineSnapshotPackageDto"][];
+            /** @description Selected packages without a published revision. */
+            skippedPackages: {
+                /** @enum {string} */
+                reason: "not-published";
+                name: string;
+                packageId: components["schemas"]["Uuid"];
+            }[];
+            /**
+             * Format: double
+             * @description Approximate bytes the browser has to store: tile caches plus images.
+             */
+            estimatedBytes: number;
+        };
+        OfflineSnapshotSelection: {
+            packageId: components["schemas"]["Uuid"];
+            /**
+             * Format: int32
+             * @description Published revision to take; the newest one when omitted.
+             */
+            revision?: number;
+        };
+        CreateOfflineSnapshotRequest: {
+            /** @description Published Data Packages or missions to make available offline. */
+            packages: components["schemas"]["OfflineSnapshotSelection"][];
+        };
+        OfflineTileDto: {
+            /** Format: double */
+            z: number;
+            /** Format: double */
+            x: number;
+            /** Format: double */
+            y: number;
+            /** @enum {string} */
+            mediaType: "image/png" | "image/jpeg";
+            /** @description Base64-encoded tile image. */
+            data: string;
+            /** @description SHA-256 of the decoded tile bytes, checked by the browser. */
+            sha256: string;
+        };
+        OfflineTilePage: {
+            items: components["schemas"]["OfflineTileDto"][];
+            page: components["schemas"]["PageInfo"];
+        };
         FirmwareReleaseDto: {
             /** @description `major.minor.patch`, e.g. `2.8.1`. */
             version: string;
@@ -4713,177 +5067,6 @@ export interface components {
             items: components["schemas"]["PackageRevisionSummaryDto"][];
             page: components["schemas"]["PageInfo"];
         };
-        PackageSnapshotLayer: {
-            id: string;
-            name: string;
-            /** Format: double */
-            sortOrder: number;
-            visible: boolean;
-        };
-        /** @enum {string} */
-        PackageObjectKind: "point" | "line" | "polygon" | "circle" | "rectangle" | "ellipse" | "route";
-        /** @description GeoJSON position: `[longitude, latitude]` or `[longitude, latitude, altitudeMetresHae]`. */
-        Position: number[];
-        PointGeometry: {
-            /** @enum {string} */
-            type: "Point";
-            coordinates: components["schemas"]["Position"];
-        };
-        LineStringGeometry: {
-            /** @enum {string} */
-            type: "LineString";
-            coordinates: components["schemas"]["Position"][];
-        };
-        PolygonGeometry: {
-            /** @enum {string} */
-            type: "Polygon";
-            /** @description Outer ring first, then holes; every ring repeats its first position at the end. */
-            coordinates: components["schemas"]["Position"][][];
-        };
-        /**
-         * @description A true circle, which GeoJSON cannot express: centre plus radius in metres. It is never stored as
-         *     a silently approximated polygon and maps to ATAK `u-d-c-c` circles.
-         */
-        CircleGeometry: {
-            /** @enum {string} */
-            type: "Circle";
-            /** @description Centre position. */
-            coordinates: components["schemas"]["Position"];
-            /**
-             * Format: double
-             * @description Radius in metres.
-             */
-            radius: number;
-        };
-        RectangleGeometry: {
-            /** @enum {string} */
-            type: "Rectangle";
-            /** @description Four corners in drawing order, without a repeated closing position. */
-            coordinates: components["schemas"]["Position"][];
-        };
-        EllipseGeometry: {
-            /** @enum {string} */
-            type: "Ellipse";
-            /** @description Centre; axes are semi-axis lengths, matching TAK's ellipse major/minor. */
-            coordinates: components["schemas"]["Position"];
-            /** Format: double */
-            major: number;
-            /** Format: double */
-            minor: number;
-            /**
-             * Format: double
-             * @description Bearing of the major axis clockwise from north, in degrees.
-             */
-            rotation: number;
-        };
-        /** @description TAK routes refer to their own stable point identifiers in navigation cues. */
-        RoutePointId: string;
-        RoutePoint: {
-            id: components["schemas"]["RoutePointId"];
-            /** @enum {string} */
-            type: "waypoint" | "checkpoint";
-            name: string;
-            remarks: string;
-        };
-        RouteOption: string;
-        RouteOptions: {
-            transportationType?: components["schemas"]["RouteOption"];
-            method?: components["schemas"]["RouteOption"];
-            direction?: components["schemas"]["RouteOption"];
-            routeType?: components["schemas"]["RouteOption"];
-            order?: components["schemas"]["RouteOption"];
-            planningMethod?: components["schemas"]["RouteOption"];
-            prefix?: components["schemas"]["RouteOption"];
-        };
-        RouteCueTrigger: {
-            /** @enum {string} */
-            mode: "d" | "t";
-            /** Format: int32 */
-            value: number;
-        };
-        RouteNavigationCue: {
-            pointId: components["schemas"]["RoutePointId"];
-            text: string;
-            voice: string;
-            triggers: components["schemas"]["RouteCueTrigger"][];
-        };
-        RouteGeometry: {
-            /** @enum {string} */
-            type: "Route";
-            /** @description Ordered route positions; each has matching metadata in `points`. */
-            coordinates: components["schemas"]["Position"][];
-            points: components["schemas"]["RoutePoint"][];
-            options: components["schemas"]["RouteOptions"];
-            navigationCues: components["schemas"]["RouteNavigationCue"][];
-        };
-        /** @description RFC 7946 semantics in WGS84, with explicit parametric shapes and ordered TAK routes. */
-        PackageGeometry: components["schemas"]["PointGeometry"] | components["schemas"]["LineStringGeometry"] | components["schemas"]["PolygonGeometry"] | components["schemas"]["CircleGeometry"] | components["schemas"]["RectangleGeometry"] | components["schemas"]["EllipseGeometry"] | components["schemas"]["RouteGeometry"];
-        /** @description Colour as `#RRGGBB`. */
-        HexColor: string;
-        /**
-         * @description How lines, outlines and circles are drawn; ATAK writes it as `strokeStyle`.
-         * @enum {string}
-         */
-        StrokeStyle: "solid" | "dashed";
-        /**
-         * @description ATAK Span display units; the stored height itself is always metres.
-         * @enum {number}
-         */
-        HeightUnit: 0 | 1 | 2 | 3 | 4 | 5;
-        /** @enum {string} */
-        ExtrudeMode: "cylinder" | "cone_down";
-        PackageObjectStyle: {
-            /** @description Marker, line and polygon outline colour. */
-            color: components["schemas"]["HexColor"];
-            /**
-             * Format: int32
-             * @description Line and outline width in pixels.
-             */
-            strokeWidth: number;
-            /**
-             * Format: double
-             * @description Polygon and circle fill opacity.
-             */
-            fillOpacity: number;
-            /** @description Line style of lines, outlines and circles; `solid` when left out. */
-            strokeStyle?: components["schemas"]["StrokeStyle"];
-            /** @description Fill colour of areas and circles; `null` or left out fills with `color`. */
-            fillColor?: components["schemas"]["HexColor"] | null;
-            /**
-             * Format: double
-             * @description Shape extrusion height in metres, independent of coordinate altitude. Null/absent is unknown.
-             */
-            height?: number | null;
-            /** @description Preferred TAK height display unit (0 km, 1 m, 2 mi, 3 yd, 4 ft, 5 NM). */
-            heightUnit?: components["schemas"]["HeightUnit"] | null;
-            /** @description Circle extrusion mode; absent uses the client's default. */
-            extrudeMode?: components["schemas"]["ExtrudeMode"] | null;
-        };
-        /**
-         * @description CoT event type, e.g. `b-m-p-s-m` (spot marker) or `a-f-G-U-C-I` (MIL-STD-2525 friendly
-         *     infantry).
-         */
-        CotType: string;
-        /** @description Optional TAK presentation of a marker, kept so ATAK packages round-trip without loss. */
-        TakMarker: {
-            /** @description Defaults to the spot marker `b-m-p-s-m`; `a-*` types are drawn as military symbols. */
-            cotType: components["schemas"]["CotType"];
-            /**
-             * @description ATAK icon set path such as `COT_MAPPING_SPOTMAP/b-m-p-s-m/-35072` or an icon in a custom
-             *     icon set. Passed through unchanged; the editor shows a plain marker when it cannot draw it.
-             */
-            iconsetPath: string | null;
-        };
-        PackageSnapshotObject: {
-            id: string;
-            layerId: string;
-            kind: components["schemas"]["PackageObjectKind"];
-            name: string;
-            description: string | null;
-            geometry: components["schemas"]["PackageGeometry"];
-            style: components["schemas"]["PackageObjectStyle"];
-            tak: components["schemas"]["TakMarker"] | null;
-        };
         PackageSnapshotContent: {
             id: string;
             layerId: string;
@@ -4928,12 +5111,6 @@ export interface components {
             created: boolean;
             revision: components["schemas"]["PackageRevisionDto"];
         };
-        /**
-         * @description `package`: a Data Package, published as revisions and installed by members. `mission`: an ATAK
-         *     Data Sync mission edited with the same editor; each revision is synced to subscribed TAK apps.
-         * @enum {string}
-         */
-        DataPackageKind: "package" | "mission";
         DataPackageContentSummary: {
             /** Format: double */
             points: number;
@@ -8797,6 +8974,211 @@ export interface operations {
             };
             /** @description Authentication required */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateOfflineSnapshot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateOfflineSnapshotRequest"];
+            };
+        };
+        responses: {
+            /** @description Offline snapshot document */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OfflineSnapshotDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Event not active */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListOfflineTiles: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+                packageId: components["schemas"]["Uuid"];
+                number: number;
+                contentId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tile page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OfflineTilePage"];
+                };
+            };
+            /** @description Invalid cursor */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Event not active */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetOfflineImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+                packageId: components["schemas"]["Uuid"];
+                number: number;
+                contentId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Rubber-sheet image */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Event not active */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

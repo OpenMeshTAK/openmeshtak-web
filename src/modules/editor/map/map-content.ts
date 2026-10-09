@@ -1,3 +1,6 @@
+import type ImageTile from "ol/ImageTile";
+import type { LoadFunction } from "ol/Tile";
+import TileState from "ol/TileState";
 import type BaseLayer from "ol/layer/Base";
 import ImageLayer from "ol/layer/Image";
 import TileLayer from "ol/layer/Tile";
@@ -22,6 +25,8 @@ export type MapContentItem = MapContentDisplay & (
       layerId: string;
       kind: "tiles";
       tileUrl: string;
+      /** Reads tiles from browser storage instead of `tileUrl`, for the offline HQ view. */
+      loadTile?: (z: number, x: number, y: number) => Promise<Blob | null>;
       minZoom: number;
       maxZoom: number;
       bounds: number[];
@@ -110,9 +115,37 @@ function rubberSheetLayer(item: Extract<MapContentItem, { kind: "image" }>): Ima
   return new ImageLayer({ source });
 }
 
+type TileLoader = NonNullable<Extract<MapContentItem, { kind: "tiles" }>["loadTile"]>;
+
+/** Loads each tile through `loadTile` and gives the image an object URL that is freed once drawn. */
+function storedTileLoader(loadTile: TileLoader): LoadFunction {
+  return (tile) => {
+    const [z, x, y] = tile.getTileCoord() as [number, number, number];
+    const image = (tile as ImageTile).getImage() as HTMLImageElement;
+    loadTile(z, x, y)
+      .then((blob) => {
+        if (blob === null) {
+          tile.setState(TileState.ERROR);
+          return;
+        }
+        const url = URL.createObjectURL(blob);
+        image.onload = () => URL.revokeObjectURL(url);
+        image.onerror = () => URL.revokeObjectURL(url);
+        image.src = url;
+      })
+      .catch(() => tile.setState(TileState.ERROR));
+  };
+}
+
 function tileLayer(item: Extract<MapContentItem, { kind: "tiles" }>): TileLayer<XYZ> {
   return new TileLayer({
-    source: new XYZ({ url: item.tileUrl, minZoom: item.minZoom, maxZoom: item.maxZoom, crossOrigin: null }),
+    source: new XYZ({
+      url: item.tileUrl,
+      minZoom: item.minZoom,
+      maxZoom: item.maxZoom,
+      crossOrigin: null,
+      ...(item.loadTile === undefined ? {} : { tileLoadFunction: storedTileLoader(item.loadTile) }),
+    }),
     extent: transformExtent(item.bounds, "EPSG:4326", "EPSG:3857"),
   });
 }
