@@ -9,6 +9,7 @@ import type { SettingsSearchEntry } from "@/shared/settings/settings-search";
 import { listGroups, type EventGroupDto } from "@/modules/event-groups/event-groups.api";
 import { listRoles, type EventRoleDto } from "@/modules/event-roles/event-roles.api";
 import { listMembers, type EventMemberDto } from "@/modules/members/members.api";
+import AtakRestrictionsSection from "./AtakRestrictionsSection.vue";
 import AtakTargetedSection from "./AtakTargetedSection.vue";
 import AtakTopicSection from "./AtakTopicSection.vue";
 import TakGroupsSettings from "./TakGroupsSettings.vue";
@@ -22,7 +23,16 @@ import {
   type AtakPreferenceListDto,
   type ImportAtakPreferencesResponse,
 } from "./tak-configuration.api";
-import { APP_PREFERENCES, eventTopics, takSearchIndex, takSections, targetKey, topicSectionId, type TargetOption } from "./tak-settings";
+import {
+  APP_PREFERENCES,
+  eventTopics,
+  restrictedItemOf,
+  takSearchIndex,
+  takSections,
+  targetKey,
+  topicSectionId,
+  type TargetOption,
+} from "./tak-settings";
 
 /**
  * The event's TAK setup: TAK groups, then the ATAK settings members' apps receive, one menu entry
@@ -74,13 +84,17 @@ const targetTitles = computed(
 
 const dirty = computed(() => list.value !== null && JSON.stringify(list.value.entries) !== JSON.stringify(entries.value));
 
-/** Menu sections with invalid entries: the topic of a known key, otherwise "Targeted & custom". */
+/** Menu sections with invalid entries: locks, the topic of a known key, otherwise "Targeted & custom". */
 const problemSections = computed(() => {
   const topicOf = new Map((catalog.value?.topics ?? []).flatMap((topic) => topic.keys.map(({ key }) => [key, topicSectionId(topic.id)] as const)));
   const sections = new Set<string>();
   for (const field of Object.keys(errors.value)) {
     const entry = entries.value[Number(/^entries\[(\d+)\]/.exec(field)?.[1] ?? -1)];
-    sections.add(entry !== undefined && entry.preference === APP_PREFERENCES ? (topicOf.get(entry.key) ?? "targeted") : "targeted");
+    if (entry !== undefined && restrictedItemOf(entry) !== null) {
+      sections.add("restrictions");
+    } else {
+      sections.add(entry !== undefined && entry.preference === APP_PREFERENCES ? (topicOf.get(entry.key) ?? "targeted") : "targeted");
+    }
   }
   return sections;
 });
@@ -187,8 +201,17 @@ onMounted(load);
     >
       <TakGroupsSettings v-if="selected === 'groups'" :event-id="eventId" :editable="editable" />
       <template v-else>
+        <AtakRestrictionsSection
+          v-if="selected === 'restrictions'"
+          v-model:entries="entries"
+          :event-id="eventId"
+          :catalog="catalog"
+          :target-items="targetItems"
+          :editable="editable"
+          :errors="errors"
+        />
         <AtakTargetedSection
-          v-if="selected === 'targeted'"
+          v-else-if="selected === 'targeted'"
           v-model:entries="entries"
           :catalog="catalog"
           :target-items="targetItems"

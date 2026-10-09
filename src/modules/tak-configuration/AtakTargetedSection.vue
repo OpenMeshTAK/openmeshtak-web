@@ -8,7 +8,7 @@ import AddAtakPreferenceDialog from "./AddAtakPreferenceDialog.vue";
 import AtakPreferenceValueField from "./AtakPreferenceValueField.vue";
 import AtakTargetLabel from "./AtakTargetLabel.vue";
 import type { AtakPreferenceCatalogDto, AtakPreferenceEntryDto, ImportAtakPreferencesResponse } from "./tak-configuration.api";
-import { APP_PREFERENCES, entryMessages, targetKey, type TargetOption } from "./tak-settings";
+import { APP_PREFERENCES, DISABLE_PREFIX, entryMessages, lockableItems, restrictedItemOf, targetKey, type TargetOption } from "./tak-settings";
 
 /**
  * Every ATAK setting of the event at once, for all targets: the place for plugin keys and other
@@ -43,6 +43,21 @@ const rows = computed(() =>
     ),
 );
 const skipped = computed(() => (props.importResult?.removedKeys.length ?? 0) + (props.importResult?.invalidKeys.length ?? 0));
+
+const lockable = computed(() => new Map(lockableItems(props.catalog).map((item) => [item.id, item.label])));
+
+/** What an entry does, in words: the catalog description, a lock, or its group and type. */
+function describe(entry: AtakPreferenceEntryDto): string {
+  const itemId = restrictedItemOf(entry);
+  if (itemId !== null) {
+    const what = entry.key.startsWith(DISABLE_PREFIX) ? "Greys out" : "Hides";
+    return `${what} in ATAK: ${lockable.value.get(itemId) ?? itemId}`;
+  }
+  return (
+    definitionOf(entry)?.description ??
+    (entry.preference === APP_PREFERENCES ? `Not in the catalog · ${entry.type}` : `${entry.preference} · ${entry.type}`)
+  );
+}
 
 function definitionOf(entry: AtakPreferenceEntryDto) {
   return entry.preference === APP_PREFERENCES ? (known.value.get(entry.key) ?? null) : null;
@@ -128,10 +143,7 @@ function onFileChosen(event: Event): void {
             <td class="py-2">
               <div><code>{{ entry.key }}</code></div>
               <div class="text-body-small text-medium-emphasis">
-                {{
-                  definitionOf(entry)?.description ??
-                    (entry.preference === APP_PREFERENCES ? `Not in the catalog · ${entry.type}` : `${entry.preference} · ${entry.type}`)
-                }}
+                {{ describe(entry) }}
               </div>
             </td>
             <td class="py-2 value-cell">

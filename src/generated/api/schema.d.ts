@@ -726,6 +726,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/events/{eventId}/tak/atak-preferences/unlock-package": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description An ATAK Data Package that sets `disablePreferenceItem_<item>` and `hidePreferenceItem_<item>`
+         *     to `false` for every settings item the event restricts now or restricted in a published
+         *     revision, so devices show those items normally again after the event.
+         */
+        get: operations["DownloadAtakUnlockPackage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tak/atak-preference-catalog": {
         parameters: {
             query?: never;
@@ -3137,14 +3158,28 @@ export interface components {
             description: string;
             keys: components["schemas"]["AtakCatalogKeyDto"][];
         };
+        /** @description A settings item that stores no value of its own, such as a link to another settings screen. */
+        AtakScreenItemDto: {
+            /** @description The item ID that `disablePreferenceItem_<id>` and `hidePreferenceItem_<id>` name. */
+            id: string;
+            /** @description Where the item is in ATAK, such as "Settings → Network". */
+            area: string;
+            description: string;
+        };
         /**
          * @description The ATAK preference keys this Core release knows, by topic, all in
          *     `com.atakmap.app_preferences`. Other keys, such as plugin keys, may still be set.
+         *
+         *     Every catalog key and every screen item can also be greyed out or hidden in ATAK's settings
+         *     screens with the Boolean entries `disablePreferenceItem_<key>` and `hidePreferenceItem_<key>`;
+         *     other item IDs are refused.
          */
         AtakPreferenceCatalogDto: {
             /** @description The ATAK version the catalog was read from. */
             atakVersion: string;
             topics: components["schemas"]["AtakCatalogTopicDto"][];
+            /** @description Settings items without a value key that can be greyed out or hidden as well. */
+            screenItems: components["schemas"]["AtakScreenItemDto"][];
             /** @description Keys an event can never set, with the reason. */
             blockedKeys: {
                 reason: string;
@@ -4491,10 +4526,10 @@ export interface components {
             expiresAt: string;
         };
         /** @enum {string} */
-        DownloadGrantKind: "device-profile" | "member-data-package" | "tak-connection-package" | "itak-connection-package" | "wintak-connection-package";
+        DownloadGrantKind: "device-profile" | "member-data-package" | "tak-connection-package" | "itak-connection-package" | "wintak-connection-package" | "atak-unlock-package";
         CreateDownloadGrantRequest: {
             kind: components["schemas"]["DownloadGrantKind"];
-            /** @description Required for `device-profile` and `member-data-package`. */
+            /** @description Required for `device-profile`, `member-data-package` and `atak-unlock-package`. */
             eventId?: components["schemas"]["Uuid"];
             /** @description Required for `device-profile` and `member-data-package`. */
             memberId?: components["schemas"]["Uuid"];
@@ -7858,6 +7893,55 @@ export interface operations {
             };
             /** @description Validation failed */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DownloadAtakUnlockPackage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ATAK unlock Data Package */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The event never restricted a settings item */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

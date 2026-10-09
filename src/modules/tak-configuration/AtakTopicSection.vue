@@ -7,9 +7,12 @@ import {
   APP_PREFERENCES,
   entryIndex,
   entryMessages,
+  restrictionMode,
   targetKey,
+  withRestriction,
   withValue,
   type PreferenceTarget,
+  type RestrictionMode,
 } from "./tak-settings";
 
 /**
@@ -35,9 +38,11 @@ function isToggle(definition: AtakCatalogKeyDto): boolean {
 
 const basic = computed(() => props.topic.keys.filter(({ use }) => use !== "advanced"));
 const advanced = computed(() => props.topic.keys.filter(({ use }) => use === "advanced"));
-/** Advanced keys that already have a value stay visible, so nothing set is ever hidden. */
+/** Advanced keys that already have a value or a lock stay visible, so nothing set is ever hidden. */
 const visibleAdvanced = computed(() =>
-  advanced.value.filter((definition) => showAdvanced.value || value(definition) !== null),
+  advanced.value.filter(
+    (definition) => showAdvanced.value || value(definition) !== null || restrictionMode(entries.value, target, definition.key) !== null,
+  ),
 );
 /** The topic's subgroups, such as "Altitude", in catalog order. */
 const groups = computed(() => {
@@ -65,6 +70,10 @@ function value(definition: AtakCatalogKeyDto): string | null {
 
 function update(definition: AtakCatalogKeyDto, next: string | null): void {
   entries.value = withValue(entries.value, target, definition, next);
+}
+
+function lock(definition: AtakCatalogKeyDto, mode: RestrictionMode | null): void {
+  entries.value = withRestriction(entries.value, target, definition.key, mode);
 }
 
 function messages(definition: AtakCatalogKeyDto): string[] {
@@ -100,9 +109,11 @@ function elsewhere(definition: AtakCatalogKeyDto): string {
             :value="value(definition)"
             :default-label="defaultLabel(definition)"
             :elsewhere="elsewhere(definition)"
+            :lock="restrictionMode(entries, target, definition.key)"
             :editable="editable"
             :messages="messages(definition)"
             @update="update(definition, $event)"
+            @lock="lock(definition, $event)"
           />
         </template>
       </v-card>
@@ -124,9 +135,11 @@ function elsewhere(definition: AtakCatalogKeyDto): string {
             :value="value(definition)"
             :default-label="defaultLabel(definition)"
             :elsewhere="elsewhere(definition)"
+            :lock="restrictionMode(entries, target, definition.key)"
             :editable="editable"
             :messages="messages(definition)"
             @update="update(definition, $event)"
+            @lock="lock(definition, $event)"
           />
         </template>
       </v-card>

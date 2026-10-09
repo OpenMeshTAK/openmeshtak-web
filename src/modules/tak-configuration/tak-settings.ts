@@ -9,6 +9,7 @@ import {
   mdiGestureTap,
   mdiHistory,
   mdiLanConnect,
+  mdiLockOutline,
   mdiMapOutline,
   mdiNavigationVariantOutline,
   mdiPlaylistEdit,
@@ -16,7 +17,7 @@ import {
   mdiTarget,
 } from "@mdi/js";
 import type { SettingsSearchEntry, SettingsSection } from "@/shared/settings/settings-search";
-import type { AtakCatalogKeyDto, AtakPreferenceCatalogDto, AtakPreferenceEntryDto } from "./tak-configuration.api";
+import type { AtakCatalogKeyDto, AtakPreferenceCatalogDto, AtakPreferenceEntryDto, AtakScreenItemDto } from "./tak-configuration.api";
 
 export const APP_PREFERENCES = "com.atakmap.app_preferences";
 export type PreferenceTarget = AtakPreferenceEntryDto["target"];
@@ -93,6 +94,14 @@ export function takSections(catalog: AtakPreferenceCatalogDto | null, problemSec
       group: "Setup",
     },
     {
+      id: "restrictions",
+      title: "Lock ATAK settings",
+      description: "Grey out or hide items on ATAK's settings screens, and the unlock package for after the event.",
+      icon: mdiLockOutline,
+      group: "Setup",
+      problem: problemSections.has("restrictions"),
+    },
+    {
       id: "targeted",
       title: "Targeted & custom",
       description: "Settings for single groups, roles or members, plugin settings and .pref imports.",
@@ -117,6 +126,8 @@ export function takSearchIndex(catalog: AtakPreferenceCatalogDto | null): Settin
     { id: "tak:group-mode", sectionId: "groups", sectionTitle: "TAK groups", label: "Who sees whom", description: "Everyone, own group only or TAK groups" },
     { id: "tak:groups-in-app", sectionId: "groups", sectionTitle: "TAK groups", label: "Show groups in TAK apps" },
     { id: "tak:groups-list", sectionId: "groups", sectionTitle: "TAK groups", label: "Groups", description: "Receive and send per member" },
+    { id: "tak:unlock", sectionId: "restrictions", sectionTitle: "Lock ATAK settings", label: "Unlock package", description: "Make locked ATAK settings normal again after the event" },
+    { id: "tak:restrictions", sectionId: "restrictions", sectionTitle: "Lock ATAK settings", label: "Locked settings", description: "Normal, greyed out or hidden in ATAK" },
     { id: "tak:import", sectionId: "targeted", sectionTitle: "Targeted & custom", label: "Import .pref file", description: "ATAK settings export" },
     { id: "tak:add", sectionId: "targeted", sectionTitle: "Targeted & custom", label: "Add setting", description: "Any key, including plugin settings" },
   ];
@@ -167,4 +178,72 @@ export function entryMessages(errors: Record<string, string>, index: number): st
   return Object.entries(errors)
     .filter(([field]) => field.startsWith(prefix))
     .map(([, message]) => message);
+}
+
+/*
+ * ATAK greys out a settings item while `disablePreferenceItem_<item>` is true and removes it while
+ * `hidePreferenceItem_<item>` is true. Each mode writes both keys, so a group, role or member
+ * mode always overrides the whole event's mode for the same item; "Normal" writes both as false,
+ * which is also how a device is unlocked, because a .pref file cannot delete a key.
+ */
+export const DISABLE_PREFIX = "disablePreferenceItem_";
+export const HIDE_PREFIX = "hidePreferenceItem_";
+export type RestrictionMode = "normal" | "disabled" | "hidden";
+
+export const RESTRICTION_MODES: Array<{ value: RestrictionMode; title: string }> = [
+  { value: "normal", title: "Normal" },
+  { value: "disabled", title: "Greyed out" },
+  { value: "hidden", title: "Hidden" },
+];
+
+/** The settings item a key restricts, or `null` for any other key. */
+export function restrictedItemOf(entry: Pick<AtakPreferenceEntryDto, "preference" | "key">): string | null {
+  if (entry.preference !== APP_PREFERENCES) {
+    return null;
+  }
+  if (entry.key.startsWith(DISABLE_PREFIX)) {
+    return entry.key.slice(DISABLE_PREFIX.length);
+  }
+  return entry.key.startsWith(HIDE_PREFIX) ? entry.key.slice(HIDE_PREFIX.length) : null;
+}
+
+/** The item's mode for one target, or `null` when the target sends nothing for it. */
+export function restrictionMode(entries: AtakPreferenceEntryDto[], target: PreferenceTarget, itemId: string): RestrictionMode | null {
+  const disable = entries[entryIndex(entries, target, APP_PREFERENCES, DISABLE_PREFIX + itemId)]?.value;
+  const hide = entries[entryIndex(entries, target, APP_PREFERENCES, HIDE_PREFIX + itemId)]?.value;
+  if (hide === "true") {
+    return "hidden";
+  }
+  if (disable === "true") {
+    return "disabled";
+  }
+  return disable === undefined && hide === undefined ? null : "normal";
+}
+
+/** The list with one item's mode set for one target; `null` removes both keys. */
+export function withRestriction(
+  entries: AtakPreferenceEntryDto[],
+  target: PreferenceTarget,
+  itemId: string,
+  mode: RestrictionMode | null,
+): AtakPreferenceEntryDto[] {
+  // Hidden also greys out, in case ATAK opens the item another way, such as from its settings search.
+  const disable = mode === null ? null : String(mode !== "normal");
+  const hide = mode === null ? null : String(mode === "hidden");
+  const withDisable = withValue(entries, target, { key: DISABLE_PREFIX + itemId, type: "boolean" }, disable);
+  return withValue(withDisable, target, { key: HIDE_PREFIX + itemId, type: "boolean" }, hide);
+}
+
+/** A settings item that can be locked: every catalog key and Core's extra screen items. */
+export interface LockableItem {
+  id: string;
+  label: string;
+  /** The catalog topic or the place in ATAK's settings. */
+  area: string;
+}
+
+export function lockableItems(catalog: AtakPreferenceCatalogDto | null): LockableItem[] {
+  const screenItems = (catalog?.screenItems ?? []).map((item: AtakScreenItemDto) => ({ id: item.id, label: item.description, area: item.area }));
+  const keys = (catalog?.topics ?? []).flatMap((topic) => topic.keys.map((definition) => ({ id: definition.key, label: fieldLabel(definition), area: topic.title })));
+  return [...screenItems, ...keys];
 }
