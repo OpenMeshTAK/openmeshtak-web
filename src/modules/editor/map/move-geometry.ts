@@ -6,8 +6,11 @@ function positionsOf(geometry: PackageGeometry): Position[] {
   switch (geometry.type) {
     case "Point":
     case "Circle":
+    case "Ellipse":
       return [geometry.coordinates];
     case "LineString":
+    case "Rectangle":
+    case "Route":
       return geometry.coordinates;
     case "Polygon":
       return geometry.coordinates.flat();
@@ -44,6 +47,12 @@ export function moveGeometry(geometry: PackageGeometry, target: Position): Packa
       return { type: "Point", coordinates: move(geometry.coordinates) };
     case "Circle":
       return { type: "Circle", coordinates: move(geometry.coordinates), radius: geometry.radius };
+    case "Ellipse":
+      return { ...geometry, coordinates: move(geometry.coordinates) };
+    case "Rectangle":
+      return { type: "Rectangle", coordinates: geometry.coordinates.map(move) };
+    case "Route":
+      return { ...geometry, coordinates: geometry.coordinates.map(move) };
     case "LineString":
       return { type: "LineString", coordinates: geometry.coordinates.map(move) };
     case "Polygon":

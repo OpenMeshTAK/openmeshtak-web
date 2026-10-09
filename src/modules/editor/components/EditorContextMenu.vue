@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {
+  mdiChevronRight,
   mdiContentCopy,
   mdiContentDuplicate,
   mdiContentPaste,
@@ -63,42 +64,60 @@ function choose(action: () => void): void {
     location="bottom start"
     :close-on-content-click="false"
   >
-    <v-list v-if="target" density="compact" min-width="220">
+    <v-list v-if="target" density="compact" slim min-width="220" rounded="lg" class="context-list pa-1">
       <template v-if="object">
-        <v-list-subheader class="text-truncate">{{ object.name }}</v-list-subheader>
-        <v-list-item title="Copy" subtitle="Ctrl+C" :prepend-icon="mdiContentCopy" @click="choose(() => emit('copy'))" />
+        <v-list-subheader class="text-truncate px-2">{{ object.name }}</v-list-subheader>
+        <v-list-item title="Copy" rounded="md" :prepend-icon="mdiContentCopy" @click="choose(() => emit('copy'))">
+          <template #append><span class="shortcut">Ctrl+C</span></template>
+        </v-list-item>
         <template v-if="editable">
-          <v-list-item title="Duplicate" :prepend-icon="mdiContentDuplicate" :disabled="locked" @click="choose(() => emit('duplicate'))" />
+          <v-list-item title="Duplicate" rounded="md" :prepend-icon="mdiContentDuplicate" :disabled="locked" @click="choose(() => emit('duplicate'))" />
           <v-menu location="end" open-on-hover :disabled="locked || otherLayers.length === 0">
             <template #activator="{ props: submenu }">
-              <v-list-item v-bind="submenu" title="Move to layer" :prepend-icon="mdiLayersOutline" :disabled="locked || otherLayers.length === 0" />
+              <v-list-item v-bind="submenu" title="Move to layer" rounded="md" :append-icon="mdiChevronRight" :prepend-icon="mdiLayersOutline" :disabled="locked || otherLayers.length === 0" />
             </template>
-            <v-list density="compact">
-              <v-list-item v-for="layer in otherLayers" :key="layer.id" :title="layer.name" @click="choose(() => emit('moveTo', layer.id))" />
+            <v-list density="compact" slim rounded="lg" class="context-list pa-1">
+              <v-list-item v-for="layer in otherLayers" :key="layer.id" :title="layer.name" rounded="md" @click="choose(() => emit('moveTo', layer.id))" />
             </v-list>
           </v-menu>
-          <v-divider />
+          <v-divider class="my-1" />
           <v-list-item
             title="Delete"
-            subtitle="Del"
+            rounded="md"
             base-color="error"
             :prepend-icon="mdiTrashCanOutline"
             :disabled="locked"
             @click="choose(() => emit('remove'))"
-          />
+          >
+            <template #append><span class="shortcut">Del</span></template>
+          </v-list-item>
         </template>
       </template>
       <template v-else-if="editable">
         <v-list-item
           title="Paste here"
-          subtitle="Ctrl+V"
+          rounded="md"
           :prepend-icon="mdiContentPaste"
           :disabled="!canPaste"
           @click="choose(() => emit('paste', target!.position))"
-        />
-        <v-list-item title="Add marker here" :prepend-icon="mdiMapMarkerPlusOutline" @click="choose(() => emit('addMarker', target!.position))" />
+        >
+          <template #append><span class="shortcut">Ctrl+V</span></template>
+        </v-list-item>
+        <v-list-item title="Add marker here" rounded="md" :prepend-icon="mdiMapMarkerPlusOutline" @click="choose(() => emit('addMarker', target!.position))" />
       </template>
       <v-list-item v-else title="Nothing to do here" disabled />
     </v-list>
   </v-menu>
 </template>
+
+<style scoped>
+.context-list :deep(.v-list-item) {
+  min-height: 36px;
+  padding-inline: 8px !important;
+}
+.shortcut {
+  margin-left: 24px;
+  font-size: 0.75rem;
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+</style>

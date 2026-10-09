@@ -4,7 +4,9 @@ import OlMap from "ol/Map";
 import View from "ol/View";
 import { defaults as defaultControls, ScaleLine } from "ol/control";
 import { extend, isEmpty } from "ol/extent";
+import { primaryAction } from "ol/events/condition";
 import type Geometry from "ol/geom/Geometry";
+import Polygon from "ol/geom/Polygon";
 import { Draw, Modify, Select, Snap, Translate } from "ol/interaction";
 import type BaseLayer from "ol/layer/Base";
 import LayerGroup from "ol/layer/Group";
@@ -18,8 +20,15 @@ import { fromMapGeometry, toMapGeometry } from "./geometry-codec";
 import { createLiveLayer, type LiveMapItem } from "./live-layer";
 import { mapContentExtent, mapContentLayer, type MapContentItem } from "./map-content";
 import { objectPriority, objectStyle, remoteSelectionStyle } from "./object-style";
+import { EllipseEditor } from "./ellipse-editor";
+import { createEllipseDrawing } from "./ellipse-drawing";
+import { createRectangleDrawing } from "./rectangle-drawing";
+import { ShiftDraw } from "./shift-draw";
+import { EndpointDraw } from "./endpoint-draw";
+import { newRoute } from "./route-editing";
+import { MeasurementTools } from "./measurement-tools";
 
-export type EditorTool = "select" | "point" | "line" | "polygon" | "circle";
+export type EditorTool = "select" | "point" | "line" | "freehand" | "polygon" | "circle" | "rectangle" | "ellipse" | "route" | "measure-length" | "measure-area";
 
 /** An object another editor has selected. */
 export interface RemoteSelection {
@@ -36,7 +45,9 @@ export interface PackageMapCallbacks {
   onContextMenu: (target: { objectId: string | null; clientX: number; clientY: number; position: number[] }) => void;
 }
 
-const DRAW_TYPES = { point: "Point", line: "LineString", polygon: "Polygon", circle: "Circle" } as const;
+const DRAW_TYPES = { point: "Point", line: "LineString", freehand: "LineString", polygon: "Polygon", circle: "Circle", rectangle: "Circle", ellipse: "Circle", route: "LineString" } as const;
+/** Freehand strokes keep a vertex only where it moves the line by more than this many pixels. */
+const FREEHAND_TOLERANCE_PIXELS = 2;
 const DEFAULT_CENTER = fromLonLat([10.45, 51.16]);
 
 function escapeHtml(text: string): string {
@@ -55,6 +66,7 @@ export function createBaseMapSource(baseMap: {
     referrerPolicy: "strict-origin-when-cross-origin",
     // Text only: OpenLayers renders attributions as HTML, so the configured text is escaped.
     attributions: escapeHtml(baseMap.attribution),
+    attributionsCollapsible: false,
     maxZoom: baseMap.maxZoom,
   });
 }
@@ -74,12 +86,17 @@ export class PackageMap {
   private contentExtents = new Map<string, number[]>();
   private readonly select: Select;
   private readonly editable = new Collection<Feature<Geometry>>();
+  private readonly vertexEditable = new Collection<Feature<Geometry>>();
+  private readonly ellipseEditor: EllipseEditor;
+  private readonly measurements: MeasurementTools;
   private readonly modify: Modify;
   private readonly translate: Translate;
   private readonly snap: Snap;
   private draw: Draw | null = null;
   private originals = new Map<string, PackageGeometry>();
   private selectedId: string | null = null;
+  private canEdit = false;
+  private iconUrls = new Map<string, string>();
   /** Objects other editors have selected, with their color and name. */
   private remoteSelections = new Map<string, RemoteSelection>();
   /** Last pointer position over the map in WGS84, used for pasting at the cursor. */
@@ -103,7 +120,8 @@ export class PackageMap {
       target,
       layers: [this.baseLayer, this.contentGroup, vectorLayer, this.live.layer],
       view: new View({ center: DEFAULT_CENTER, zoom: 6 }),
-      controls: defaultControls().extend([new ScaleLine()]),
+      // Own class instead of ol-scale-line: the default sits bottom left, under the layer panel.
+      controls: defaultControls({ zoom: false }).extend([new ScaleLine({ className: "editor-scale" })]),
     });
 
     this.select = new Select({ layers: [vectorLayer], style: null });
@@ -113,10 +131,15 @@ export class PackageMap {
       this.callbacks.onSelected(this.selectedId);
     });
 
-    this.modify = new Modify({ features: this.editable });
+    this.modify = new Modify({ features: this.vertexEditable,
+      condition: (event) => primaryAction(event) && !event.originalEvent.shiftKey,
+      insertVertexCondition: () => !["Rectangle", "Route"].includes(this.originals.get(this.selectedId ?? "")?.type ?? ""),
+      deleteCondition: (event) => event.originalEvent.altKey && event.type === "singleclick" && !["Rectangle", "Route"].includes(this.originals.get(this.selectedId ?? "")?.type ?? ""),
+    });
     this.modify.on("modifyend", (event) => this.reportChanged(event.features.getArray()));
-    // Dragging inside the selected object moves all of it; Modify keeps vertex and edge drags.
-    this.translate = new Translate({ features: this.editable });
+    // Shift bypasses vertex editing, so even a freehand line can be moved from its stroke.
+    // The tolerance makes thin strokes selectable without needing an exact pixel hit.
+    this.translate = new Translate({ features: this.editable, hitTolerance: 8, condition: primaryAction });
     this.translate.on("translateend", (event) => this.reportChanged(event.features.getArray()));
     this.snap = new Snap({ source: this.source });
 
@@ -125,6 +148,11 @@ export class PackageMap {
     this.map.addInteraction(this.translate);
     this.map.addInteraction(this.modify);
     this.map.addInteraction(this.snap);
+    this.ellipseEditor = new EllipseEditor(this.map,
+      (geometry) => this.source.getFeatureById(this.selectedId ?? "")?.setGeometry(geometry),
+      (id, geometry) => this.callbacks.onModified(id, geometry),
+    );
+    this.measurements = new MeasurementTools(this.map);
 
     this.map.on("pointermove", (event) => {
       this.pointer = toLonLat(event.coordinate);
@@ -207,11 +235,25 @@ export class PackageMap {
           feature.set("layerRank", rank.get(object.layerId) ?? 0);
           feature.set("name", object.name);
           feature.set("cotType", object.tak?.cotType ?? null);
+          feature.set("iconsetPath", object.tak?.iconsetPath ?? null);
+          feature.set("packageId", object.packageId);
+          const iconPath = object.tak?.iconsetPath ?? "";
+          feature.set("iconImageUrl", this.iconUrls.get(`${object.packageId}:${iconPath}`) ?? this.iconUrls.get(`*:${iconPath}`) ?? null);
+          feature.set("routePoints", object.geometry.type === "Route" ? object.geometry.points : null);
           feature.set("locked", byId.get(object.layerId)?.locked === true);
           return feature;
         }),
     );
     this.highlight(this.selectedId);
+  }
+
+  setIconUrls(urls: Map<string, string>): void {
+    this.iconUrls = urls;
+    for (const feature of this.source.getFeatures()) {
+      const iconPath = String(feature.get("iconsetPath") ?? "");
+      feature.set("iconImageUrl", urls.get(`${String(feature.get("packageId"))}:${iconPath}`) ?? urls.get(`*:${iconPath}`) ?? null);
+    }
+    this.source.changed();
   }
 
   /**
@@ -241,6 +283,7 @@ export class PackageMap {
   }
 
   setTool(tool: EditorTool): void {
+    if (!this.canEdit && tool !== "select" && tool !== "measure-length" && tool !== "measure-area") tool = "select";
     if (this.draw !== null) {
       this.map.removeInteraction(this.draw);
       this.draw = null;
@@ -248,12 +291,43 @@ export class PackageMap {
     this.select.setActive(tool === "select");
     this.modify.setActive(tool === "select");
     this.translate.setActive(tool === "select");
+    this.ellipseEditor.setActive(tool === "select");
+    this.highlight(this.selectedId);
+    const measuring = tool === "measure-length" || tool === "measure-area";
+    this.measurements.setTool(measuring ? tool : null);
+    if (tool === "measure-length" || tool === "measure-area") {
+      this.map.removeInteraction(this.snap);
+      this.map.addInteraction(this.snap);
+      return;
+    }
     if (tool !== "select") {
-      this.draw = new Draw({ type: DRAW_TYPES[tool] });
+      // Freehand draws while the mouse button is held and is saved as an ordinary line.
+      const freehand = tool === "freehand";
+      const constrained = () => this.draw instanceof ShiftDraw && this.draw.shiftHeld;
+      const ellipseDrawing = tool === "ellipse" ? createEllipseDrawing(constrained) : null;
+      if (tool === "route") {
+        this.draw = new EndpointDraw({ type: "LineString", stopClick: true });
+      } else if (tool === "rectangle" || tool === "ellipse") {
+        this.draw = new ShiftDraw({ type: "Circle", stopClick: true, geometryFunction: ellipseDrawing?.geometryFunction ?? createRectangleDrawing(constrained) });
+      } else {
+        // Freeform lines/areas finish normally by double-click; Shift never enables freehand.
+        this.draw = new Draw({ type: DRAW_TYPES[tool], freehand, freehandCondition: () => false });
+      }
       this.draw.on("drawend", (event) => {
-        const geometry = event.feature.getGeometry();
+        const drawn = event.feature.getGeometry();
+        const resolution = this.map.getView().getResolution() ?? 1;
+        const geometry = freehand && drawn !== undefined ? drawn.simplify(resolution * FREEHAND_TOLERANCE_PIXELS) : drawn;
         if (geometry !== undefined) {
-          this.callbacks.onDrawn(fromMapGeometry(geometry));
+          if (tool === "ellipse") {
+            const ellipse = ellipseDrawing?.current();
+            if (ellipse != null) this.callbacks.onDrawn(ellipse);
+          } else if (tool === "rectangle" && geometry instanceof Polygon) {
+            const coordinates = geometry.getCoordinates()[0]?.slice(0, 4) ?? [];
+            this.callbacks.onDrawn({ type: "Rectangle", coordinates: coordinates.map((p) => toLonLat(p).slice(0, 2)) });
+          } else {
+            const converted = fromMapGeometry(geometry);
+            this.callbacks.onDrawn(tool === "route" && converted.type === "LineString" ? newRoute(converted.coordinates) : converted);
+          }
         }
       });
       // Snap must be added after Draw so it can adjust the drawn vertices.
@@ -269,17 +343,20 @@ export class PackageMap {
     const feature = objectId === null ? null : this.source.getFeatureById(objectId);
     this.select.getFeatures().clear();
     this.editable.clear();
+    this.vertexEditable.clear();
     if (feature !== null) {
       this.select.getFeatures().push(feature);
-      if (feature.get("locked") !== true) {
+      if (this.canEdit && feature.get("locked") !== true) {
         this.editable.push(feature);
+        if (this.originals.get(objectId ?? "")?.type !== "Ellipse") this.vertexEditable.push(feature);
       }
     }
+    this.ellipseEditor.show(objectId, this.originals.get(objectId ?? ""), this.canEdit && feature !== null && feature.get("locked") !== true);
     this.source.changed();
   }
 
   fitToContent(): void {
-    const candidates = [...this.contentExtents.values(), this.source.getExtent()].filter(
+    const candidates = [...this.contentExtents.values(), this.source.getExtent(), this.live.layer.getSource()?.getExtent() ?? null].filter(
       (candidate): candidate is number[] => candidate !== null && !isEmpty(candidate),
     );
     const extent = candidates.reduce<number[] | null>(
@@ -289,6 +366,13 @@ export class PackageMap {
     if (extent !== null) {
       this.map.getView().fit(extent, { padding: [48, 48, 48, 48], maxZoom: 16, duration: 250 });
     }
+  }
+
+  clearMeasurements(): void { this.measurements.clear(); }
+
+  setEditable(editable: boolean): void {
+    this.canEdit = editable;
+    this.highlight(this.selectedId);
   }
 
   /** Zooms to one offline map or rubber sheet. */

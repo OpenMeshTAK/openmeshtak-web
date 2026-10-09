@@ -8,6 +8,7 @@ import { describeError, isApiProblem } from "@/shared/errors/api-problem";
 import { connectRealtime } from "@/shared/realtime/realtime";
 import { listDataPackages } from "@/modules/data-packages/data-packages.api";
 import { topFirst } from "@/modules/data-packages/package-order";
+import EditorToolbar from "@/modules/editor/components/EditorToolbar.vue";
 import PackageMapView from "@/modules/editor/components/PackageMapView.vue";
 import { mapContentItems } from "@/modules/editor/map/map-content";
 import { usePackageEditor, type PackageEditor } from "@/modules/editor/usePackageEditor";
@@ -27,6 +28,7 @@ const traffic = ref<LiveTakTrafficDto>({ connections: [], items: [] });
 const state = ref<"loading" | "ready" | "error">("loading");
 const error = ref("");
 const mapView = ref<InstanceType<typeof PackageMapView> | null>(null);
+const connectionsOpen = ref(true);
 const connected = ref(false);
 let socket: Socket | null = null;
 
@@ -125,7 +127,23 @@ onBeforeUnmount(() => socket?.disconnect());
     <main v-else class="live-body">
       <PackageMapView ref="mapView" :layers="mapLayers" :objects="objects" :contents="contents" :live="liveItems" :selected-id="null" tool="select" />
 
-      <v-sheet elevation="4" rounded="lg" class="live-panel">
+      <EditorToolbar
+        tool="select"
+        view-only
+        :editable="false"
+        :can-undo="false"
+        :can-redo="false"
+        :layers-open="connectionsOpen"
+        layers-label="connected apps"
+        :base-maps="mapView?.baseMaps ?? []"
+        :base-map-id="mapView?.activeBaseMapId ?? ''"
+        class="live-toolbar"
+        @toggle-layers="connectionsOpen = !connectionsOpen"
+        @change-base-map="mapView?.selectBaseMap($event)"
+        @fit="mapView?.fitToContent()"
+      />
+
+      <v-sheet v-if="connectionsOpen" elevation="4" rounded="lg" class="live-panel">
         <div class="text-title-small pa-3 pb-1">Connected apps</div>
         <p v-if="traffic.connections.length === 0" class="text-body-medium text-medium-emphasis px-3 pb-3 my-0">
           No TAK app of this event is connected.
@@ -172,10 +190,18 @@ onBeforeUnmount(() => socket?.disconnect());
   min-height: 0;
 }
 
-.live-panel {
+.live-toolbar {
   position: absolute;
   top: 16px;
   left: 16px;
+  z-index: 1;
+}
+
+.live-panel {
+  position: absolute;
+  top: 16px;
+  left: 76px;
+  z-index: 1;
   width: 300px;
   max-height: calc(100% - 32px);
   overflow-y: auto;

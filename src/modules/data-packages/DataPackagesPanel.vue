@@ -17,6 +17,9 @@ import {
   mdiPublish,
   mdiShapePolygonPlus,
   mdiVectorPolyline,
+  mdiRectangleOutline,
+  mdiEllipseOutline,
+  mdiRoutes,
 } from "@mdi/js";
 import { computed, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
@@ -209,13 +212,16 @@ const CONTENT_KINDS: Array<{ kind: ContentKind; icon: string; one: string; many:
   { kind: "rubberSheets", icon: mdiImageArea, one: "rubber sheet", many: "rubber sheets" },
   { kind: "polygons", icon: mdiShapePolygonPlus, one: "polygon", many: "polygons" },
   { kind: "circles", icon: mdiCircleOutline, one: "circle", many: "circles" },
+  { kind: "rectangles", icon: mdiRectangleOutline, one: "rectangle", many: "rectangles" },
+  { kind: "ellipses", icon: mdiEllipseOutline, one: "ellipse", many: "ellipses" },
+  { kind: "routes", icon: mdiRoutes, one: "route", many: "routes" },
   { kind: "lines", icon: mdiVectorPolyline, one: "line", many: "lines" },
   { kind: "points", icon: mdiMapMarker, one: "point", many: "points" },
 ];
 
 function contentCounts({ draftContents }: DataPackageDto) {
-  return CONTENT_KINDS.filter(({ kind }) => draftContents[kind] > 0).map(({ kind, icon, one, many }) => {
-    const count = draftContents[kind];
+  return CONTENT_KINDS.filter(({ kind }) => (draftContents[kind] ?? 0) > 0).map(({ kind, icon, one, many }) => {
+    const count = draftContents[kind] ?? 0;
     return { kind, icon, count, title: `${String(count)} ${count === 1 ? one : many}` };
   });
 }

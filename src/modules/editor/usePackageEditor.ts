@@ -26,6 +26,7 @@ import {
 } from "@/modules/data-packages/data-packages.api";
 import { useEditorHistory } from "./editor-history";
 import { moveGeometry } from "./map/move-geometry";
+import { copyGeometry } from "./map/route-editing";
 
 /** What the editor shows next to the data package name, so authors always know whether edits are saved. */
 export type SaveState = "saved" | "saving" | "error" | "conflict";
@@ -41,7 +42,7 @@ export interface ObjectDetails {
 /** Mirrors Core's limit so a too large circle gets a helpful hint instead of a rejection. */
 const MAX_CIRCLE_RADIUS_METRES = 100_000;
 
-const KIND_NAMES = { Point: "Point", LineString: "Line", Polygon: "Area", Circle: "Circle" } as const;
+const KIND_NAMES = { Point: "Point", LineString: "Line", Polygon: "Area", Circle: "Circle", Rectangle: "Rectangle", Ellipse: "Ellipse", Route: "Route" } as const;
 
 /** API DTOs contain JSON values; copying them detaches history snapshots from Vue's reactive proxies. */
 function cloneDto<T>(value: T): T {
@@ -390,7 +391,7 @@ export function usePackageEditor(eventId: string, packageId: string) {
         layerId: object.layerId,
         name: `${object.name} copy`.slice(0, 100),
         description: object.description,
-        geometry: object.geometry,
+        geometry: copyGeometry(object.geometry),
         style: object.style,
         tak: object.tak,
       }),
@@ -431,7 +432,7 @@ export function usePackageEditor(eventId: string, packageId: string) {
         layerId: layer.id,
         name: source.name,
         description: source.description,
-        geometry: position === null ? source.geometry : moveGeometry(source.geometry, position),
+        geometry: copyGeometry(position === null ? source.geometry : moveGeometry(source.geometry, position)),
         style: source.style,
         tak: source.tak,
       }),

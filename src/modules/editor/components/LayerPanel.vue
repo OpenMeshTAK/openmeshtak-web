@@ -17,6 +17,9 @@ import {
   mdiShapePolygonPlus,
   mdiUpload,
   mdiVectorPolyline,
+  mdiRectangleOutline,
+  mdiEllipseOutline,
+  mdiRoutes,
 } from "@mdi/js";
 import { ref, watch } from "vue";
 import { VueDraggable, type SortableEvent } from "vue-draggable-plus";
@@ -64,7 +67,7 @@ const emit = defineEmits<{
   zoomToContent: [contentId: string];
 }>();
 
-const KIND_ICONS = { point: mdiMapMarker, line: mdiVectorPolyline, polygon: mdiShapePolygonPlus, circle: mdiCircleOutline } as const;
+const KIND_ICONS = { point: mdiMapMarker, line: mdiVectorPolyline, polygon: mdiShapePolygonPlus, circle: mdiCircleOutline, rectangle: mdiRectangleOutline, ellipse: mdiEllipseOutline, route: mdiRoutes } as const;
 /**
  * Local copies for vue-draggable-plus (SortableJS), which reorders its model during a drag. The
  * editor stays authoritative: drops are reported as events and the copies follow the props again.

@@ -1,32 +1,48 @@
 import type { FeatureLike } from "ol/Feature";
 import CircleGeometry from "ol/geom/Circle";
 import Polygon from "ol/geom/Polygon";
-import { Circle, Fill, Stroke, Style, Text } from "ol/style";
+import Point from "ol/geom/Point";
+import LineString from "ol/geom/LineString";
+import { Circle, Fill, RegularShape, Stroke, Style, Text } from "ol/style";
+import type ImageStyle from "ol/style/Image";
 import type { PackageObjectStyle } from "@/modules/data-packages/data-packages.api";
 import { symbolIcon } from "./cot-symbol";
+import { iconsetStandin } from "./iconset-standin";
+import { uploadedIcon } from "./uploaded-icon";
 
 /** Above this many metres per pixel (roughly zoom 12) only the selected object is labelled. */
 const LABEL_MAX_RESOLUTION = 30;
 
-const dotCache = new Map<string, Circle>();
+const dotCache = new Map<string, ImageStyle>();
+
+/** Own stand-ins for ATAK route points, which have no MIL-STD-2525 symbol: a triangle and a square. */
+const ROUTE_POINT_SHAPES: Record<string, { points: number; angle: number }> = {
+  "b-m-p-w": { points: 3, angle: 0 },
+  "b-m-p-c": { points: 4, angle: Math.PI / 4 },
+};
 
 function withOpacity(hex: string, opacity: number): string {
   const value = Number.parseInt(hex.slice(1), 16);
   return `rgba(${String((value >> 16) & 255)}, ${String((value >> 8) & 255)}, ${String(value & 255)}, ${String(opacity)})`;
 }
 
-/** A coloured dot with a white outline, like ATAK spot markers (`b-m-p-s-m`). */
-function dot(color: string, selected: boolean): Circle {
-  const key = `${color}:${String(selected)}`;
+/**
+ * A coloured dot with a white outline, like ATAK spot markers (`b-m-p-s-m`), or the same as a
+ * triangle for waypoints and a square for checkpoints.
+ */
+function dot(color: string, selected: boolean, cotType: string | null): ImageStyle {
+  const shape = cotType === null ? undefined : ROUTE_POINT_SHAPES[cotType];
+  const key = `${color}:${String(selected)}:${cotType ?? ""}`;
   let image = dotCache.get(key);
   if (image === undefined) {
-    image = new Circle({
-      radius: selected ? 9 : 7,
-      fill: new Fill({ color }),
-      stroke: new Stroke({ color: "#FFFFFF", width: 2 }),
-      // Markers are never hidden by decluttering; only overlapping labels are.
-      declutterMode: "none",
-    });
+    const radius = selected ? 9 : 7;
+    const fill = new Fill({ color });
+    const stroke = new Stroke({ color: "#FFFFFF", width: 2 });
+    // Markers are never hidden by decluttering; only overlapping labels are.
+    image =
+      shape === undefined
+        ? new Circle({ radius, fill, stroke, declutterMode: "none" })
+        : new RegularShape({ points: shape.points, radius: radius + 2, angle: shape.angle, fill, stroke, declutterMode: "none" });
     dotCache.set(key, image);
   }
   return image;
@@ -39,7 +55,7 @@ function label(name: string, kind: string, belowSymbol: boolean): Text {
     fill: new Fill({ color: "#1A1A1A" }),
     stroke: new Stroke({ color: "rgba(255, 255, 255, 0.95)", width: 3 }),
     // Lines carry their name along the line; markers below the dot; areas and circles inside.
-    placement: kind === "line" ? "line" : "point",
+    placement: kind === "line" || kind === "route" ? "line" : "point",
     textBaseline: kind === "point" ? "top" : "middle",
     offsetY: kind === "point" ? (belowSymbol ? 18 : 10) : 0,
     // Small areas such as buildings are labelled too, even when the name is wider than the shape.
@@ -78,19 +94,33 @@ export function objectStyle(feature: FeatureLike, resolution: number, selected: 
   const width = style.strokeWidth + (selected ? 2 : 0);
   // Military symbols for CoT atom types (a-*); spot markers and icon sets we cannot draw get a dot.
   const cotType = feature.get("cotType") as string | null;
-  const symbol = kind === "point" && cotType !== null ? symbolIcon(cotType, selected) : null;
+  const iconsetPath = feature.get("iconsetPath") as string | null;
+  const symbol = kind === "point" && cotType !== null && (iconsetPath == null || cotType !== "a-u-G") ? symbolIcon(cotType, selected) : null;
+  const standIn = kind === "point" && iconsetPath != null ? iconsetStandin(iconsetPath, style.color, selected) : null;
+  const uploaded = kind === "point" ? uploadedIcon(feature, feature.get("iconImageUrl") as string | null, selected) : null;
 
   const main = new Style({
     zIndex: objectPriority(feature),
-    stroke: new Stroke({ color: style.color, width }),
-    fill: new Fill({ color: withOpacity(style.color, style.fillOpacity) }),
-    ...(kind === "point" ? { image: symbol ?? dot(style.color, selected) } : {}),
-    ...(selected || resolution <= LABEL_MAX_RESOLUTION ? { text: label(name, kind, symbol !== null) } : {}),
+    stroke: new Stroke({ color: style.color, width, lineDash: style.strokeStyle === "dashed" ? [width * 3, width * 2] : undefined }),
+    fill: new Fill({ color: withOpacity(style.fillColor ?? style.color, style.fillOpacity) }),
+    ...(kind === "point" ? { image: uploaded ?? symbol ?? standIn ?? dot(style.color, selected, cotType) } : {}),
+    ...(selected || resolution <= LABEL_MAX_RESOLUTION ? { text: label(name, kind, uploaded !== null || symbol !== null) } : {}),
   });
   // A light halo under the selected shape keeps it visible on any base map.
-  return selected && kind !== "point"
+  const styles = selected && kind !== "point"
     ? [new Style({ stroke: new Stroke({ color: "rgba(255, 255, 255, 0.9)", width: width + 4 }) }), main]
     : [main];
+  const geometry = feature.getGeometry();
+  if (kind === "route" && geometry instanceof LineString && (selected || resolution <= LABEL_MAX_RESOLUTION)) {
+    const points = feature.get("routePoints") as Array<{ type: string; name: string }> | null;
+    geometry.getCoordinates().forEach((position, index) => {
+      const point = points?.[index];
+      styles.push(new Style({ geometry: new Point(position), image: dot(style.color, selected, point?.type === "waypoint" ? "b-m-p-w" : "b-m-p-c"), zIndex: objectPriority(feature) + 1,
+        ...(point?.type === "waypoint" && point.name !== "" ? { text: label(point.name, "point", false) } : {}),
+      }));
+    });
+  }
+  return styles;
 }
 
 /**

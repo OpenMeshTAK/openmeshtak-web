@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { saveFile } from "@/shared/files/save-file";
-import { mdiArrowLeft, mdiCloudCheckOutline, mdiCloudUploadOutline, mdiDownload, mdiPublish, mdiUpload } from "@mdi/js";
+import { mdiArrowLeft, mdiChevronDown, mdiCloudCheckOutline, mdiCloudUploadOutline, mdiDownload, mdiPublish, mdiUpload } from "@mdi/js";
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import ErrorState from "@/shared/components/ErrorState.vue";
@@ -28,6 +28,7 @@ import LayerPanel, { type LayerExportFormat } from "./components/LayerPanel.vue"
 import PackageMapView from "./components/PackageMapView.vue";
 import { mapContentItems } from "./map/map-content";
 import ObjectInspector from "./components/ObjectInspector.vue";
+import { iconLibraries } from "./icon-libraries.api";
 import type { EditorTool } from "./map/package-map";
 import { readLayersOpen, storeLayersOpen } from "./editor-preferences";
 import EditorPresence from "./components/EditorPresence.vue";
@@ -216,7 +217,7 @@ async function onDrawn(geometry: PackageGeometry): Promise<void> {
   await editor.addObject(geometry);
 }
 
-const SHORTCUTS: Record<string, EditorTool> = { s: "select", m: "point", l: "line", a: "polygon", c: "circle" };
+const SHORTCUTS: Record<string, EditorTool> = { s: "select", m: "point", l: "line", f: "freehand", a: "polygon", c: "circle", r: "rectangle", e: "ellipse", t: "route", q: "measure-length", w: "measure-area" };
 
 /** Keyboard shortcuts, ignored while typing in a field. */
 /** Copy and paste of map objects; ignored while typing so text fields keep their own clipboard. */
@@ -252,7 +253,7 @@ function onKeydown(keyEvent: KeyboardEvent): void {
     return;
   }
   const shortcut = SHORTCUTS[keyEvent.key.toLowerCase()];
-  if (shortcut !== undefined && (editable.value || shortcut === "select")) {
+  if (shortcut !== undefined && (editable.value || ["select", "measure-length", "measure-area"].includes(shortcut))) {
     tool.value = shortcut;
   } else if (keyEvent.key === "Escape") {
     tool.value = "select";
@@ -355,15 +356,18 @@ onBeforeUnmount(() => {
         {{ saveLabel.text }}
       </v-chip>
       <input ref="fileInput" type="file" accept=".zip,.cot,.xml,.geojson,.json" hidden @change="onFileChosen">
-      <v-btn v-if="editable" variant="text" :prepend-icon="mdiUpload" :loading="importing" @click="fileInput?.click()">Import</v-btn>
-      <v-menu>
+      <v-menu location="bottom end">
         <template #activator="{ props: menu }">
-          <v-btn v-bind="menu" variant="text" :prepend-icon="mdiDownload">Export</v-btn>
+          <v-btn v-bind="menu" variant="text" class="text-none" :append-icon="mdiChevronDown" :loading="importing">File</v-btn>
         </template>
-        <v-list density="compact">
-          <v-list-item title="ATAK Data Package (.zip)" :subtitle="revisionLabel" @click="exportAtak()" />
-          <v-list-item title="GeoJSON of the draft" @click="exportDraft()" />
-          <v-list-item title="KML of the draft" @click="exportKml()" />
+        <v-list density="compact" slim rounded="lg" min-width="260" class="pa-1">
+          <template v-if="editable">
+            <v-list-item :prepend-icon="mdiUpload" title="Import into active layer" subtitle="ATAK package, CoT or GeoJSON" @click="fileInput?.click()" />
+            <v-divider class="my-1" />
+          </template>
+          <v-list-item :prepend-icon="mdiDownload" title="Export ATAK Data Package" :subtitle="revisionLabel" @click="exportAtak()" />
+          <v-list-item :prepend-icon="mdiDownload" title="Export draft as GeoJSON" @click="exportDraft()" />
+          <v-list-item :prepend-icon="mdiDownload" title="Export draft as KML" @click="exportKml()" />
         </v-list>
       </v-menu>
       <v-btn v-if="canPublish" color="primary" :prepend-icon="mdiPublish" :loading="publishing" @click="publish">Publish</v-btn>
@@ -379,9 +383,11 @@ onBeforeUnmount(() => {
         :layers="editor.layers.value"
         :objects="editor.objects.value"
         :contents="mapContentItems(editor.path, editor.contents.value)"
+        :icon-libraries="iconLibraries(editor.path, editor.contents.value)"
         :selected-id="editor.selectedId.value"
         :remote-selections="remoteSelections"
         :tool="tool"
+        :editable="editable"
         @drawn="onDrawn"
         @modified="(id, geometry) => editor.changeObject(id, { geometry })"
         @select="editor.selectedId.value = $event"
@@ -419,6 +425,8 @@ onBeforeUnmount(() => {
         v-model:tool="tool"
         :editable="editable"
         :layers-open="layersOpen"
+        :base-maps="mapView?.baseMaps ?? []"
+        :base-map-id="mapView?.activeBaseMapId ?? ''"
         :can-undo="editor.canUndo.value"
         :can-redo="editor.canRedo.value"
         :undo-label="editor.undoLabel.value"
@@ -428,12 +436,16 @@ onBeforeUnmount(() => {
         @undo="editor.undo"
         @redo="editor.redo"
         @fit="mapView?.fitToContent()"
+        @clear-measurements="mapView?.clearMeasurements()"
+        @change-base-map="mapView?.selectBaseMap($event)"
         @toggle-layers="toggleLayers"
       />
 
       <v-sheet v-if="editor.selected.value" elevation="4" rounded="lg" class="editor-floating editor-inspector">
         <ObjectInspector
           :object="editor.selected.value"
+          :event-id="eventId"
+          :contents="editor.contents.value"
           :layers="editor.sortedLayers.value"
           :editable="editable"
           @change="editor.changeObject(editor.selected.value.id, $event)"

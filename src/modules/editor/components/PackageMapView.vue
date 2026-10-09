@@ -5,7 +5,10 @@ import type { PackageGeometry, PackageLayerDto, PackageObjectDto } from "@/modul
 import type { LiveMapItem } from "../map/live-layer";
 import type { MapContentItem } from "../map/map-content";
 import { PackageMap, type EditorTool, type RemoteSelection } from "../map/package-map";
-import { loadBaseMap } from "@/modules/map-settings/map-settings.api";
+import { loadBaseMap, type BaseMapLayer } from "@/modules/map-settings/map-settings.api";
+import { iconImageUrl, listLibraryIcons, type IconLibraryRef, type PackageIcon } from "../icon-libraries.api";
+import { instanceIconUrl, loadInstanceIcons } from "@/modules/icon-settings/icon-settings.api";
+import { readBaseMapId, storeBaseMapId } from "../editor-preferences";
 
 const props = withDefaults(defineProps<{
   layers: PackageLayerDto[];
@@ -18,7 +21,9 @@ const props = withDefaults(defineProps<{
   /** Objects other editors have selected, outlined in their color. */
   remoteSelections?: RemoteSelection[];
   tool: EditorTool;
-}>(), { contents: () => [], live: () => [], remoteSelections: () => [] });
+  editable?: boolean;
+  iconLibraries?: IconLibraryRef[];
+}>(), { contents: () => [], live: () => [], remoteSelections: () => [], editable: false, iconLibraries: () => [] });
 const emit = defineEmits<{
   drawn: [geometry: PackageGeometry];
   modified: [objectId: string, geometry: PackageGeometry];
@@ -27,8 +32,38 @@ const emit = defineEmits<{
 }>();
 
 const container = ref<HTMLElement | null>(null);
+const baseMaps = ref<BaseMapLayer[]>([]);
+const activeBaseMapId = ref("");
 let map: PackageMap | null = null;
 let resizeObserver: ResizeObserver | null = null;
+function selectBaseMap(id: string, remember = true): void {
+  const layer = baseMaps.value.find((candidate) => candidate.id === id);
+  if (layer === undefined) return;
+  activeBaseMapId.value = layer.id;
+  map?.setBaseMap(layer);
+  if (remember) storeBaseMapId(layer.id);
+}
+const catalogues = new Map<string, PackageIcon[]>();
+let iconGeneration = 0;
+async function loadIcons(): Promise<void> {
+  const generation = ++iconGeneration;
+  const libraries = [...props.iconLibraries];
+  const wanted = new Set(libraries.map((library) => library.contentId));
+  for (const key of catalogues.keys()) if (!wanted.has(key)) catalogues.delete(key);
+  const entries = await Promise.all(libraries.map(async (library) => {
+    try {
+      let icons = catalogues.get(library.contentId);
+      if (icons === undefined) { icons = await listLibraryIcons(library); if (generation === iconGeneration) catalogues.set(library.contentId, icons); }
+      return icons.map((icon): [string, string] => [`${library.packageId}:${icon.path}`, iconImageUrl(library, icon.id)]);
+    } catch { return []; } // Missing/inaccessible libraries keep the own vector stand-ins.
+  }));
+  let shared: Array<[string, string]> = [];
+  try {
+    const catalogue = await loadInstanceIcons();
+    shared = catalogue.icons.map((icon) => [`*:${icon.path}`, instanceIconUrl(catalogue.version, icon.id)]);
+  } catch { /* Shared icons are optional; keep package images and vector stand-ins. */ }
+  if (generation === iconGeneration) map?.setIconUrls(new Map([...shared, ...entries.flat()]));
+}
 
 onMounted(() => {
   if (container.value === null) {
@@ -40,11 +75,22 @@ onMounted(() => {
     onSelected: (objectId) => emit("select", objectId),
     onContextMenu: (target) => emit("contextmenu", target),
   });
+  map.setEditable(props.editable);
   map.setContent(props.layers, props.objects);
+  void loadIcons();
   map.setMapContent(props.contents, props.layers);
   map.setLiveItems(props.live);
   map.setRemoteSelections(props.remoteSelections);
-  void loadBaseMap().then((baseMap) => map?.setBaseMap(baseMap));
+  void loadBaseMap().then((settings) => {
+    if (map === null) return;
+    baseMaps.value = settings.layers;
+    const remembered = readBaseMapId();
+    const selected = settings.layers.find(({ id }) => id === remembered)
+      ?? settings.layers.find(({ id }) => id === settings.defaultLayerId)
+      ?? settings.layers[0];
+    // A temporary settings fallback must not overwrite the operator's remembered choice.
+    if (selected !== undefined) selectBaseMap(selected.id, false);
+  });
   map.setTool(props.tool);
   map.highlight(props.selectedId);
   map.fitToContent();
@@ -64,15 +110,22 @@ watch(
 watch(() => props.live, (items) => map?.setLiveItems(items));
 watch(() => props.remoteSelections, (selections) => map?.setRemoteSelections(selections));
 watch(() => props.tool, (tool) => map?.setTool(tool));
+watch(() => props.iconLibraries, () => { void loadIcons(); });
+watch(() => props.editable, (editable) => { map?.setEditable(editable); map?.setTool(props.tool); });
 watch(() => props.selectedId, (objectId) => map?.highlight(objectId));
 
 onBeforeUnmount(() => {
+  iconGeneration += 1;
   resizeObserver?.disconnect();
   map?.dispose();
   map = null;
 });
 
 defineExpose({
+  baseMaps,
+  activeBaseMapId,
+  selectBaseMap,
+  clearMeasurements: () => map?.clearMeasurements(),
   zoomToLive: (uid: string) => map?.zoomToLive(uid),
   fitToContent: () => map?.fitToContent(),
   zoomToContent: (contentId: string) => map?.zoomToContent(contentId),
@@ -89,5 +142,25 @@ defineExpose({
   width: 100%;
   height: 100%;
   min-height: 320px;
+}
+/* Bottom centre stays free: the layer panel floats on the left and the inspector on the right. */
+.package-map :deep(.editor-scale) {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 2px 8px 4px;
+  border-radius: 8px;
+  background: rgba(var(--v-theme-surface), 0.85);
+  pointer-events: none;
+}
+.package-map :deep(.editor-scale-inner) {
+  border: 2px solid rgb(var(--v-theme-on-surface));
+  border-top: none;
+  font-size: 11px;
+  line-height: 1.4;
+  text-align: center;
+  color: rgb(var(--v-theme-on-surface));
+  will-change: contents, width;
 }
 </style>

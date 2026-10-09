@@ -1333,9 +1333,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description The base map the Web app shows. Readable by every signed-in user. */
+        /** @description Available Web base maps and the installation default. Readable by every signed-in user. */
         get: operations["GetMapSettings"];
-        /** @description Changes the base map for everyone. Requires instance-wide `settings.manage`. */
+        /** @description Changes available base maps and their default. Requires instance-wide `settings.manage`. */
         put: operations["UpdateMapSettings"];
         post?: never;
         delete?: never;
@@ -1355,6 +1355,59 @@ export interface paths {
         get: operations["GetInstanceSettings"];
         /** @description Renames the installation. Requires instance-wide `settings.manage`. */
         put: operations["UpdateInstanceSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/map/icons/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The installation-wide library summary. Readable by signed-in users. */
+        get: operations["GetSettings"];
+        /** @description Replaces installation-wide PNG icons using raw WinTAK SQLite bytes (10 MiB). Requires settings.manage. */
+        put: operations["UpdateSettings"];
+        post?: never;
+        /** @description Clears shared icons without changing stored marker paths. Requires settings.manage. */
+        delete: operations["ClearSettings"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/map/icons": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Original TAK icon paths and fallback types, shared by all signed-in editors. */
+        get: operations["GetCatalogue"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/map/icons/{version}/{iconId}/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description One PNG from the current library; stale versions and unknown IDs return 404. */
+        get: operations["GetImage"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -1989,7 +2042,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Exports the current draft as KML; `layerId` limits it to one layer. Circles become polygons. */
+        /** @description Exports the current draft as KML; `layerId` limits it to one layer. Circles and ellipses become labelled 64-sided footprints; parametric metadata is retained in ExtendedData. */
         get: operations["ExportPackageDraftKml"];
         put?: never;
         post?: never;
@@ -2174,7 +2227,7 @@ export interface paths {
         put?: never;
         /**
          * @description Imports an ATAK Data Package (`application/zip`, at most 10 MB) or a single CoT event
-         *     (`application/xml`) into the layer. Markers, freeform shapes, rectangles and circles are
+         *     (`application/xml`) into the layer. Markers, freeform shapes, rectangles, circles, ellipses and routes are
          *     supported; the report lists every adjusted, skipped and rejected item.
          */
         post: operations["ImportAtakDataPackage"];
@@ -2196,6 +2249,57 @@ export interface paths {
          *     `layerId` exports only that layer, as its own package.
          */
         get: operations["ExportAtakDataPackage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{eventId}/data-packages/{packageId}/layers/{layerId}/import/icons": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Imports PNG icons from WinTAK iconsets.sqlite (raw bytes, 10 MB maximum). Requires data-packages.edit; icons are editor-only and do not ship in TAK exports. */
+        post: operations["ImportPackageIcons"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{eventId}/data-packages/{packageId}/contents/{contentId}/icons": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The library's original TAK paths and safe image identifiers. Requires data-packages.read. */
+        get: operations["ListIcons"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{eventId}/data-packages/{packageId}/contents/{contentId}/icons/{iconId}/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description One validated PNG, served only to an authorized package reader. */
+        get: operations["GetIconImage"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3831,29 +3935,42 @@ export interface components {
         ClaimExchangeRequest: {
             token: string;
         };
-        /** @description The Web map's online base map. Defaults to OpenStreetMap until an administrator changes it. */
+        /** @description One mutually exclusive XYZ base map; package overlays remain separate. */
+        BaseMapLayerDto: {
+            providerName: string;
+            tileUrlTemplate: string;
+            attribution: string;
+            /** Format: int32 */
+            maxZoom: number;
+            id: components["schemas"]["Uuid"];
+        };
+        /** @description Legacy top-level fields mirror the default layer. */
         MapSettingsDto: {
             providerName: string;
-            /** @description XYZ tile URL with `{z}`, `{x}` and `{y}`; `{a-c}` selects subdomains. */
             tileUrlTemplate: string;
-            /** @description Plain-text attribution the provider requires; the Web app shows it on every map. */
             attribution: string;
-            /** Format: double */
+            /** Format: int32 */
             maxZoom: number;
             /**
              * Format: double
              * @description Optimistic-concurrency version; 0 while the default is in use.
              */
             version: number;
+            layers: components["schemas"]["BaseMapLayerDto"][];
+            defaultLayerId: components["schemas"]["Uuid"];
         };
         UpdateMapSettingsRequest: {
-            /** Format: int32 */
-            version: number;
             providerName: string;
             tileUrlTemplate: string;
             attribution: string;
             /** Format: int32 */
             maxZoom: number;
+            /** Format: int32 */
+            version: number;
+            /** @description Omit to update only the existing default layer, preserving other layers. */
+            layers?: components["schemas"]["BaseMapLayerDto"][];
+            /** @description Must refer to a supplied layer; otherwise the first supplied layer is the default. */
+            defaultLayerId?: components["schemas"]["Uuid"];
         };
         /** @description How this installation presents itself. Public, because the sign-in page shows it. */
         InstanceSettingsDto: {
@@ -3869,6 +3986,49 @@ export interface components {
             /** Format: int32 */
             version: number;
             name: string;
+        };
+        IconSettingsDto: {
+            /**
+             * Format: double
+             * @description Optimistic-concurrency version; 0 until the first upload.
+             */
+            version: number;
+            /** Format: double */
+            icons: number;
+            /** Format: double */
+            sets: number;
+            /** Format: double */
+            groups: number;
+            updatedAt: string | null;
+        };
+        ImportReportEntry: {
+            /** @description Which input feature this is about, e.g. `Feature 3 (Rally point)`. */
+            feature: string;
+            message: string;
+        };
+        UpdateIconSettingsResult: {
+            settings: components["schemas"]["IconSettingsDto"];
+            /** Format: double */
+            accepted: number;
+            rejected: components["schemas"]["ImportReportEntry"][];
+        };
+        /** @description Operator-provided PNG icon, identified by its original TAK path. */
+        PackageIconDto: {
+            id: components["schemas"]["Uuid"];
+            path: string;
+            setName: string;
+            group: string;
+            filename: string;
+            cotType: string | null;
+            /** Format: double */
+            width: number;
+            /** Format: double */
+            height: number;
+        };
+        InstanceIconCatalogue: {
+            /** Format: double */
+            version: number;
+            icons: components["schemas"]["PackageIconDto"][];
         };
         HealthResponse: {
             /** @enum {string} */
@@ -4561,7 +4721,7 @@ export interface components {
             visible: boolean;
         };
         /** @enum {string} */
-        PackageObjectKind: "point" | "line" | "polygon" | "circle";
+        PackageObjectKind: "point" | "line" | "polygon" | "circle" | "rectangle" | "ellipse" | "route";
         /** @description GeoJSON position: `[longitude, latitude]` or `[longitude, latitude, altitudeMetresHae]`. */
         Position: number[];
         PointGeometry: {
@@ -4595,10 +4755,83 @@ export interface components {
              */
             radius: number;
         };
-        /** @description RFC 7946 geometry in WGS84, plus circles as an explicit domain extension. */
-        PackageGeometry: components["schemas"]["PointGeometry"] | components["schemas"]["LineStringGeometry"] | components["schemas"]["PolygonGeometry"] | components["schemas"]["CircleGeometry"];
+        RectangleGeometry: {
+            /** @enum {string} */
+            type: "Rectangle";
+            /** @description Four corners in drawing order, without a repeated closing position. */
+            coordinates: components["schemas"]["Position"][];
+        };
+        EllipseGeometry: {
+            /** @enum {string} */
+            type: "Ellipse";
+            /** @description Centre; axes are semi-axis lengths, matching TAK's ellipse major/minor. */
+            coordinates: components["schemas"]["Position"];
+            /** Format: double */
+            major: number;
+            /** Format: double */
+            minor: number;
+            /**
+             * Format: double
+             * @description Bearing of the major axis clockwise from north, in degrees.
+             */
+            rotation: number;
+        };
+        /** @description TAK routes refer to their own stable point identifiers in navigation cues. */
+        RoutePointId: string;
+        RoutePoint: {
+            id: components["schemas"]["RoutePointId"];
+            /** @enum {string} */
+            type: "waypoint" | "checkpoint";
+            name: string;
+            remarks: string;
+        };
+        RouteOption: string;
+        RouteOptions: {
+            transportationType?: components["schemas"]["RouteOption"];
+            method?: components["schemas"]["RouteOption"];
+            direction?: components["schemas"]["RouteOption"];
+            routeType?: components["schemas"]["RouteOption"];
+            order?: components["schemas"]["RouteOption"];
+            planningMethod?: components["schemas"]["RouteOption"];
+            prefix?: components["schemas"]["RouteOption"];
+        };
+        RouteCueTrigger: {
+            /** @enum {string} */
+            mode: "d" | "t";
+            /** Format: int32 */
+            value: number;
+        };
+        RouteNavigationCue: {
+            pointId: components["schemas"]["RoutePointId"];
+            text: string;
+            voice: string;
+            triggers: components["schemas"]["RouteCueTrigger"][];
+        };
+        RouteGeometry: {
+            /** @enum {string} */
+            type: "Route";
+            /** @description Ordered route positions; each has matching metadata in `points`. */
+            coordinates: components["schemas"]["Position"][];
+            points: components["schemas"]["RoutePoint"][];
+            options: components["schemas"]["RouteOptions"];
+            navigationCues: components["schemas"]["RouteNavigationCue"][];
+        };
+        /** @description RFC 7946 semantics in WGS84, with explicit parametric shapes and ordered TAK routes. */
+        PackageGeometry: components["schemas"]["PointGeometry"] | components["schemas"]["LineStringGeometry"] | components["schemas"]["PolygonGeometry"] | components["schemas"]["CircleGeometry"] | components["schemas"]["RectangleGeometry"] | components["schemas"]["EllipseGeometry"] | components["schemas"]["RouteGeometry"];
         /** @description Colour as `#RRGGBB`. */
         HexColor: string;
+        /**
+         * @description How lines, outlines and circles are drawn; ATAK writes it as `strokeStyle`.
+         * @enum {string}
+         */
+        StrokeStyle: "solid" | "dashed";
+        /**
+         * @description ATAK Span display units; the stored height itself is always metres.
+         * @enum {number}
+         */
+        HeightUnit: 0 | 1 | 2 | 3 | 4 | 5;
+        /** @enum {string} */
+        ExtrudeMode: "cylinder" | "cone_down";
         PackageObjectStyle: {
             /** @description Marker, line and polygon outline colour. */
             color: components["schemas"]["HexColor"];
@@ -4609,9 +4842,22 @@ export interface components {
             strokeWidth: number;
             /**
              * Format: double
-             * @description Polygon fill opacity; the fill uses `color`.
+             * @description Polygon and circle fill opacity.
              */
             fillOpacity: number;
+            /** @description Line style of lines, outlines and circles; `solid` when left out. */
+            strokeStyle?: components["schemas"]["StrokeStyle"];
+            /** @description Fill colour of areas and circles; `null` or left out fills with `color`. */
+            fillColor?: components["schemas"]["HexColor"] | null;
+            /**
+             * Format: double
+             * @description Shape extrusion height in metres, independent of coordinate altitude. Null/absent is unknown.
+             */
+            height?: number | null;
+            /** @description Preferred TAK height display unit (0 km, 1 m, 2 mi, 3 yd, 4 ft, 5 NM). */
+            heightUnit?: components["schemas"]["HeightUnit"] | null;
+            /** @description Circle extrusion mode; absent uses the client's default. */
+            extrudeMode?: components["schemas"]["ExtrudeMode"] | null;
         };
         /**
          * @description CoT event type, e.g. `b-m-p-s-m` (spot marker) or `a-f-G-U-C-I` (MIL-STD-2525 friendly
@@ -4697,6 +4943,12 @@ export interface components {
             polygons: number;
             /** Format: double */
             circles: number;
+            /** Format: double */
+            rectangles?: number;
+            /** Format: double */
+            ellipses?: number;
+            /** Format: double */
+            routes?: number;
             /**
              * Format: double
              * @description Offline map caches, including nested map packages.
@@ -4825,11 +5077,6 @@ export interface components {
             /** @description Markers only; send `null` for a plain spot marker. */
             tak: components["schemas"]["TakMarker"] | null;
         };
-        ImportReportEntry: {
-            /** @description Which input feature this is about, e.g. `Feature 3 (Rally point)`. */
-            feature: string;
-            message: string;
-        };
         /** @description Outcome of a GeoJSON or ATAK import; every input item appears somewhere in it. */
         ImportReport: {
             /**
@@ -4935,12 +5182,12 @@ export interface components {
             /** Format: double */
             tiles: number;
         };
-        /** @description Map content kept from an imported ATAK Data Package; exported unchanged with its layer. */
+        /** @description Imported map content (exported unchanged), or an operator-provided editor-only icon library. */
         PackageContentDto: {
             id: components["schemas"]["Uuid"];
             layerId: components["schemas"]["Uuid"];
             /** @enum {string} */
-            kind: "offline-map" | "nested-data-package" | "rubber-sheet";
+            kind: "offline-map" | "nested-data-package" | "rubber-sheet" | "icon-library";
             name: string;
             /**
              * Format: double
@@ -4973,6 +5220,12 @@ export interface components {
             visible: boolean;
             /** Format: double */
             opacity: number;
+        };
+        IconLibraryImportResult: {
+            contentId: components["schemas"]["Uuid"];
+            /** Format: double */
+            accepted: number;
+            rejected: components["schemas"]["ImportReportEntry"][];
         };
         DataPackagePage: {
             items: components["schemas"]["DataPackageDto"][];
@@ -10100,6 +10353,230 @@ export interface operations {
             };
         };
     };
+    GetSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Icon settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IconSettingsDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateSettings: {
+        parameters: {
+            query: {
+                version: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Icon database imported */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateIconSettingsResult"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Version conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Upload too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unsupported upload */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Invalid icon database */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ClearSettings: {
+        parameters: {
+            query: {
+                version: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Icon database removed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IconSettingsDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Version conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetCatalogue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Icon catalogue */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstanceIconCatalogue"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                version: number;
+                iconId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Icon image */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     GetHealth: {
         parameters: {
             query?: never;
@@ -13901,6 +14378,196 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description ATAK Data Package */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ImportPackageIcons: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+                packageId: components["schemas"]["Uuid"];
+                layerId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Icon library imported */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IconLibraryImportResult"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Layer locked, event archived or too many libraries */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Upload too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unsupported upload */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Invalid icon database */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListIcons: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+                packageId: components["schemas"]["Uuid"];
+                contentId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Icons */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PackageIconDto"][];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetIconImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+                packageId: components["schemas"]["Uuid"];
+                contentId: components["schemas"]["Uuid"];
+                iconId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Icon image */
             200: {
                 headers: {
                     [name: string]: unknown;
