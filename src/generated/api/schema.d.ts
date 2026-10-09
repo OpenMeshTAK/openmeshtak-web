@@ -689,7 +689,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/events/{eventId}/tak/configuration/atak-preferences": {
+    "/events/{eventId}/tak/atak-preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["GetAtakPreferences"];
+        /** @description Replaces the whole list. Requires the current `version` (0 before the first save). */
+        put: operations["ReplaceAtakPreferences"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{eventId}/tak/atak-preferences/import": {
         parameters: {
             query?: never;
             header?: never;
@@ -697,11 +714,27 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
+        put?: never;
         /**
-         * @description Uploads or removes the event's ATAK preference file (`.pref`, such as ATAK's settings
-         *     export). Keys OpenMeshTak sets per member are removed and listed in the response.
+         * @description Imports a `.pref` file, such as ATAK's settings export, as event-wide entries. Keys
+         *     OpenMeshTak owns and entries that do not fit ATAK's types are left out and listed.
          */
-        put: operations["UpdateAtakPreferenceFile"];
+        post: operations["ImportAtakPreferences"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tak/atak-preference-catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["GetAtakPreferenceCatalog"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -2965,51 +2998,18 @@ export interface components {
              */
             members?: components["schemas"]["TakGroupMemberDto"][];
         };
-        /**
-         * @description ATAK display settings an event sets for its members; `null` leaves the setting to the
-         *     uploaded preference file or to ATAK's default.
-         */
-        AtakSettingsDto: {
-            /** @enum {string|null} */
-            coordinateFormat: "MGRS" | "DD" | "DM" | "DMS" | "UTM" | null;
-            /** @enum {string|null} */
-            altitudeReference: "HAE" | "MSL" | null;
-            /** @enum {string|null} */
-            altitudeUnit: "feet" | "meters" | null;
-            /** @enum {string|null} */
-            speedUnit: "mph" | "kmh" | "knots" | "mps" | null;
-            /** @enum {string|null} */
-            distanceUnit: "imperial" | "metric" | "nautical" | null;
-            /** @enum {string|null} */
-            northReference: "true" | "magnetic" | "grid" | null;
-        };
         /** @enum {string} */
         TakGroupMode: "off" | "simple" | "advanced";
-        /** @description One preference of an uploaded ATAK `.pref` file. */
-        AtakPreferenceDto: {
-            /** @description The `<preference name>` group, such as `com.atakmap.app_preferences`. */
-            preference: string;
-            key: string;
-            /** @enum {string} */
-            type: "string" | "boolean" | "integer" | "long" | "float";
-            value: string;
-        };
-        AtakPreferenceFileDto: {
-            fileName: string;
-            /** @description The file's entries after removing keys OpenMeshTak owns. */
-            entries: components["schemas"]["AtakPreferenceDto"][];
-        };
         /**
          * @description TAK settings of an event. Every event sends TAK clients to the built-in TAK server; Meshtastic
          *     events (`meshtasticEnabled` on the event) also connect them to the Meshtastic app's local TAK
-         *     server, which carries CoT over the mesh channel. ATAK preferences reach members through the
-         *     device profiles once a configuration revision is published.
+         *     server, which carries CoT over the mesh channel. ATAK preferences have their own list
+         *     (`/events/{eventId}/tak/atak-preferences`).
          */
         TakConfigurationDto: {
             eventId: components["schemas"]["Uuid"];
             /** @description Channel for the app's "TAK Mesh Channel"; `null` uses the primary channel. */
             meshChannelId: components["schemas"]["Uuid"] | null;
-            atakSettings: components["schemas"]["AtakSettingsDto"];
             /**
              * @description `off`: every member sees the whole event. `simple`: members see only their event group.
              *     `advanced`: members receive what is sent into the event's TAK groups they receive from
@@ -3019,8 +3019,6 @@ export interface components {
             groupMode: components["schemas"]["TakGroupMode"];
             /** @description In the advanced mode, TAK apps list their groups and may switch them on and off. */
             groupsInApp: boolean;
-            /** @description `null` until a preference file is uploaded. */
-            atakPreferenceFile: components["schemas"]["AtakPreferenceFileDto"] | null;
             /**
              * Format: double
              * @description Optimistic-concurrency version; 0 until first saved.
@@ -3036,31 +3034,122 @@ export interface components {
              */
             version: number;
             meshChannelId: components["schemas"]["Uuid"] | null;
-            /** @description Omit to keep the current settings. */
-            atakSettings?: components["schemas"]["AtakSettingsDto"];
             /** @description Omit to keep the current mode. */
             groupMode?: components["schemas"]["TakGroupMode"];
             /** @description Omit to keep the current value. */
             groupsInApp?: boolean;
         };
-        UpdateAtakPreferenceFileResponse: {
-            configuration: components["schemas"]["TakConfigurationDto"];
-            /** @description Keys of the uploaded file that were removed because OpenMeshTak sets them per member. */
-            removedKeys: string[];
+        /** @description Who an entry is for. Targets are event memberships, never OpenMeshTak accounts. */
+        AtakPreferenceTargetDto: {
+            /** @enum {string} */
+            type: "event" | "group" | "role" | "member";
+            /** @description The event group, role or member; `null` for the whole event. */
+            id: components["schemas"]["Uuid"] | null;
         };
-        AtakPreferenceFileUpload: {
-            fileName: string;
-            /** @description The `.pref` file's text. */
-            content: string;
+        /** @enum {string} */
+        AtakPreferenceTypeDto: "string" | "boolean" | "integer" | "long" | "float";
+        /** @description One ATAK preference the event sends, as a `.pref` file stores it. */
+        AtakPreferenceEntryDto: {
+            target: components["schemas"]["AtakPreferenceTargetDto"];
+            /** @description The `<preference name>` group, usually `com.atakmap.app_preferences`. */
+            preference: string;
+            key: string;
+            /** @description The Java class ATAK stores; known keys must use the catalog's type. */
+            type: components["schemas"]["AtakPreferenceTypeDto"];
+            value: string;
         };
-        UpdateAtakPreferenceFileRequest: {
+        /**
+         * @description The ATAK preferences every member's app receives through its device profile once a
+         *     configuration revision is published. For one member the most specific entry wins per key:
+         *     member, then role, then group, then the whole event. Removing an entry does not change a device;
+         *     set ATAK's default instead.
+         */
+        AtakPreferenceListDto: {
+            eventId: components["schemas"]["Uuid"];
+            entries: components["schemas"]["AtakPreferenceEntryDto"][];
+            /**
+             * Format: double
+             * @description Optimistic-concurrency version; 0 until first saved.
+             */
+            version: number;
+            /** Format: date-time */
+            updatedAt: string | null;
+        };
+        ReplaceAtakPreferencesRequest: {
             /**
              * Format: int32
              * @description Version the client last read.
              */
             version: number;
-            /** @description `null` removes the file. */
-            file: components["schemas"]["AtakPreferenceFileUpload"] | null;
+            entries: components["schemas"]["AtakPreferenceEntryDto"][];
+        };
+        SkippedAtakPreferenceDto: {
+            key: string;
+            message: string;
+        };
+        ImportAtakPreferencesResponse: {
+            list: components["schemas"]["AtakPreferenceListDto"];
+            /**
+             * Format: double
+             * @description Entries added to the whole event or replacing an event-wide entry of the same key.
+             */
+            importedCount: number;
+            /** @description Keys left out because OpenMeshTak sets them, they hold a secret or they belong to one person or device. */
+            removedKeys: string[];
+            /** @description Keys left out because their type or value does not match what ATAK expects. */
+            invalidKeys: components["schemas"]["SkippedAtakPreferenceDto"][];
+        };
+        ImportAtakPreferencesRequest: {
+            /**
+             * Format: int32
+             * @description Version the client last read.
+             */
+            version: number;
+            fileName: string;
+            /** @description The `.pref` file's text, such as ATAK's settings export. */
+            content: string;
+        };
+        AtakCatalogValueDto: {
+            value: string;
+            label: string;
+        };
+        AtakCatalogKeyDto: {
+            key: string;
+            /** @description Subgroup within the topic, such as "Altitude"; keys of a group are listed together. */
+            group: string;
+            type: components["schemas"]["AtakPreferenceTypeDto"];
+            /** @description ATAK's own default; `null` when ATAK sets none. */
+            defaultValue: string | null;
+            /** @description Allowed values of a list; `null` for free values. */
+            values: components["schemas"]["AtakCatalogValueDto"][] | null;
+            /** @description Text fields ATAK reads as numbers; they are still stored as strings. */
+            numeric: boolean;
+            description: string;
+            /**
+             * @description `form`: a ready field; `member`: only for one member; `warning`: allowed with a warning; `advanced`: hidden by default.
+             * @enum {string|null}
+             */
+            use: "form" | "member" | "warning" | "advanced" | null;
+        };
+        AtakCatalogTopicDto: {
+            id: string;
+            title: string;
+            description: string;
+            keys: components["schemas"]["AtakCatalogKeyDto"][];
+        };
+        /**
+         * @description The ATAK preference keys this Core release knows, by topic, all in
+         *     `com.atakmap.app_preferences`. Other keys, such as plugin keys, may still be set.
+         */
+        AtakPreferenceCatalogDto: {
+            /** @description The ATAK version the catalog was read from. */
+            atakVersion: string;
+            topics: components["schemas"]["AtakCatalogTopicDto"][];
+            /** @description Keys an event can never set, with the reason. */
+            blockedKeys: {
+                reason: string;
+                key: string;
+            }[];
         };
         SetupStatusResponse: {
             /** @description `false` until the first administrator exists; the Web app then opens the setup flow. */
@@ -4262,36 +4351,47 @@ export interface components {
             profileSha256: string;
             settings: components["schemas"]["FirmwareSettingsDocument"];
         };
+        /** @description Who an entry is for: the whole event, or one event group, role or member. */
+        AtakPreferenceTarget: {
+            /** @enum {string} */
+            type: "event";
+        } | {
+            id: string;
+            /** @enum {string} */
+            type: "group" | "role" | "member";
+        };
         /** @enum {string} */
         AtakPreferenceType: "string" | "boolean" | "integer" | "long" | "float";
-        /** @description One ATAK preference as a `.pref` file stores it. */
-        AtakPreference: {
+        /** @description An event's preference with its target, as stored and published. */
+        TargetedAtakPreference: {
             /** @description The `<preference name>` group, such as `com.atakmap.app_preferences`. */
             preference: string;
             key: string;
             type: components["schemas"]["AtakPreferenceType"];
             value: string;
+            target: components["schemas"]["AtakPreferenceTarget"];
         };
         CurrentTakConfiguration: {
             meshChannelId: string | null;
-            /** @description The preferences members' ATAK receives: the uploaded file with the form's choices on top. */
-            atakPreferences: components["schemas"]["AtakPreference"][];
+            /** @description The event's ATAK preferences with their targets; each member's app gets its resolved share. */
+            atakPreferences: components["schemas"]["TargetedAtakPreference"][];
         };
         /**
          * @description The Meshtastic app's TAK mesh channel and the ATAK preferences; `null` in revisions created
-         *     before version 4, and without ATAK preferences before version 7. Revisions
-         *     before version 6 also stored a connection mode, which the switch `meshtasticEnabled` replaced.
+         *     before version 4, and without ATAK preferences before version 7. Version 7 stored preferences
+         *     without targets, which all reached the whole event. Revisions before version 6 also stored a
+         *     connection mode, which the switch `meshtasticEnabled` replaced.
          */
         SnapshotTak: components["schemas"]["CurrentTakConfiguration"];
         /**
          * @description Bump `schemaVersion` whenever the snapshot shape changes; old revisions are never rewritten.
          *     Version 2 added `channels` in device order, the first being the primary channel; version 3
          *     added `meshtastic`; version 4 added `tak`; version 5 added role TAK overrides; version 6 added
-         *     `meshtasticEnabled`; version 7 added `tak.atakPreferences`.
+         *     `meshtasticEnabled`; version 7 added `tak.atakPreferences`; version 8 gave each preference a target.
          */
         ConfigurationSnapshot: {
             /** @enum {number} */
-            schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7;
+            schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
             /**
              * @description Whether the event provisions Meshtastic radios; `true` in revisions before version 6. When
              *     `false`, `channels` is empty and `meshtastic` is `null`.
@@ -7585,7 +7685,47 @@ export interface operations {
             };
         };
     };
-    UpdateAtakPreferenceFile: {
+    GetAtakPreferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ATAK preferences */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AtakPreferenceListDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ReplaceAtakPreferences: {
         parameters: {
             query?: never;
             header?: never;
@@ -7596,17 +7736,17 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["UpdateAtakPreferenceFileRequest"];
+                "application/json": components["schemas"]["ReplaceAtakPreferencesRequest"];
             };
         };
         responses: {
-            /** @description ATAK preference file updated */
+            /** @description ATAK preferences replaced */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UpdateAtakPreferenceFileResponse"];
+                    "application/json": components["schemas"]["AtakPreferenceListDto"];
                 };
             };
             /** @description Authentication required */
@@ -7647,6 +7787,115 @@ export interface operations {
             };
             /** @description Validation failed */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ImportAtakPreferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportAtakPreferencesRequest"];
+            };
+        };
+        responses: {
+            /** @description ATAK preferences imported */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportAtakPreferencesResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Version conflict or event archived */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetAtakPreferenceCatalog: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ATAK preference catalog */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AtakPreferenceCatalogDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -1,8 +1,8 @@
 <script setup lang="ts">
+import SettingsHeaderActions from "@/shared/settings/SettingsHeaderActions.vue";
 import InfoHint from "@/shared/components/InfoHint.vue";
 import { mdiCheckDecagram, mdiChip, mdiOpenInNew } from "@mdi/js";
 import { computed, onMounted, ref } from "vue";
-import SectionHeader from "@/shared/components/layout/SectionHeader.vue";
 import { describeError } from "@/shared/errors/api-problem";
 import { fieldErrors } from "@/shared/errors/field-errors";
 import { useToast } from "@/shared/feedback/toast";
@@ -134,14 +134,9 @@ async function apply(confirmed: FirmwareChangePreviewDto): Promise<void> {
 
 <template>
   <div>
-    <SectionHeader
-      title="Firmware"
-      description="Participants are asked to flash this firmware before importing their settings. Settings that need a newer patch appear once you raise the minimum version."
-    >
-      <template #actions>
-        <v-btn v-if="editable" variant="tonal" @click="openDialog">Change firmware</v-btn>
-      </template>
-    </SectionHeader>
+    <SettingsHeaderActions v-if="editable">
+      <v-btn variant="tonal" data-setting-id="meshtastic:firmware" @click="openDialog">Change firmware</v-btn>
+    </SettingsHeaderActions>
 
     <v-card class="pa-5">
       <div class="d-flex align-center ga-4 flex-wrap">

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { settingId } from "../meshtastic-settings";
 import { mdiCheckCircle, mdiEye, mdiEyeOff, mdiKeyVariant } from "@mdi/js";
 import { ref } from "vue";
 import { fieldErrors } from "@/shared/errors/field-errors";
@@ -74,7 +75,7 @@ function hintFor(field: FirmwareFieldDto): string {
     <v-list lines="two" class="py-0">
       <template v-for="(field, index) in fields" :key="field.key">
         <v-divider v-if="index > 0" />
-        <v-list-item :prepend-icon="mdiKeyVariant">
+        <v-list-item :prepend-icon="mdiKeyVariant" :data-setting-id="settingId(field.key)">
           <v-list-item-title>{{ field.label }}</v-list-item-title>
           <v-list-item-subtitle>
             {{ field.description ?? "Write-only. Only goes into members' own settings files." }}

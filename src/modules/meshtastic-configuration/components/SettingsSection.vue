@@ -2,8 +2,9 @@
 import { mdiLock } from "@mdi/js";
 import { computed } from "vue";
 import EmptyState from "@/shared/components/EmptyState.vue";
-import SectionHeader from "@/shared/components/layout/SectionHeader.vue";
+import SettingsHeaderActions from "@/shared/settings/SettingsHeaderActions.vue";
 import { sectionIcon } from "../section-icons";
+import { settingId } from "../meshtastic-settings";
 import type {
   FirmwareEnumValueDto,
   FirmwareFieldDto,
@@ -53,19 +54,18 @@ function errorFor(field: FirmwareFieldDto): string | undefined {
 
 <template>
   <div>
-    <SectionHeader :title="label">
-      <template v-if="sectionSwitch" #actions>
-        <v-switch
-          :model-value="sectionEnabled"
-          :aria-label="sectionSwitch.label"
-          :disabled="!editable"
-          color="primary"
-          hide-details
-          inset
-          @update:model-value="settings[sectionSwitch.key] = $event === true"
-        />
-      </template>
-    </SectionHeader>
+    <SettingsHeaderActions v-if="sectionSwitch">
+      <v-switch
+        :data-setting-id="settingId(sectionSwitch.key)"
+        :model-value="sectionEnabled"
+        :aria-label="sectionSwitch.label"
+        :disabled="!editable"
+        color="primary"
+        hide-details
+        inset
+        @update:model-value="settings[sectionSwitch.key] = $event === true"
+      />
+    </SettingsHeaderActions>
     <div v-if="sectionSwitch && errorFor(sectionSwitch)" class="text-body-small text-error mb-4">{{ errorFor(sectionSwitch) }}</div>
 
     <div v-if="sectionSwitch && !sectionEnabled" class="section-off mb-4">
@@ -83,7 +83,7 @@ function errorFor(field: FirmwareFieldDto): string | undefined {
     <template v-if="sectionEnabled">
       <v-card v-if="valueFields.length > 0" class="pa-5 mb-4">
         <v-row dense>
-          <v-col v-for="field in valueFields" :key="field.key" cols="12" lg="6">
+          <v-col v-for="field in valueFields" :key="field.key" cols="12" lg="6" :data-setting-id="settingId(field.key)">
             <FirmwareFieldInput
               v-model="settings[field.key]"
               :field="field"
@@ -99,7 +99,7 @@ function errorFor(field: FirmwareFieldDto): string | undefined {
         <v-list lines="two" class="py-0">
           <template v-for="(field, index) in switchFields" :key="field.key">
             <v-divider v-if="index > 0" />
-            <v-list-item :title="field.label" :subtitle="field.description ?? ''">
+            <v-list-item :title="field.label" :subtitle="field.description ?? ''" :data-setting-id="settingId(field.key)">
               <template #append>
                 <v-switch
                   :model-value="settings[field.key] === true"
@@ -130,7 +130,11 @@ function errorFor(field: FirmwareFieldDto): string | undefined {
         <v-list lines="two" class="py-0">
           <template v-for="(field, index) in managedFields" :key="field.key">
             <v-divider v-if="index > 0" />
-            <v-list-item :title="field.label" :subtitle="field.description ?? 'Set per member by OpenMeshTak.'">
+            <v-list-item
+              :title="field.label"
+              :subtitle="field.description ?? 'Set per member by OpenMeshTak.'"
+              :data-setting-id="settingId(field.key)"
+            >
               <template #append>
                 <v-chip size="small" variant="tonal" label :prepend-icon="mdiLock">Managed</v-chip>
               </template>
@@ -148,11 +152,11 @@ function errorFor(field: FirmwareFieldDto): string | undefined {
   position: relative;
   opacity: 0.6;
 }
-/* Points at the section switch in the header above. */
+/* Points at the section switch in the header above, which sits left of the 320px search field. */
 .section-off__arrow {
   position: absolute;
   top: -10px;
-  right: 18px;
+  right: 360px;
   width: 80px;
   height: 48px;
   fill: none;
@@ -161,5 +165,10 @@ function errorFor(field: FirmwareFieldDto): string | undefined {
   opacity: 0.35;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+@media (max-width: 959px) {
+  .section-off__arrow {
+    display: none;
+  }
 }
 </style>

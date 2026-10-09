@@ -1,10 +1,10 @@
 <script setup lang="ts">
+import SettingsHeaderActions from "@/shared/settings/SettingsHeaderActions.vue";
 import { mdiPlus } from "@mdi/js";
 import { computed, onMounted, ref } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import EmptyState from "@/shared/components/EmptyState.vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
-import SectionHeader from "@/shared/components/layout/SectionHeader.vue";
 import { describeError, isApiProblem } from "@/shared/errors/api-problem";
 import { useToast } from "@/shared/feedback/toast";
 import { useSession } from "@/modules/auth/session";
@@ -192,22 +192,19 @@ onMounted(load);
       the Overview tab.
     </v-alert>
 
-    <SectionHeader
-      title="Channels"
-      :description="`${channels.length} of 8 channels. The first channel is the primary channel and reaches every member; the others reach only their audience.`"
-    >
-      <template #actions>
-        <v-btn
-          v-if="editable"
-          color="primary"
-          :prepend-icon="mdiPlus"
-          :disabled="channels.length >= 8"
-          @click="openChannel(null)"
-        >
-          Add channel
-        </v-btn>
-      </template>
-    </SectionHeader>
+    <SettingsHeaderActions>
+      <span class="text-body-medium text-medium-emphasis">{{ channels.length }} of 8 channels</span>
+      <v-btn
+        v-if="editable"
+        color="primary"
+        :prepend-icon="mdiPlus"
+        :disabled="channels.length >= 8"
+        data-setting-id="meshtastic:add-channel"
+        @click="openChannel(null)"
+      >
+        Add channel
+      </v-btn>
+    </SettingsHeaderActions>
 
     <v-alert v-if="members === null && state === 'ready'" type="info" density="compact" class="mb-4">
       Member names and recipient counts need permission to view event members.

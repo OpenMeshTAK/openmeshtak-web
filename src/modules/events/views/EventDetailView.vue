@@ -19,8 +19,7 @@ import MeshtasticPanel from "@/modules/meshtastic-configuration/MeshtasticPanel.
 import EventOverviewPanel from "../components/EventOverviewPanel.vue";
 import EventAccountsCard from "../components/EventAccountsCard.vue";
 import EventOptionsCard from "../components/EventOptionsCard.vue";
-import AtakSettingsCard from "@/modules/tak-configuration/AtakSettingsCard.vue";
-import TakGroupModeCard from "@/modules/tak-configuration/TakGroupModeCard.vue";
+import TakSettingsPanel from "@/modules/tak-configuration/TakSettingsPanel.vue";
 import EventSettingsForm from "../components/EventSettingsForm.vue";
 import EventStatusBadge from "../components/EventStatusBadge.vue";
 import { emptySettings, settingsFromEvent, settingsToRequest } from "../event-settings";
@@ -205,14 +204,7 @@ onMounted(load);
           <MeshtasticPanel :event-id="event.id" :editable="editable" />
         </v-window-item>
         <v-window-item value="tak">
-          <v-row>
-            <v-col cols="12">
-              <AtakSettingsCard :event-id="event.id" :editable="editable" />
-            </v-col>
-            <v-col cols="12">
-              <TakGroupModeCard :event-id="event.id" :editable="editable" />
-            </v-col>
-          </v-row>
+          <TakSettingsPanel :event-id="event.id" :editable="editable" />
         </v-window-item>
         <v-window-item value="sync-issues">
           <SyncIssuesPanel :event="event" @loaded="openSyncIssues = $event" />

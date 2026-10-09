@@ -136,29 +136,31 @@ onMounted(load);
       title="No TAK groups yet"
       text="Add groups such as Alpha, Bravo or Medics and choose who receives and sends in each."
     />
-    <v-table v-else density="comfortable">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Receive</th>
-          <th>Send</th>
-          <th class="d-none d-md-table-cell">Description</th>
-          <th v-if="editable" class="text-right">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="group in groups" :key="group.id">
-          <td>{{ group.name }}</td>
-          <td>{{ group.receiverCount }}</td>
-          <td>{{ group.senderCount }}</td>
-          <td class="d-none d-md-table-cell text-medium-emphasis">{{ group.description }}</td>
-          <td v-if="editable" class="text-right text-no-wrap">
-            <v-btn variant="text" size="small" @click="open(group)">Edit</v-btn>
-            <v-btn variant="text" size="small" color="error" @click="deleting = group">Delete</v-btn>
-          </td>
-        </tr>
-      </tbody>
-    </v-table>
+    <v-card v-else>
+      <v-table density="comfortable">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Receive</th>
+            <th>Send</th>
+            <th class="d-none d-md-table-cell">Description</th>
+            <th v-if="editable" class="text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="group in groups" :key="group.id">
+            <td>{{ group.name }}</td>
+            <td>{{ group.receiverCount }}</td>
+            <td>{{ group.senderCount }}</td>
+            <td class="d-none d-md-table-cell text-medium-emphasis">{{ group.description }}</td>
+            <td v-if="editable" class="text-right text-no-wrap">
+              <v-btn variant="text" size="small" @click="open(group)">Edit</v-btn>
+              <v-btn variant="text" size="small" color="error" @click="deleting = group">Delete</v-btn>
+            </td>
+          </tr>
+        </tbody>
+      </v-table>
+    </v-card>
 
     <v-dialog v-model="dialogOpen" max-width="720" scrollable>
       <v-card>
