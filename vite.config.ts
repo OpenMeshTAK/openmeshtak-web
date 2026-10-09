@@ -7,7 +7,8 @@ import { readFileSync } from "node:fs";
 /**
  * Installable app shell. Only the build output (scripts, styles, icons and index.html) is
  * precached; nothing from /api is ever cached, so authenticated responses and secret-bearing
- * downloads never land in the service worker cache.
+ * downloads never land in the service worker cache. Event data prepared for the offline HQ is
+ * stored separately in IndexedDB after an explicit operator request (see src/modules/offline).
  */
 const pwa = VitePWA({
   registerType: "autoUpdate",
@@ -27,6 +28,8 @@ const pwa = VitePWA({
       { src: "icons/icon.svg", sizes: "any", type: "image/svg+xml" },
       { src: "icons/maskable.svg", sizes: "any", type: "image/svg+xml", purpose: "maskable" },
     ],
+    // The offline HQ starts from browser storage alone, so the installed app offers it directly.
+    shortcuts: [{ name: "Offline HQ", url: "/offline", icons: [{ src: "icons/icon-192.png", sizes: "192x192", type: "image/png" }] }],
   },
   workbox: {
     globPatterns: ["**/*.{js,css,html,svg,png,woff,woff2}"],

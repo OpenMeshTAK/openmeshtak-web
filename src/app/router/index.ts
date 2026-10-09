@@ -20,6 +20,8 @@ declare module "vue-router" {
   interface RouteMeta {
     /** Reachable without a session (setup, sign-in, claim links). */
     public?: boolean;
+    /** Works from browser storage alone: no Core request, no session (offline HQ). */
+    offline?: boolean;
     /** Shows the route in the main navigation; see `navigationFromRoutes`. */
     navigation?: RouteNavigation;
   }
@@ -46,6 +48,19 @@ const routes: RouteRecordRaw[] = [
   publicPage("/register", "register", () => import("@/modules/registration/RegisterView.vue")),
   publicPage("/forgot-password", "forgot-password", () => import("@/modules/auth/ForgotPasswordView.vue")),
   publicPage("/reset-password", "reset-password", () => import("@/modules/auth/ResetPasswordView.vue")),
+  // The offline HQ must start without Core; its data comes only from browser storage.
+  {
+    path: "/offline",
+    name: "offline-home",
+    component: () => import("@/modules/offline/OfflineHomeView.vue"),
+    meta: { offline: true },
+  },
+  {
+    path: "/offline/:eventId",
+    name: "offline-live",
+    component: () => import("@/modules/offline/OfflineLiveView.vue"),
+    meta: { offline: true },
+  },
   // Signed in, but shown in the simple public layout: the account is not usable before setup.
   {
     path: "/account/setup",
@@ -190,6 +205,9 @@ export const router = createRouter({ history: createWebHistory(), routes });
  * conveniences for the user; Core enforces authentication and authorization on every request.
  */
 router.beforeEach(async (to) => {
+  if (to.meta.offline === true) {
+    return true;
+  }
   // While Core is starting or unreachable, the app shows a connecting screen and keeps trying.
   const setupComplete = await untilCoreAnswers(isSetupComplete);
   if (!setupComplete) {

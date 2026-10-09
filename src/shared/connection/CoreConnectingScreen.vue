@@ -8,7 +8,11 @@ import { coreConnection } from "./core-connection";
  * live connection breaks during work (`lost` true) it blurs the page underneath and can be
  * closed to keep reading; the app then shows a warning bar until the connection is back.
  */
-defineProps<{ lost?: boolean }>();
+defineProps<{
+  lost?: boolean;
+  /** Offers the offline HQ, which works without the server, when this browser stores an event for it. */
+  offlineAvailable?: boolean;
+}>();
 const emit = defineEmits<{ dismiss: [] }>();
 </script>
 
@@ -34,6 +38,7 @@ const emit = defineEmits<{ dismiss: [] }>();
           <template v-else>OpenMeshTak is starting or briefly unreachable. This page continues by itself as soon as it answers.</template>
           <template v-if="coreConnection.attempts > 3"><br>Still trying ({{ coreConnection.attempts }} attempts).</template>
         </div>
+        <v-btn v-if="offlineAvailable" to="/offline" variant="tonal" class="mt-6">Open offline HQ</v-btn>
       </div>
     </v-theme-provider>
   </Teleport>
