@@ -1,4 +1,4 @@
-import type { FeatureLike } from "ol/Feature";
+import Feature, { type FeatureLike } from "ol/Feature";
 import CircleGeometry from "ol/geom/Circle";
 import Polygon from "ol/geom/Polygon";
 import Point from "ol/geom/Point";
@@ -86,8 +86,30 @@ function withinLayerPriority(feature: FeatureLike, kind: string): number {
   return Math.round(1_000_000 / (1 + Math.sqrt(area)));
 }
 
-/** Style of one data package object; the name is shown when zoomed in or when selected. */
+const styleCache = new WeakMap<FeatureLike, { key: string; styles: Style[] }>();
+
+/**
+ * Style of one data package object; the name is shown when zoomed in or when selected.
+ * OpenLayers asks for every style on every frame, so the result is kept per feature until the
+ * feature changes (its revision), the selection, the label visibility or the uploaded icon state.
+ */
 export function objectStyle(feature: FeatureLike, resolution: number, selected: boolean): Style[] {
+  const labelled = selected || resolution <= LABEL_MAX_RESOLUTION;
+  const uploaded = feature.get("kind") === "point" ? uploadedIcon(feature, feature.get("iconImageUrl") as string | null, selected) : null;
+  if (!(feature instanceof Feature)) {
+    return buildObjectStyle(feature, labelled, selected, uploaded);
+  }
+  const key = `${String(feature.getRevision())}:${String(selected)}:${String(labelled)}:${String(uploaded !== null)}`;
+  const cached = styleCache.get(feature);
+  if (cached?.key === key) {
+    return cached.styles;
+  }
+  const styles = buildObjectStyle(feature, labelled, selected, uploaded);
+  styleCache.set(feature, { key, styles });
+  return styles;
+}
+
+function buildObjectStyle(feature: FeatureLike, labelled: boolean, selected: boolean, uploaded: ImageStyle | null): Style[] {
   const style = feature.get("objectStyle") as PackageObjectStyle;
   const kind = String(feature.get("kind"));
   const name = String(feature.get("name") ?? "");
@@ -97,21 +119,20 @@ export function objectStyle(feature: FeatureLike, resolution: number, selected: 
   const iconsetPath = feature.get("iconsetPath") as string | null;
   const symbol = kind === "point" && cotType !== null && (iconsetPath == null || cotType !== "a-u-G") ? symbolIcon(cotType, selected) : null;
   const standIn = kind === "point" && iconsetPath != null ? iconsetStandin(iconsetPath, style.color, selected) : null;
-  const uploaded = kind === "point" ? uploadedIcon(feature, feature.get("iconImageUrl") as string | null, selected) : null;
 
   const main = new Style({
     zIndex: objectPriority(feature),
     stroke: new Stroke({ color: style.color, width, lineDash: style.strokeStyle === "dashed" ? [width * 3, width * 2] : undefined }),
     fill: new Fill({ color: withOpacity(style.fillColor ?? style.color, style.fillOpacity) }),
     ...(kind === "point" ? { image: uploaded ?? symbol ?? standIn ?? dot(style.color, selected, cotType) } : {}),
-    ...(selected || resolution <= LABEL_MAX_RESOLUTION ? { text: label(name, kind, uploaded !== null || symbol !== null) } : {}),
+    ...(labelled ? { text: label(name, kind, uploaded !== null || symbol !== null) } : {}),
   });
   // A light halo under the selected shape keeps it visible on any base map.
   const styles = selected && kind !== "point"
     ? [new Style({ stroke: new Stroke({ color: "rgba(255, 255, 255, 0.9)", width: width + 4 }) }), main]
     : [main];
   const geometry = feature.getGeometry();
-  if (kind === "route" && geometry instanceof LineString && (selected || resolution <= LABEL_MAX_RESOLUTION)) {
+  if (kind === "route" && geometry instanceof LineString && labelled) {
     const points = feature.get("routePoints") as Array<{ type: string; name: string }> | null;
     geometry.getCoordinates().forEach((position, index) => {
       const point = points?.[index];

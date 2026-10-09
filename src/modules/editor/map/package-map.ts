@@ -94,6 +94,8 @@ export class PackageMap {
   private readonly snap: Snap;
   private draw: Draw | null = null;
   private originals = new Map<string, PackageGeometry>();
+  /** The object each feature was last drawn from, to skip unchanged objects in `setContent`. */
+  private readonly drawn = new Map<string, { object: PackageObjectDto; layerKey: string; geometryRevision: number }>();
   private selectedId: string | null = null;
   private canEdit = false;
   private iconUrls = new Map<string, string>();
@@ -217,43 +219,80 @@ export class PackageMap {
     return this.pointer;
   }
 
-  /** Replaces the rendered content. Hidden layers are not drawn; locked layers cannot be modified. */
+  /**
+   * Shows the given content. Hidden layers are not drawn; locked layers cannot be modified.
+   * Unchanged objects keep their map feature, so large packages are not rebuilt on every edit.
+   */
   setContent(layers: PackageLayerDto[], objects: PackageObjectDto[]): void {
     const byId = new Map(layers.map((layer) => [layer.id, layer]));
     // Rank 0 is the bottom layer; higher layers are drawn and hit-tested above lower ones.
     const rank = new Map([...layers].sort((a, b) => a.sortOrder - b.sortOrder).map(({ id }, index) => [id, index]));
     this.originals = new Map(objects.map((object) => [object.id, object.geometry]));
-    this.source.clear();
-    this.source.addFeatures(
-      objects
-        .filter((object) => byId.get(object.layerId)?.visible === true)
-        .map((object) => {
-          const feature = new Feature<Geometry>({ geometry: toMapGeometry(object.geometry) });
-          feature.setId(object.id);
-          feature.set("objectStyle", object.style);
-          feature.set("kind", object.kind);
-          feature.set("layerRank", rank.get(object.layerId) ?? 0);
-          feature.set("name", object.name);
-          feature.set("cotType", object.tak?.cotType ?? null);
-          feature.set("iconsetPath", object.tak?.iconsetPath ?? null);
-          feature.set("packageId", object.packageId);
-          const iconPath = object.tak?.iconsetPath ?? "";
-          feature.set("iconImageUrl", this.iconUrls.get(`${object.packageId}:${iconPath}`) ?? this.iconUrls.get(`*:${iconPath}`) ?? null);
-          feature.set("routePoints", object.geometry.type === "Route" ? object.geometry.points : null);
-          feature.set("locked", byId.get(object.layerId)?.locked === true);
-          return feature;
-        }),
-    );
+    const shown = new Set<string>();
+    const added: Feature<Geometry>[] = [];
+    for (const object of objects) {
+      const layer = byId.get(object.layerId);
+      if (layer?.visible !== true) continue;
+      shown.add(object.id);
+      const layerRank = rank.get(object.layerId) ?? 0;
+      const layerKey = `${String(layerRank)}:${String(layer.locked)}`;
+      const feature = this.source.getFeatureById(object.id);
+      const drawn = this.drawn.get(object.id);
+      if (feature === null || drawn === undefined) {
+        const created = new Feature<Geometry>({ geometry: toMapGeometry(object.geometry) });
+        created.setId(object.id);
+        created.setProperties(this.featureProperties(object, layerRank, layer.locked), true);
+        this.remember(object, layerKey, created);
+        added.push(created);
+        continue;
+      }
+      const sameObject = drawn.object === object || drawn.object.version === object.version;
+      // A failed edit re-sends the same object; the map must then drop the unsaved geometry.
+      const untouched = feature.getGeometry()?.getRevision() === drawn.geometryRevision;
+      if (sameObject && untouched && drawn.layerKey === layerKey) continue;
+      if (!sameObject || !untouched) feature.setGeometry(toMapGeometry(object.geometry));
+      feature.setProperties(this.featureProperties(object, layerRank, layer.locked), true);
+      feature.changed();
+      this.remember(object, layerKey, feature);
+    }
+    const removed = this.source.getFeatures().filter((feature) => !shown.has(String(feature.getId())));
+    for (const feature of removed) this.drawn.delete(String(feature.getId()));
+    if (removed.length > 0) this.source.removeFeatures(removed);
+    if (added.length > 0) this.source.addFeatures(added);
     this.highlight(this.selectedId);
+  }
+
+  private featureProperties(object: PackageObjectDto, layerRank: number, locked: boolean): Record<string, unknown> {
+    const iconPath = object.tak?.iconsetPath ?? "";
+    return {
+      objectStyle: object.style,
+      kind: object.kind,
+      layerRank,
+      name: object.name,
+      cotType: object.tak?.cotType ?? null,
+      iconsetPath: object.tak?.iconsetPath ?? null,
+      packageId: object.packageId,
+      iconImageUrl: this.iconUrls.get(`${object.packageId}:${iconPath}`) ?? this.iconUrls.get(`*:${iconPath}`) ?? null,
+      routePoints: object.geometry.type === "Route" ? object.geometry.points : null,
+      locked,
+    };
+  }
+
+  private remember(object: PackageObjectDto, layerKey: string, feature: Feature<Geometry>): void {
+    this.drawn.set(object.id, { object, layerKey, geometryRevision: feature.getGeometry()?.getRevision() ?? -1 });
   }
 
   setIconUrls(urls: Map<string, string>): void {
     this.iconUrls = urls;
     for (const feature of this.source.getFeatures()) {
       const iconPath = String(feature.get("iconsetPath") ?? "");
-      feature.set("iconImageUrl", urls.get(`${String(feature.get("packageId"))}:${iconPath}`) ?? urls.get(`*:${iconPath}`) ?? null);
+      const url = urls.get(`${String(feature.get("packageId"))}:${iconPath}`) ?? urls.get(`*:${iconPath}`) ?? null;
+      if (url !== feature.get("iconImageUrl")) {
+        feature.set("iconImageUrl", url, true);
+        // Properties do not change the revision on their own; styles are cached per revision.
+        feature.changed();
+      }
     }
-    this.source.changed();
   }
 
   /**
