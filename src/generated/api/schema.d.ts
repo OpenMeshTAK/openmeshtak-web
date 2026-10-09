@@ -290,6 +290,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/events/{eventId}/tak-traffic/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Recorded positions between `from` and `to` (at most 31 days), grouped into tracks per CoT UID
+         *     and split wherever positions are more than `gapSeconds` apart, jump implausibly or are only
+         *     approximate. `groupId` keeps positions sent by members of one event group; `uid` keeps one
+         *     track. At most 20,000 positions, oldest first; `truncated` says the newest are missing.
+         *     Requires `tak-traffic.view`; every request is audited.
+         */
+        get: operations["GetTakTrafficHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{eventId}/tak-traffic/history/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description The same tracks as GeoJSON (one feature per continuous segment) or GPX (one track per UID,
+         *     one segment per continuous part, approximate positions as waypoints), at most 50,000
+         *     positions. Requires `tak-traffic.view`; every export is audited.
+         */
+        get: operations["ExportTakTracks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{eventId}/tak-traffic/recording/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * @description Deletes the event's recorded traffic now instead of after the retention, or only the items of
+         *     one CoT UID. Requires `events.manage`; audited.
+         */
+        delete: operations["DeleteRecordedTakTraffic"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tak-server/settings": {
         parameters: {
             query?: never;
@@ -2927,6 +2991,85 @@ export interface components {
             enabled: boolean;
             /** Format: int32 */
             retentionDays: number;
+        };
+        /** @description The OpenMeshTak user whose TAK app sent a track, with their event group when still a member. */
+        TakTrackSenderDto: {
+            userId: components["schemas"]["Uuid"];
+            displayName: string;
+            eventGroupId: components["schemas"]["Uuid"] | null;
+            eventGroupName: string | null;
+        };
+        /** @description One recorded position on a track. */
+        TakTrackPointDto: {
+            /**
+             * Format: date-time
+             * @description When the sender says the position was taken.
+             */
+            time: string;
+            /** Format: double */
+            lat: number;
+            /** Format: double */
+            lon: number;
+            /**
+             * Format: double
+             * @description Circular error in metres, or null when the sender did not say.
+             */
+            ce: number | null;
+            /** @description Reached Core more than a minute after its own time, for example relayed over a mesh. */
+            delayed: boolean;
+            /** @description A large circular error or a human estimate; never connected to other positions. */
+            approximate: boolean;
+        };
+        /** @description The recorded movement of one CoT UID, such as a member's device or a marker. */
+        TakTrackDto: {
+            uid: string;
+            /** @description Newest CoT type in the range. */
+            type: string;
+            callsign: string | null;
+            /** @description At least one position was the app's own beacon rather than a marker it placed. */
+            selfReported: boolean;
+            sender: components["schemas"]["TakTrackSenderDto"];
+            /** Format: double */
+            pointCount: number;
+            /**
+             * Format: double
+             * @description Positions dropped because another position of the same UID carried the same time.
+             */
+            duplicatesDropped: number;
+            /**
+             * @description Continuous parts ordered by time. Lines are drawn only inside a segment; a gap, an implausible
+             *     jump or an approximate position starts a new one.
+             */
+            segments: components["schemas"]["TakTrackPointDto"][][];
+        };
+        TakTrafficHistoryGroupDto: {
+            id: components["schemas"]["Uuid"];
+            name: string;
+        };
+        /** @description Recorded positions of an event within a time range, grouped into tracks. */
+        TakTrafficHistoryDto: {
+            /** Format: date-time */
+            from: string;
+            /** Format: date-time */
+            to: string;
+            /** Format: double */
+            gapSeconds: number;
+            /** @description More positions were recorded than one answer holds; the newest ones are missing. */
+            truncated: boolean;
+            /**
+             * Format: double
+             * @description Most positions one answer contains.
+             */
+            maxPoints: number;
+            tracks: components["schemas"]["TakTrackDto"][];
+            /** @description The event's groups, for filtering. */
+            groups: components["schemas"]["TakTrafficHistoryGroupDto"][];
+        };
+        /** @enum {string} */
+        TakTrafficExportFormat: "geojson" | "gpx";
+        DeletedTakTrafficDto: {
+            /** Format: double */
+            deleted: number;
         };
         /** @description The certificate the TAK listeners present. The private key is never returned. */
         TakServerCertificateDto: {
@@ -7145,6 +7288,190 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetTakTrafficHistory: {
+        parameters: {
+            query: {
+                /** @description RFC 3339 instant with offset. */
+                from: string;
+                /** @description RFC 3339 instant with offset. */
+                to: string;
+                groupId?: components["schemas"]["Uuid"];
+                /** @description CoT UID of one track. */
+                uid?: string;
+                /** @description Seconds without a position after which a track is broken. Default 300. */
+                gapSeconds?: number;
+            };
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Recorded tracks */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TakTrafficHistoryDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ExportTakTracks: {
+        parameters: {
+            query: {
+                format: components["schemas"]["TakTrafficExportFormat"];
+                from: string;
+                to: string;
+                groupId?: components["schemas"]["Uuid"];
+                uid?: string;
+                gapSeconds?: number;
+            };
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tracks as GeoJSON or GPX */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeleteRecordedTakTraffic: {
+        parameters: {
+            query?: {
+                uid?: string;
+            };
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Recorded traffic deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletedTakTrafficDto"];
                 };
             };
             /** @description Authentication required */

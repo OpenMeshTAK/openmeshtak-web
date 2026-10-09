@@ -86,6 +86,11 @@ const routes: RouteRecordRaw[] = [
     component: () => import("@/modules/tak-server/LiveTrafficView.vue"),
   },
   {
+    path: "/admin/events/:eventId/history",
+    name: "event-history",
+    component: () => import("@/modules/tak-server/TrafficHistoryView.vue"),
+  },
+  {
     path: "/admin/events/:eventId/data-packages/:packageId",
     name: "package-editor",
     component: () => import("@/modules/editor/PackageEditorView.vue"),

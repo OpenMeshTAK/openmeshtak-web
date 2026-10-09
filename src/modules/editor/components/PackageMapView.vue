@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import "ol/ol.css";
+import type BaseLayer from "ol/layer/Base";
 import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type { PackageGeometry, PackageLayerDto, PackageObjectDto } from "@/modules/data-packages/data-packages.api";
 import type { LiveMapItem } from "../map/live-layer";
@@ -40,6 +41,12 @@ const container = ref<HTMLElement | null>(null);
 const baseMaps = ref<BaseMapLayer[]>([]);
 const activeBaseMapId = ref("");
 let map: PackageMap | null = null;
+/** Overlays handed over before the map exists join it when it is created. */
+const pendingOverlays: BaseLayer[] = [];
+function addOverlayLayers(layers: readonly BaseLayer[]): void {
+  if (map === null) pendingOverlays.push(...layers);
+  else map.addOverlayLayers(layers);
+}
 let resizeObserver: ResizeObserver | null = null;
 function selectBaseMap(id: string, remember = true): void {
   const layer = baseMaps.value.find((candidate) => candidate.id === id);
@@ -85,6 +92,7 @@ onMounted(() => {
   if (!props.offline) void loadIcons();
   map.setMapContent(props.contents, props.layers);
   map.setLiveItems(props.live);
+  map.addOverlayLayers(pendingOverlays.splice(0));
   map.setRemoteSelections(props.remoteSelections);
   if (!props.offline) void loadBaseMap().then((settings) => {
     if (map === null) return;
@@ -132,6 +140,9 @@ defineExpose({
   selectBaseMap,
   clearMeasurements: () => map?.clearMeasurements(),
   zoomToLive: (uid: string) => map?.zoomToLive(uid),
+  addOverlayLayers,
+  fitExtent: (extent: number[]) => map?.fitExtent(extent),
+  centerOn: (coordinate: number[]) => map?.centerOn(coordinate),
   fitToContent: () => map?.fitToContent(),
   zoomToContent: (contentId: string) => map?.zoomToContent(contentId),
   pointerPosition: () => map?.pointerPosition() ?? null,

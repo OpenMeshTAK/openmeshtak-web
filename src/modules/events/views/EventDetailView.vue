@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { mdiAccessPointNetwork, mdiMapMarkerRadiusOutline } from "@mdi/js";
+import { mdiAccessPointNetwork, mdiMapClock, mdiMapMarkerRadiusOutline } from "@mdi/js";
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import ErrorState from "@/shared/components/ErrorState.vue";
@@ -145,6 +145,15 @@ onMounted(load);
             :prepend-icon="mdiAccessPointNetwork"
           >
             Live TAK
+          </v-btn>
+          <v-btn
+            v-if="session.can('tak-traffic.view', event.id)"
+            :to="{ name: 'event-history', params: { eventId: event.id } }"
+            variant="text"
+            size="small"
+            :prepend-icon="mdiMapClock"
+          >
+            History
           </v-btn>
           <v-btn
             v-if="event.status === 'active' && session.can('data-packages.read', event.id)"
