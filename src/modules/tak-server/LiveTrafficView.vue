@@ -1,18 +1,16 @@
 <script setup lang="ts">
-import { mdiArrowLeft, mdiCrosshairsGps } from "@mdi/js";
+import { mdiArrowLeft, mdiCrosshairsGps, mdiMapClock } from "@mdi/js";
 import type { Socket } from "socket.io-client";
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import ErrorState from "@/shared/components/ErrorState.vue";
-import { describeError, isApiProblem } from "@/shared/errors/api-problem";
+import { describeError } from "@/shared/errors/api-problem";
 import { connectRealtime } from "@/shared/realtime/realtime";
-import { listDataPackages } from "@/modules/data-packages/data-packages.api";
-import { topFirst } from "@/modules/data-packages/package-order";
 import EditorToolbar from "@/modules/editor/components/EditorToolbar.vue";
 import PackageMapView from "@/modules/editor/components/PackageMapView.vue";
-import { mapContentItems } from "@/modules/editor/map/map-content";
-import { usePackageEditor, type PackageEditor } from "@/modules/editor/usePackageEditor";
+import { formatAge } from "./history/track-timeline";
 import type { LiveTakTrafficDto } from "./tak-server.api";
+import { useEventMapContent } from "./useEventMapContent";
 
 /**
  * Read-only event map with the live TAK traffic of the built-in server on top: the event's Data
@@ -23,7 +21,7 @@ const route = useRoute();
 const router = useRouter();
 const eventId = String(route.params.eventId);
 
-const editors = shallowRef<PackageEditor[]>([]);
+const { layers: mapLayers, objects, contents, load: loadPackages } = useEventMapContent(eventId);
 const traffic = ref<LiveTakTrafficDto>({ connections: [], items: [] });
 const state = ref<"loading" | "ready" | "error">("loading");
 const error = ref("");
@@ -32,44 +30,18 @@ const connectionsOpen = ref(true);
 const connected = ref(false);
 let socket: Socket | null = null;
 
-const ordered = computed(() => {
-  const loaded = editors.value.flatMap((editor) => (editor.dataPackage.value === null ? [] : [{ editor, dataPackage: editor.dataPackage.value }]));
-  const order = topFirst(loaded.map(({ dataPackage }) => dataPackage)).map(({ id }) => id);
-  return loaded.sort((a, b) => order.indexOf(a.dataPackage.id) - order.indexOf(b.dataPackage.id));
-});
-/** Same drawing order as the event editor: the top package of the list is drawn last. */
-const mapLayers = computed(() =>
-  [...ordered.value]
-    .reverse()
-    .flatMap(({ editor }) => editor.sortedLayers.value)
-    .map((layer, sortOrder) => ({ ...layer, sortOrder })),
-);
-const objects = computed(() => ordered.value.flatMap(({ editor }) => editor.objects.value));
-const contents = computed(() => editors.value.flatMap((editor) => mapContentItems(editor.path, editor.contents.value)));
 const liveItems = computed(() => traffic.value.items);
-const timeFormat = new Intl.DateTimeFormat(undefined, { timeStyle: "medium" });
+const now = ref(Date.now());
+const clock = window.setInterval(() => (now.value = Date.now()), 5000);
+
+/** How long ago the app's own position was taken, from the position's own time. */
+function positionAge(callsign: string | null): string | null {
+  const item = traffic.value.items.find((candidate) => candidate.callsign !== null && candidate.callsign === callsign);
+  return item === undefined ? null : `position ${formatAge(now.value - Date.parse(item.time))} old`;
+}
 
 function itemOf(callsign: string | null): string | null {
   return traffic.value.items.find((item) => item.callsign !== null && item.callsign === callsign)?.uid ?? null;
-}
-
-/** Packages are optional context: without `data-packages.read` the view shows only live traffic. */
-async function loadPackages(): Promise<void> {
-  try {
-    const packages = await listDataPackages(eventId);
-    const loaded = await Promise.all(
-      packages.map(async ({ id }) => {
-        const editor = usePackageEditor(eventId, id);
-        await editor.load();
-        return editor;
-      }),
-    );
-    editors.value = loaded.filter(({ loadState }) => loadState.value !== "error");
-  } catch (caught: unknown) {
-    if (!isApiProblem(caught, "FORBIDDEN")) {
-      throw caught;
-    }
-  }
 }
 
 /** Core sends a full snapshot on connect and whenever the event's traffic changes. */
@@ -107,7 +79,10 @@ onMounted(async () => {
   }
 });
 
-onBeforeUnmount(() => socket?.disconnect());
+onBeforeUnmount(() => {
+  socket?.disconnect();
+  window.clearInterval(clock);
+});
 </script>
 
 <template>
@@ -120,6 +95,7 @@ onBeforeUnmount(() => socket?.disconnect());
           {{ traffic.connections.length }} connected · {{ traffic.items.length }} items · {{ connected ? "live" : "reconnecting…" }}
         </div>
       </div>
+      <v-btn :to="{ name: 'event-history', params: { eventId } }" variant="text" size="small" :prepend-icon="mdiMapClock">History</v-btn>
     </header>
 
     <ErrorState v-if="state === 'error'" :message="error" class="ma-6" />
@@ -158,7 +134,7 @@ onBeforeUnmount(() => socket?.disconnect());
             rounded="md"
             :title="connection.callsign ?? connection.userDisplayName"
             :subtitle="itemOf(connection.callsign)
-              ? `${connection.userDisplayName} · ${timeFormat.format(new Date(connection.lastSeenAt))}`
+              ? `${connection.userDisplayName} · ${positionAge(connection.callsign)}`
               : `${connection.userDisplayName} · no position yet`"
             :disabled="!itemOf(connection.callsign)"
             :prepend-icon="mdiCrosshairsGps"
