@@ -144,28 +144,26 @@ onBeforeUnmount(() => socket?.disconnect());
       />
 
       <v-sheet v-if="connectionsOpen" elevation="4" rounded="lg" class="live-panel">
-        <div class="text-title-small pa-3 pb-1">Connected apps</div>
+        <div class="d-flex align-center px-3 pt-3 pb-1">
+          <div class="text-title-small flex-grow-1">Connected apps</div>
+          <span class="text-body-small text-medium-emphasis">{{ traffic.connections.length }}</span>
+        </div>
         <p v-if="traffic.connections.length === 0" class="text-body-medium text-medium-emphasis px-3 pb-3 my-0">
           No TAK app of this event is connected.
         </p>
-        <v-list v-else density="compact" lines="two" class="pt-0">
+        <v-list v-else density="compact" lines="two" slim class="pa-1">
           <v-list-item
             v-for="connection in traffic.connections"
             :key="connection.id"
+            rounded="md"
             :title="connection.callsign ?? connection.userDisplayName"
-            :subtitle="`${connection.userDisplayName} · last seen ${timeFormat.format(new Date(connection.lastSeenAt))}`"
-          >
-            <template #append>
-              <v-btn
-                v-if="itemOf(connection.callsign)"
-                :icon="mdiCrosshairsGps"
-                variant="text"
-                size="small"
-                :aria-label="`Show ${connection.callsign ?? ''} on the map`"
-                @click="mapView?.zoomToLive(itemOf(connection.callsign) ?? '')"
-              />
-            </template>
-          </v-list-item>
+            :subtitle="itemOf(connection.callsign)
+              ? `${connection.userDisplayName} · ${timeFormat.format(new Date(connection.lastSeenAt))}`
+              : `${connection.userDisplayName} · no position yet`"
+            :disabled="!itemOf(connection.callsign)"
+            :prepend-icon="mdiCrosshairsGps"
+            @click="mapView?.zoomToLive(itemOf(connection.callsign) ?? '')"
+          />
         </v-list>
       </v-sheet>
     </main>
@@ -200,7 +198,7 @@ onBeforeUnmount(() => socket?.disconnect());
 .live-panel {
   position: absolute;
   top: 16px;
-  left: 76px;
+  right: 16px;
   z-index: 1;
   width: 300px;
   max-height: calc(100% - 32px);
@@ -209,7 +207,7 @@ onBeforeUnmount(() => socket?.disconnect());
 
 @media (max-width: 599px) {
   .live-panel {
-    right: 16px;
+    left: 76px;
     width: auto;
     max-height: 40%;
   }
