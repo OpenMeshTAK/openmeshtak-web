@@ -98,12 +98,6 @@ async function download(): Promise<void> {
 
 <template>
   <div>
-    <v-alert type="warning" variant="tonal" density="compact" class="mb-4">
-      Locking only greys out or hides items on ATAK's settings screens; it is not tamper-proof, because toolbars, imported
-      files and other apps can still change the values. It applies to the whole ATAK app, not only this event, and stays
-      on the device after the event until the unlock package is imported.
-    </v-alert>
-
     <v-card class="mb-4">
       <SettingsRow
         setting-id="tak:unlock"
@@ -138,6 +132,16 @@ async function download(): Promise<void> {
               <p class="mb-0">
                 Normal makes a locked item usable again on the next publish. Removing a row sends nothing, so devices keep the
                 lock they have.
+              </p>
+            </InfoHint>
+            <InfoHint tone="warning" label="Limits of locking">
+              <p class="mb-2">
+                Locking only greys out or hides items on ATAK's settings screens. It is not tamper-proof: toolbars, imported
+                files and other apps can still change the values.
+              </p>
+              <p class="mb-0">
+                Locks apply to the whole ATAK app, not only this event, and stay on the device after the event until the
+                unlock package is imported.
               </p>
             </InfoHint>
           </div>

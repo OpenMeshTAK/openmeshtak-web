@@ -26,7 +26,7 @@ withDefaults(defineProps<{ text?: string; label?: string; tone?: "info" | "warni
         <v-icon :icon="tone === 'warning' ? mdiAlertCircleOutline : mdiHelpCircleOutline" size="15" />
       </button>
     </template>
-    <v-card class="pa-4 text-body-medium">
+    <v-card class="info-hint-card pa-4 text-body-medium">
       <slot>{{ text }}</slot>
     </v-card>
   </v-menu>
@@ -60,6 +60,11 @@ withDefaults(defineProps<{ text?: string; label?: string; tone?: "info" | "warni
 .info-hint--warning:focus-visible,
 .info-hint--warning[aria-expanded="true"] {
   color: rgb(var(--v-theme-warning));
+}
+
+/* Paragraphs passed in bring a default top margin; spacing between them comes from mb-* classes. */
+.info-hint-card :deep(p) {
+  margin-top: 0;
 }
 
 .info-hint:focus-visible {
