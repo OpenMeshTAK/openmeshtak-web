@@ -7,6 +7,7 @@ import { fieldErrors } from "@/shared/errors/field-errors";
 import { useToast } from "@/shared/feedback/toast";
 import MeshtasticChannelsPanel from "@/modules/meshtastic-channels/MeshtasticChannelsPanel.vue";
 import TakConnectionSection from "@/modules/tak-configuration/TakConnectionSection.vue";
+import PresetsSection from "@/modules/settings-presets/PresetsSection.vue";
 import FirmwareSection from "./components/FirmwareSection.vue";
 import SettingsSection from "./components/SettingsSection.vue";
 import { meshtasticSearchIndex, meshtasticSections } from "./meshtastic-settings";
@@ -65,6 +66,7 @@ const problemFields = computed(() =>
   Object.fromEntries((configuration.value?.problems ?? []).map(({ field, message }) => [field, message])),
 );
 const errors = computed(() => ({ ...problemFields.value, ...saveErrors.value }));
+const fieldLabels = computed(() => Object.fromEntries((profile.value?.fields ?? []).map(({ key, label }) => [key, label])));
 
 function sectionHasProblem(sectionId: string): boolean {
   return visibleFields.value.some(
@@ -93,6 +95,15 @@ async function load(): Promise<void> {
   } catch (caught: unknown) {
     loadError.value = describeError(caught);
     state.value = "error";
+  }
+}
+
+/** An imported preset changed the draft on the server. */
+async function reload(): Promise<void> {
+  try {
+    await show(await getConfiguration(props.eventId));
+  } catch (caught: unknown) {
+    toast.error(caught);
   }
 }
 
@@ -141,6 +152,15 @@ onMounted(load);
       />
       <MeshtasticChannelsPanel v-else-if="selected === 'channels'" :event-id="eventId" :editable="editable" :active="false" />
       <TakConnectionSection v-else-if="selected === 'tak-connection'" :event-id="eventId" :editable="editable" />
+      <PresetsSection
+        v-else-if="selected === 'presets'"
+        kind="meshtastic"
+        :event-id="eventId"
+        :editable="editable"
+        :dirty="dirty"
+        :labels="fieldLabels"
+        @imported="reload"
+      />
       <template v-else-if="currentSection">
         <SettingsSection
           v-model="draft"
