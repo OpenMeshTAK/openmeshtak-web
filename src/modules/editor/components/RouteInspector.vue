@@ -71,26 +71,30 @@ function commitCue(): void {
     <v-btn :icon="mdiPlus" size="small" variant="text" aria-label="Insert checkpoint next to this point" :disabled="disabled || geometry.points.length >= 10000" @click="addPoint" />
     <v-btn :icon="mdiTrashCanOutline" size="small" variant="text" aria-label="Remove route point and its navigation cue" :disabled="disabled || geometry.points.length <= 2" @click="removePoint" />
   </div>
-  <v-select :model-value="point?.type" :items="[{ title: 'Waypoint', value: 'waypoint' }, { title: 'Checkpoint', value: 'checkpoint' }]" label="Point type" density="compact" :disabled="disabled" @update:model-value="change({ ...geometry, points: geometry.points.map((item, index) => index === selected ? { ...item, type: $event } : item) })" />
+  <v-select :model-value="point?.type" :items="[{ title: 'Waypoint', value: 'waypoint' }, { title: 'Checkpoint', value: 'checkpoint' }]" label="Point type" density="compact" :disabled="disabled" @update:model-value="change({ ...geometry, points: geometry.points.map((item, index) => index === selected ? { ...item, type: $event ?? item.type } : item) })" />
   <v-text-field v-model="draft.name" label="Point name" density="compact" maxlength="100" :disabled="disabled" @blur="commitPoint" />
   <v-textarea v-model="draft.remarks" label="Point remarks" rows="2" density="compact" maxlength="2000" :disabled="disabled" @blur="commitPoint" />
   <v-text-field v-model="draft.latitude" label="Point latitude" density="compact" :disabled="disabled" @blur="commitPoint" />
   <v-text-field v-model="draft.longitude" label="Point longitude" density="compact" :disabled="disabled" @blur="commitPoint" />
   <v-text-field v-model="draft.altitude" label="Point altitude (m HAE, optional)" density="compact" :disabled="disabled" @blur="commitPoint" />
   <v-expansion-panels variant="accordion">
-    <v-expansion-panel title="Route options"><v-expansion-panel-text>
-      <v-text-field v-for="option in options" :key="option.key" :model-value="geometry.options[option.key] ?? ''" :label="option.label" maxlength="64" density="compact" :disabled="disabled" @change="change({ ...geometry, options: { ...geometry.options, [option.key]: ($event.target as HTMLInputElement).value } })" />
-    </v-expansion-panel-text></v-expansion-panel>
-    <v-expansion-panel title="Navigation cue for this point"><v-expansion-panel-text>
-      <v-textarea v-model="cue.text" label="Text cue" rows="2" maxlength="2000" density="compact" :disabled="disabled" @blur="commitCue" />
-      <v-textarea v-model="cue.voice" label="Voice cue" rows="2" maxlength="2000" density="compact" :disabled="disabled" @blur="commitCue" />
-      <div v-for="(trigger, index) in cue.triggers" :key="index">
-        <v-select v-model="trigger.mode" :items="[{ title: 'Distance', value: 'd' }, { title: 'Time', value: 't' }]" label="Trigger" density="compact" :disabled="disabled" @update:model-value="commitCue" />
-        <v-text-field v-model.number="trigger.value" label="Trigger value" type="number" min="0" step="1" density="compact" :disabled="disabled" @blur="commitCue" />
-        <v-btn size="small" variant="text" :disabled="disabled" @click="cue.triggers.splice(index, 1); commitCue()">Remove trigger</v-btn>
-      </div>
-      <v-btn size="small" variant="text" :disabled="disabled || cue.triggers.length >= 16" @click="cue.triggers.push({ mode: 'd', value: 100 }); commitCue()">Add distance trigger</v-btn>
-    </v-expansion-panel-text></v-expansion-panel>
+    <v-expansion-panel title="Route options">
+      <v-expansion-panel-text>
+        <v-text-field v-for="option in options" :key="option.key" :model-value="geometry.options[option.key] ?? ''" :label="option.label" maxlength="64" density="compact" :disabled="disabled" @change="change({ ...geometry, options: { ...geometry.options, [option.key]: ($event.target as HTMLInputElement).value } })" />
+      </v-expansion-panel-text>
+    </v-expansion-panel>
+    <v-expansion-panel title="Navigation cue for this point">
+      <v-expansion-panel-text>
+        <v-textarea v-model="cue.text" label="Text cue" rows="2" maxlength="2000" density="compact" :disabled="disabled" @blur="commitCue" />
+        <v-textarea v-model="cue.voice" label="Voice cue" rows="2" maxlength="2000" density="compact" :disabled="disabled" @blur="commitCue" />
+        <div v-for="(trigger, index) in cue.triggers" :key="index">
+          <v-select v-model="trigger.mode" :items="[{ title: 'Distance', value: 'd' }, { title: 'Time', value: 't' }]" label="Trigger" density="compact" :disabled="disabled" @update:model-value="commitCue" />
+          <v-text-field v-model.number="trigger.value" label="Trigger value" type="number" min="0" step="1" density="compact" :disabled="disabled" @blur="commitCue" />
+          <v-btn size="small" variant="text" :disabled="disabled" @click="cue.triggers.splice(index, 1); commitCue()">Remove trigger</v-btn>
+        </div>
+        <v-btn size="small" variant="text" :disabled="disabled || cue.triggers.length >= 16" @click="cue.triggers.push({ mode: 'd', value: 100 }); commitCue()">Add distance trigger</v-btn>
+      </v-expansion-panel-text>
+    </v-expansion-panel>
   </v-expansion-panels>
   <v-alert v-if="error" type="error" density="compact" class="mt-2">{{ error }}</v-alert>
 </template>

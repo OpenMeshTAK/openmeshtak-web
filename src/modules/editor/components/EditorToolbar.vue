@@ -20,7 +20,7 @@ const props = withDefaults(defineProps<{
   baseMapId?: string;
   viewOnly?: boolean;
   layersLabel?: string;
-}>(), { baseMaps: () => [], baseMapId: "", viewOnly: false, layersLabel: "layers" });
+}>(), { undoLabel: null, redoLabel: null, baseMaps: () => [], baseMapId: "", viewOnly: false, layersLabel: "layers" });
 const tool = defineModel<EditorTool>("tool", { required: true });
 defineEmits<{ fit: []; toggleLayers: []; undo: []; redo: []; clearMeasurements: []; changeBaseMap: [id: string] }>();
 

@@ -321,8 +321,8 @@ export class PackageMap {
     this.contentGroup.getLayers().extend(shown);
   }
 
-  setTool(tool: EditorTool): void {
-    if (!this.canEdit && tool !== "select" && tool !== "measure-length" && tool !== "measure-area") tool = "select";
+  setTool(requested: EditorTool): void {
+    const tool = this.canEdit || requested === "measure-length" || requested === "measure-area" ? requested : "select";
     if (this.draw !== null) {
       this.map.removeInteraction(this.draw);
       this.draw = null;
@@ -334,7 +334,7 @@ export class PackageMap {
     this.highlight(this.selectedId);
     const measuring = tool === "measure-length" || tool === "measure-area";
     this.measurements.setTool(measuring ? tool : null);
-    if (tool === "measure-length" || tool === "measure-area") {
+    if (measuring) {
       this.map.removeInteraction(this.snap);
       this.map.addInteraction(this.snap);
       return;

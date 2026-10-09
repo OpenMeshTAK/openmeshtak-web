@@ -11,6 +11,7 @@ import type { PackageGeometry } from "@/modules/data-packages/data-packages.api"
 import { ellipseFromHandle, ellipseHandles, ellipsePolygon, type EllipseHandle } from "./shape-editing";
 
 type EllipseGeometry = Extract<PackageGeometry, { type: "Ellipse" }>;
+type PointerEventTarget = { on(types: string[], listener: (event: MapBrowserEvent<PointerEvent>) => void): unknown };
 
 /** Independent handles keep an ellipse parametric instead of letting Modify edit its polygon. */
 export class EllipseEditor {
@@ -24,8 +25,9 @@ export class EllipseEditor {
 
   constructor(map: OlMap, preview: (geometry: ReturnType<typeof ellipsePolygon>) => void, commit: (id: string, geometry: EllipseGeometry) => void) {
     // Map listeners run before interactions, so each preview sees the current modifier state.
-    map.on(["pointerdown", "pointerdrag", "pointerup"], (event) => { this.shiftHeld = event.originalEvent.shiftKey; });
-    const nearRotationHandle = (event: MapBrowserEvent<PointerEvent>) => {
+    // OpenLayers dispatches pointerdown and pointerup on the map, but its typings omit them.
+    (map as unknown as PointerEventTarget).on(["pointerdown", "pointerdrag", "pointerup"], (event) => { this.shiftHeld = event.originalEvent.shiftKey; });
+    const nearRotationHandle = (event: MapBrowserEvent) => {
       const feature = this.source.getClosestFeatureToCoordinate(event.coordinate);
       if (feature?.get("handle") !== "rotation") return false;
       const position = feature.getGeometry()?.getCoordinates();

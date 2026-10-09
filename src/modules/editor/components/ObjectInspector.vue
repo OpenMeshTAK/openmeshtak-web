@@ -23,7 +23,7 @@ type ObjectChanges = Partial<{
   tak: TakMarker | null;
 }>;
 
-const props = withDefaults(defineProps<{ object: PackageObjectDto; layers: PackageLayerDto[]; editable: boolean; eventId?: string; contents?: PackageContentDto[] }>(), { contents: () => [] });
+const props = withDefaults(defineProps<{ object: PackageObjectDto; layers: PackageLayerDto[]; editable: boolean; eventId?: string; contents?: PackageContentDto[] }>(), { eventId: "", contents: () => [] });
 const emit = defineEmits<{ change: [changes: ObjectChanges]; duplicate: []; remove: [] }>();
 
 const name = ref("");

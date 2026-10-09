@@ -11,6 +11,8 @@ import { useToast } from "@/shared/feedback/toast";
 import { getMapSettings, saveMapSettings, type BaseMapLayer, type MapSettingsDto } from "./map-settings.api";
 import { newBaseMapLayer, type BaseMapPreset } from "./base-map-presets";
 
+// Bound from script: a literal {z}/{x}/{y} attribute confuses vue-tsc template scoping.
+const tileUrlPlaceholder = "https://tiles.example.org/{z}/{x}/{y}.png";
 const toast = useToast();
 const page = useAsyncData(getMapSettings, null as MapSettingsDto | null);
 const layers = ref<BaseMapLayer[]>([]);
@@ -75,7 +77,7 @@ onMounted(load);
             <v-col cols="12" sm="8"><v-text-field v-model="layer.providerName" label="Map name" maxlength="100" :disabled="saving" :error-messages="messagesFor(errors, `layers.${index}.providerName`)" /></v-col>
             <v-col cols="12" sm="4"><v-text-field v-model.number="layer.maxZoom" type="number" label="Max zoom" min="1" max="22" :disabled="saving" :error-messages="messagesFor(errors, `layers.${index}.maxZoom`)" /></v-col>
             <v-col cols="12">
-              <v-text-field v-model="layer.tileUrlTemplate" label="Tile URL" placeholder="https://tiles.example.org/{z}/{x}/{y}.png" :disabled="saving" :error-messages="messagesFor(errors, `layers.${index}.tileUrlTemplate`)">
+              <v-text-field v-model="layer.tileUrlTemplate" label="Tile URL" :placeholder="tileUrlPlaceholder" :disabled="saving" :error-messages="messagesFor(errors, `layers.${index}.tileUrlTemplate`)">
                 <template #append-inner><InfoHint label="About tile URL" text="An HTTPS XYZ template with {z}, {x} and {y}, or {-y} for TMS. The URL is visible to signed-in users; never put private server credentials here." /></template>
               </v-text-field>
             </v-col>
