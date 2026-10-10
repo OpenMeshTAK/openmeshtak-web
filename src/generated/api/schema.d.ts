@@ -6079,12 +6079,12 @@ export interface components {
             /** Format: double */
             tiles: number;
         };
-        /** @description Imported map content (exported unchanged), or an operator-provided editor-only icon library. */
+        /** @description Imported map content and files from TAK apps (exported unchanged), or an editor-only icon library. */
         PackageContentDto: {
             id: components["schemas"]["Uuid"];
             layerId: components["schemas"]["Uuid"];
             /** @enum {string} */
-            kind: "offline-map" | "nested-data-package" | "rubber-sheet" | "icon-library";
+            kind: "offline-map" | "nested-data-package" | "rubber-sheet" | "icon-library" | "file";
             name: string;
             /**
              * Format: double

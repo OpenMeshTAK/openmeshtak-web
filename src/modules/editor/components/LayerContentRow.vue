@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { mdiCrosshairsGps, mdiDelete, mdiDotsVertical, mdiEye, mdiEyeOff, mdiImageArea, mdiImageMultipleOutline, mdiMap, mdiPencil } from "@mdi/js";
+import { mdiCrosshairsGps, mdiDelete, mdiDotsVertical, mdiEye, mdiEyeOff, mdiImageArea, mdiImageMultipleOutline, mdiMap, mdiPaperclip, mdiPencil } from "@mdi/js";
 import { computed, ref } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import type { ContentChanges, PackageContentDto } from "@/modules/data-packages/data-packages.api";
 
 /**
- * One offline map or rubber sheet in the layer list. Visibility and opacity only change the
+ * One offline map, rubber sheet, icon library or file from a TAK app in the layer list. Visibility and opacity only change the
  * editor display; the file is exported unchanged.
  */
 const props = defineProps<{ content: PackageContentDto; editable: boolean; locked: boolean; layerVisible: boolean }>();
@@ -19,9 +19,13 @@ const opacity = ref(props.content.opacity);
 
 const isRubberSheet = computed(() => props.content.kind === "rubber-sheet");
 const isIconLibrary = computed(() => props.content.kind === "icon-library");
+const isFile = computed(() => props.content.kind === "file");
+// Icon libraries and files from TAK apps have nothing to draw on the map.
+const onMap = computed(() => !isIconLibrary.value && !isFile.value);
 const subtitle = computed(() => {
   const map = props.content.offlineMap;
   if (isIconLibrary.value) return "Icon library · editor only";
+  if (isFile.value) return "File from a TAK app";
   if (isRubberSheet.value) {
     return "Rubber sheet";
   }
@@ -46,7 +50,7 @@ function finishRename(): void {
 <template>
   <div>
     <v-list-item
-      :prepend-icon="isIconLibrary ? mdiImageMultipleOutline : isRubberSheet ? mdiImageArea : mdiMap"
+      :prepend-icon="isIconLibrary ? mdiImageMultipleOutline : isFile ? mdiPaperclip : isRubberSheet ? mdiImageArea : mdiMap"
       prepend-gap="10"
       class="ps-2"
       rounded="lg"
@@ -88,9 +92,9 @@ function finishRename(): void {
             <v-btn v-bind="menu" :icon="mdiDotsVertical" size="x-small" variant="text" :aria-label="`More for ${content.name}`" @click.stop="opacity = content.opacity" />
           </template>
           <v-list density="compact" min-width="240">
-            <v-list-item v-if="!isIconLibrary" title="Zoom to" :prepend-icon="mdiCrosshairsGps" @click="(menuOpen = false), emit('zoom')" />
+            <v-list-item v-if="onMap" title="Zoom to" :prepend-icon="mdiCrosshairsGps" @click="(menuOpen = false), emit('zoom')" />
             <v-list-item v-if="editable" title="Rename" :prepend-icon="mdiPencil" :disabled="locked" @click="startRename" />
-            <div v-if="!isIconLibrary" class="px-4 pt-2">
+            <div v-if="onMap" class="px-4 pt-2">
               <div class="text-body-small text-medium-emphasis">Opacity {{ Math.round(opacity * 100) }} %</div>
               <v-slider
                 v-model="opacity"
@@ -121,7 +125,7 @@ function finishRename(): void {
 
     <ConfirmDialog
       :model-value="removing"
-      :title="isIconLibrary ? 'Remove this icon library?' : 'Remove this map?'"
+      :title="isIconLibrary ? 'Remove this icon library?' : isFile ? 'Remove this file?' : 'Remove this map?'"
       confirm-label="Remove"
       confirm-color="error"
       @update:model-value="removing = false"
