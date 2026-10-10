@@ -38,10 +38,11 @@ async function ensureLoaded(): Promise<void> {
 }
 
 /**
- * Navigation hint only: hides links the user cannot use. Core still authorizes every request,
- * so this never replaces a server check.
+ * UI hint only. An event ID checks that event, null checks instance-wide grants, and omitting
+ * the scope checks for a grant on any event (e.g. the Events navigation entry). Core still
+ * authorizes every request, so this never replaces a server check.
  */
-function can(permission: Permission, eventId?: string): boolean {
+function can(permission: Permission, eventId?: string | null): boolean {
   return (state.principal?.permissions ?? []).some(
     (grant) =>
       grant.permission === permission &&

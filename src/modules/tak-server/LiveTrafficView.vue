@@ -7,6 +7,7 @@ import { useRoute, useRouter } from "vue-router";
 import ErrorState from "@/shared/components/ErrorState.vue";
 import { describeError } from "@/shared/errors/api-problem";
 import { connectRealtime } from "@/shared/realtime/realtime";
+import { useSession } from "@/modules/auth/session";
 import EditorToolbar from "@/modules/editor/components/EditorToolbar.vue";
 import PackageMapView from "@/modules/editor/components/PackageMapView.vue";
 import { formatAge } from "./history/track-timeline";
@@ -20,6 +21,7 @@ import { useEventMapContent } from "./useEventMapContent";
  */
 const route = useRoute();
 const router = useRouter();
+const session = useSession();
 const eventId = String(route.params.eventId);
 
 const { layers: mapLayers, objects, contents, load: loadPackages } = useEventMapContent(eventId);
@@ -96,7 +98,7 @@ onBeforeUnmount(() => {
           {{ traffic.connections.length }} connected · {{ traffic.items.length }} items · {{ connected ? "live" : "reconnecting…" }}
         </div>
       </div>
-      <v-btn :to="{ name: 'event-history', params: { eventId } }" variant="text" size="small" :prepend-icon="mdiMapClock">History</v-btn>
+      <v-btn v-if="session.can('tak-traffic.history', eventId)" :to="{ name: 'event-history', params: { eventId } }" variant="text" size="small" :prepend-icon="mdiMapClock">History</v-btn>
     </header>
 
     <ErrorState v-if="state === 'error'" :message="error" class="ma-6" />

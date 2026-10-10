@@ -36,10 +36,8 @@ const KIND_FILTERS = [
 ];
 const page = useAsyncData(() => listPresets(), [] as SettingsPresetSummaryDto[]);
 const shown = computed(() => page.data.value.filter((preset) => kind.value === "all" || preset.kind === kind.value));
-/** The library belongs to every event, so Core lets only instance-wide event managers change it. */
-const canWrite = computed(() =>
-  (session.state.principal?.permissions ?? []).some((grant) => grant.permission === "events.manage" && grant.eventId === null),
-);
+/** The library uses its own instance-wide write permission. */
+const canWrite = computed(() => session.can("presets.manage", null));
 
 const fileInput = ref<HTMLInputElement | null>(null);
 const fileError = ref("");

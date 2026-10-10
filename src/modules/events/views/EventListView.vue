@@ -106,7 +106,10 @@ interface QuickLink {
 /** Shortcuts at the end of each row; each one only appears with the permission its page needs. */
 function quickLinks(event: EventDto): QuickLink[] {
   const tab = (name: string): RouteLocationRaw => ({ name: "event-detail", params: { eventId: event.id, tab: name } });
-  const links: QuickLink[] = [{ label: "Members", icon: mdiAccountGroup, to: tab("members") }];
+  const links: QuickLink[] = [];
+  if (session.can("members.read", event.id)) {
+    links.push({ label: "Members", icon: mdiAccountGroup, to: tab("members") });
+  }
   if (session.can("data-packages.read", event.id)) {
     links.push(
       { label: "Data packages", icon: mdiPackageVariantClosed, to: tab("data-packages") },
@@ -115,6 +118,9 @@ function quickLinks(event: EventDto): QuickLink[] {
   }
   if (event.meshtasticEnabled) {
     links.push({ label: "Meshtastic", icon: mdiRadioTower, to: tab("meshtastic") });
+  }
+  if (session.can("missions.read", event.id)) {
+    links.push({ label: "Missions", icon: mdiMapLegend, to: tab("missions") });
   }
   if (event.status === "active" && session.can("tak-traffic.view", event.id)) {
     links.push({ label: "Live TAK", icon: mdiAccessPointNetwork, to: { name: "event-live", params: { eventId: event.id } } });
@@ -134,7 +140,7 @@ onMounted(events.load);
   <ViewContent>
     <ViewHeader title="Events" subtitle="Create events as drafts, configure them, then activate.">
       <template #actions>
-        <v-btn v-if="session.can('events.manage')" color="primary" :prepend-icon="mdiCalendarPlus" @click="createOpen = true">
+        <v-btn v-if="session.can('events.manage', null)" color="primary" :prepend-icon="mdiCalendarPlus" @click="createOpen = true">
           New event
         </v-btn>
       </template>
@@ -148,7 +154,7 @@ onMounted(events.load);
       title="No events yet"
       text="Create a draft event, configure it, then activate it for participants."
     >
-      <v-btn v-if="session.can('events.manage')" color="primary" :prepend-icon="mdiCalendarPlus" @click="createOpen = true">
+      <v-btn v-if="session.can('events.manage', null)" color="primary" :prepend-icon="mdiCalendarPlus" @click="createOpen = true">
         New event
       </v-btn>
     </EmptyState>

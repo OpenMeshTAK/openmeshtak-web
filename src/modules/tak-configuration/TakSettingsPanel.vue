@@ -10,6 +10,8 @@ import { listGroups, type EventGroupDto } from "@/modules/event-groups/event-gro
 import { listRoles, type EventRoleDto } from "@/modules/event-roles/event-roles.api";
 import { listMembers, type EventMemberDto } from "@/modules/members/members.api";
 import PresetsSection from "@/modules/settings-presets/PresetsSection.vue";
+import { useSession } from "@/modules/auth/session";
+import { canFindPresetAction } from "@/modules/settings-presets/preset-search";
 import AtakRestrictionsSection from "./AtakRestrictionsSection.vue";
 import AtakTargetedSection from "./AtakTargetedSection.vue";
 import AtakTopicSection from "./AtakTopicSection.vue";
@@ -43,6 +45,9 @@ import {
  */
 const props = defineProps<{ eventId: string; editable: boolean }>();
 const toast = useToast();
+const session = useSession();
+const settingsEditable = computed(() => props.editable && session.can("tak-settings.manage", props.eventId));
+const groupsEditable = computed(() => props.editable && session.can("tak-groups.manage", props.eventId));
 
 const catalog = ref<AtakPreferenceCatalogDto | null>(null);
 const list = ref<AtakPreferenceListDto | null>(null);
@@ -100,7 +105,10 @@ const problemSections = computed(() => {
   return sections;
 });
 const sections = computed(() => takSections(catalog.value, problemSections.value));
-const searchIndex = computed(() => takSearchIndex(catalog.value));
+const searchIndex = computed(() => takSearchIndex(catalog.value).filter((entry) =>
+  canFindPresetAction(entry.id, settingsEditable.value, session.can) &&
+  (settingsEditable.value || !["tak:import", "tak:add"].includes(entry.id)),
+));
 const currentTopic = computed(() => eventTopics(catalog.value).find((topic) => topicSectionId(topic.id) === selected.value) ?? null);
 
 /** Problems of entries for other targets would stay hidden on a topic page, so list them all. */
@@ -127,7 +135,7 @@ async function load(): Promise<void> {
       getAtakPreferences(props.eventId),
       listGroups(props.eventId),
       listRoles(props.eventId),
-      listMembers(props.eventId),
+      session.can("members.read", props.eventId) ? listMembers(props.eventId) : Promise.resolve([]),
     ]);
     catalog.value = loadedCatalog;
     groups.value = loadedGroups;
@@ -209,8 +217,8 @@ onMounted(load);
       label="TAK settings"
       @reveal="reveal"
     >
-      <TakGroupsSettings v-if="selected === 'groups'" :event-id="eventId" :editable="editable" />
-      <PresetsSection v-else-if="selected === 'presets'" kind="tak" :event-id="eventId" :editable="editable" :dirty="dirty" @imported="reloadList" />
+      <TakGroupsSettings v-if="selected === 'groups'" :event-id="eventId" :editable="settingsEditable" :groups-editable="groupsEditable" />
+      <PresetsSection v-else-if="selected === 'presets'" kind="tak" :event-id="eventId" :editable="settingsEditable" :dirty="dirty" @imported="reloadList" />
       <template v-else>
         <AtakRestrictionsSection
           v-if="selected === 'restrictions'"
@@ -218,7 +226,7 @@ onMounted(load);
           :event-id="eventId"
           :catalog="catalog"
           :target-items="targetItems"
-          :editable="editable"
+          :editable="settingsEditable"
           :errors="errors"
         />
         <AtakTargetedSection
@@ -226,7 +234,7 @@ onMounted(load);
           v-model:entries="entries"
           :catalog="catalog"
           :target-items="targetItems"
-          :editable="editable"
+          :editable="settingsEditable"
           :dirty="dirty"
           :importing="importing"
           :import-result="importResult"
@@ -239,7 +247,7 @@ onMounted(load);
           v-model:show-advanced="showAdvanced"
           :topic="currentTopic"
           :target-titles="targetTitles"
-          :editable="editable"
+          :editable="settingsEditable"
           :errors="errors"
         />
 
@@ -247,7 +255,7 @@ onMounted(load);
           <div v-for="problem in problemList" :key="problem">{{ problem }}</div>
         </v-alert>
         <v-slide-y-reverse-transition>
-          <v-card v-if="editable && dirty" class="save-bar d-flex align-center ga-3 pa-3 mt-4" elevation="4">
+          <v-card v-if="settingsEditable && dirty" class="save-bar d-flex align-center ga-3 pa-3 mt-4" elevation="4">
             <span class="text-body-medium flex-grow-1">You have unsaved ATAK settings.</span>
             <v-btn variant="text" :disabled="saving" @click="list !== null && show(list)">Discard</v-btn>
             <v-btn color="primary" :loading="saving" @click="save">Save changes</v-btn>

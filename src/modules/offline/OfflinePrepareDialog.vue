@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import InfoHint from "@/shared/components/InfoHint.vue";
+import { useSession } from "@/modules/auth/session";
 import { describeError } from "@/shared/errors/api-problem";
 import { listDataPackages, type DataPackageDto } from "@/modules/data-packages/data-packages.api";
 import { topFirst } from "@/modules/data-packages/package-order";
@@ -15,6 +16,7 @@ import ReadinessPanel from "./ReadinessPanel.vue";
  */
 const props = defineProps<{ eventId: string; eventName: string }>();
 const open = defineModel<boolean>({ required: true });
+const session = useSession();
 
 const packages = ref<DataPackageDto[]>([]);
 const selected = ref<string[]>([]);
@@ -34,8 +36,8 @@ async function load(): Promise<void> {
   error.value = "";
   try {
     const [regular, missions, existing] = await Promise.all([
-      listDataPackages(props.eventId, "package"),
-      listDataPackages(props.eventId, "mission"),
+      session.can("data-packages.read", props.eventId) ? listDataPackages(props.eventId, "package") : Promise.resolve([]),
+      session.can("missions.read", props.eventId) ? listDataPackages(props.eventId, "mission") : Promise.resolve([]),
       readSnapshot(props.eventId).catch(() => null),
     ]);
     packages.value = [...topFirst(regular), ...topFirst(missions)];

@@ -44,8 +44,8 @@ const creation = useSubmission();
 const removing = ref<DataPackageDto | null>(null);
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "short", timeStyle: "short" });
 
-const canEdit = computed(() => props.event.status !== "archived" && session.can("data-packages.edit", props.event.id));
-const canSync = computed(() => props.event.status !== "archived" && session.can("data-packages.publish", props.event.id));
+const canEdit = computed(() => props.event.status !== "archived" && session.can("missions.edit", props.event.id));
+const canSync = computed(() => props.event.status !== "archived" && session.can("missions.publish", props.event.id));
 
 function openEditor(): void {
   void router.push({ name: "mission-editor", params: { eventId: props.event.id } });

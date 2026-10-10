@@ -8,6 +8,8 @@ import { useToast } from "@/shared/feedback/toast";
 import MeshtasticChannelsPanel from "@/modules/meshtastic-channels/MeshtasticChannelsPanel.vue";
 import TakConnectionSection from "@/modules/tak-configuration/TakConnectionSection.vue";
 import PresetsSection from "@/modules/settings-presets/PresetsSection.vue";
+import { useSession } from "@/modules/auth/session";
+import { canFindPresetAction } from "@/modules/settings-presets/preset-search";
 import FirmwareSection from "./components/FirmwareSection.vue";
 import SettingsSection from "./components/SettingsSection.vue";
 import { meshtasticSearchIndex, meshtasticSections } from "./meshtastic-settings";
@@ -29,6 +31,12 @@ import {
  */
 const props = defineProps<{ eventId: string; editable: boolean }>();
 const toast = useToast();
+const session = useSession();
+const settingsEditable = computed(() => props.editable && session.can("meshtastic-settings.manage", props.eventId));
+const channelsEditable = computed(() => props.editable && session.can("meshtastic-channels.manage", props.eventId));
+const takEditable = computed(() => props.editable && session.can("tak-settings.manage", props.eventId));
+// Core's firmware catalog needs an event-editor grant even when this panel is read-only.
+const canReadFirmware = computed(() => session.can("events.manage") || session.can("meshtastic-settings.manage"));
 
 const configuration = ref<MeshtasticConfigurationDto | null>(null);
 const profile = ref<FirmwareProfileDto | null>(null);
@@ -57,7 +65,11 @@ const sections = computed(() =>
 const currentSection = computed(() => sections.value.find(({ id }) => id === selected.value));
 const menuSections = computed(() => meshtasticSections(sections.value, configuration.value?.firmwareVersion ?? "", sectionHasProblem));
 /** Rebuilt from the profile, so a firmware change never offers settings it does not support. */
-const searchIndex = computed(() => meshtasticSearchIndex(sections.value, visibleFields.value, profile.value?.enums ?? {}));
+const searchIndex = computed(() => meshtasticSearchIndex(sections.value, visibleFields.value, profile.value?.enums ?? {}).filter((entry) =>
+  canFindPresetAction(entry.id, settingsEditable.value, session.can) &&
+  (entry.id !== "meshtastic:firmware" || settingsEditable.value) &&
+  (entry.id !== "meshtastic:add-channel" || channelsEditable.value),
+));
 const dirty = computed(() =>
   configuration.value !== null &&
   Object.entries(draft.value).some(([key, value]) => configuration.value?.settings[key] !== value),
@@ -80,7 +92,7 @@ async function show(loaded: MeshtasticConfigurationDto): Promise<void> {
   configuration.value = loaded;
   draft.value = { ...loaded.settings };
   saveErrors.value = {};
-  if (loaded.profileId !== null && profile.value?.id !== loaded.profileId) {
+  if (canReadFirmware.value && loaded.profileId !== null && profile.value?.id !== loaded.profileId) {
     profile.value = await getFirmwareProfile(loaded.profileId);
   }
 }
@@ -88,7 +100,10 @@ async function show(loaded: MeshtasticConfigurationDto): Promise<void> {
 async function load(): Promise<void> {
   state.value = "loading";
   try {
-    const [loaded, available] = await Promise.all([getConfiguration(props.eventId), listFirmwareProfiles()]);
+    const [loaded, available] = await Promise.all([
+      getConfiguration(props.eventId),
+      canReadFirmware.value ? listFirmwareProfiles() : Promise.resolve([]),
+    ]);
     profiles.value = available;
     await show(loaded);
     state.value = "ready";
@@ -144,19 +159,19 @@ onMounted(load);
       <FirmwareSection
         v-if="selected === 'firmware'"
         :event-id="eventId"
-        :editable="editable"
+        :editable="settingsEditable"
         :configuration="configuration"
         :profile="profile"
         :profiles="profiles"
         @changed="show"
       />
-      <MeshtasticChannelsPanel v-else-if="selected === 'channels'" :event-id="eventId" :editable="editable" :active="false" />
-      <TakConnectionSection v-else-if="selected === 'tak-connection'" :event-id="eventId" :editable="editable" />
+      <MeshtasticChannelsPanel v-else-if="selected === 'channels'" :event-id="eventId" :editable="channelsEditable" :active="false" />
+      <TakConnectionSection v-else-if="selected === 'tak-connection'" :event-id="eventId" :editable="takEditable" />
       <PresetsSection
         v-else-if="selected === 'presets'"
         kind="meshtastic"
         :event-id="eventId"
-        :editable="editable"
+        :editable="settingsEditable"
         :dirty="dirty"
         :labels="fieldLabels"
         @imported="reload"
@@ -167,14 +182,14 @@ onMounted(load);
           :label="currentSection.label"
           :fields="visibleFields.filter((field) => field.section === currentSection?.id)"
           :enums="profile?.enums ?? {}"
-          :editable="editable"
+          :editable="settingsEditable"
           :errors="errors"
           :event-id="eventId"
           :configuration="configuration"
           @secrets-changed="configuration = $event"
         />
         <v-slide-y-reverse-transition>
-          <v-card v-if="editable && dirty" class="save-bar d-flex align-center ga-3 pa-3 mt-4" elevation="4">
+          <v-card v-if="settingsEditable && dirty" class="save-bar d-flex align-center ga-3 pa-3 mt-4" elevation="4">
             <span class="text-body-medium flex-grow-1">You have unsaved Meshtastic settings.</span>
             <v-btn variant="text" :disabled="saving" @click="discard">Discard</v-btn>
             <v-btn color="primary" :loading="saving" @click="save">Save changes</v-btn>

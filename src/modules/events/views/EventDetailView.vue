@@ -38,13 +38,22 @@ const settings = ref(emptySettings());
 const state = ref<"loading" | "ready" | "error">("loading");
 const loadError = ref("");
 const TABS = ["overview", "settings", "roles", "groups", "members", "meshtastic", "tak", "sync-issues", "data-packages", "missions"];
+const availableTabs = computed(() => TABS.filter((name) => {
+  if (name === "meshtastic") return event.value?.meshtasticEnabled !== false;
+  if (name === "members" || name === "sync-issues") return session.can("members.read", eventId.value);
+  if (name === "data-packages") return session.can("data-packages.read", eventId.value);
+  if (name === "missions") return session.can("missions.read", eventId.value);
+  return true;
+}));
+const mutable = computed(() => event.value !== null && event.value.status !== "archived");
+const canPrepareOffline = computed(() => session.can("offline-snapshots.prepare", eventId.value) &&
+  (session.can("data-packages.read", eventId.value) || session.can("missions.read", eventId.value)));
 
 /** The open tab lives in the URL, so reloads, links and the back button keep it. */
 const tab = computed({
   get: () => {
     const requested = String(route.params.tab ?? "");
-    const hidden = requested === "meshtastic" && event.value?.meshtasticEnabled === false;
-    return TABS.includes(requested) && !hidden ? requested : "overview";
+    return availableTabs.value.includes(requested) ? requested : "overview";
   },
   set: (next: string) => {
     void router.replace({ name: "event-detail", params: { eventId: eventId.value, tab: next === "overview" ? undefined : next } });
@@ -71,6 +80,10 @@ function show(loaded: EventDto): void {
 const openSyncIssues = ref(0);
 
 async function loadSyncIssueCount(): Promise<void> {
+  if (!session.can("members.read", eventId.value)) {
+    openSyncIssues.value = 0;
+    return;
+  }
   try {
     openSyncIssues.value = (await listOpenSyncIssues(eventId.value)).length;
   } catch {
@@ -147,7 +160,7 @@ onMounted(load);
             Live TAK
           </v-btn>
           <v-btn
-            v-if="session.can('tak-traffic.view', event.id)"
+            v-if="session.can('tak-traffic.history', event.id)"
             :to="{ name: 'event-history', params: { eventId: event.id } }"
             variant="tonal"
             size="small"
@@ -156,7 +169,7 @@ onMounted(load);
             History
           </v-btn>
           <v-btn
-            v-if="event.status === 'active' && session.can('data-packages.read', event.id)"
+            v-if="event.status === 'active' && canPrepareOffline"
             variant="tonal"
             size="small"
             :prepend-icon="mdiMapMarkerRadiusOutline"
@@ -173,16 +186,16 @@ onMounted(load);
         <v-tab value="settings">Settings</v-tab>
         <v-tab value="roles">Roles</v-tab>
         <v-tab value="groups">Groups</v-tab>
-        <v-tab value="members">Members</v-tab>
+        <v-tab v-if="availableTabs.includes('members')" value="members">Members</v-tab>
         <v-tab v-if="event.meshtasticEnabled" value="meshtastic">Meshtastic</v-tab>
         <v-tab value="tak">TAK</v-tab>
         <!-- Hidden while there is nothing to fix, but kept while it is open, e.g. after fixing the last issue. -->
-        <v-tab v-if="openSyncIssues > 0 || tab === 'sync-issues'" value="sync-issues">
+        <v-tab v-if="availableTabs.includes('sync-issues') && (openSyncIssues > 0 || tab === 'sync-issues')" value="sync-issues">
           Sync issues
           <v-badge v-if="openSyncIssues > 0" :content="openSyncIssues" color="error" inline />
         </v-tab>
         <v-tab v-if="session.can('data-packages.read', event.id)" value="data-packages">Data packages</v-tab>
-        <v-tab v-if="session.can('data-packages.read', event.id)" value="missions">Missions</v-tab>
+        <v-tab v-if="availableTabs.includes('missions')" value="missions">Missions</v-tab>
       </v-tabs>
 
       <v-window v-model="tab">
@@ -212,31 +225,31 @@ onMounted(load);
           </v-row>
         </v-window-item>
         <v-window-item value="roles">
-          <EventRolesPanel :event-id="event.id" :editable="editable" />
+          <EventRolesPanel :event-id="event.id" :editable="mutable && session.can('event-roles.manage', event.id)" />
         </v-window-item>
         <v-window-item value="groups">
-          <EventGroupsPanel :event-id="event.id" :editable="editable" />
+          <EventGroupsPanel :event-id="event.id" :editable="mutable && session.can('event-groups.manage', event.id)" />
         </v-window-item>
-        <v-window-item value="members">
+        <v-window-item v-if="availableTabs.includes('members')" value="members">
           <EventMembersPanel :event="event" />
         </v-window-item>
         <v-window-item v-if="event.meshtasticEnabled" value="meshtastic">
-          <MeshtasticPanel :event-id="event.id" :editable="editable" />
+          <MeshtasticPanel :event-id="event.id" :editable="mutable" />
         </v-window-item>
         <v-window-item value="tak">
-          <TakSettingsPanel :event-id="event.id" :editable="editable" />
+          <TakSettingsPanel :event-id="event.id" :editable="mutable" />
         </v-window-item>
-        <v-window-item value="sync-issues">
+        <v-window-item v-if="availableTabs.includes('sync-issues')" value="sync-issues">
           <SyncIssuesPanel :event="event" @loaded="openSyncIssues = $event" />
         </v-window-item>
-        <v-window-item value="data-packages">
+        <v-window-item v-if="availableTabs.includes('data-packages')" value="data-packages">
           <DataPackagesPanel :event="event" />
         </v-window-item>
-        <v-window-item value="missions">
+        <v-window-item v-if="availableTabs.includes('missions')" value="missions">
           <MissionsPanel :event="event" />
         </v-window-item>
       </v-window>
-      <OfflinePrepareDialog v-model="offlineOpen" :event-id="event.id" :event-name="event.name" />
+      <OfflinePrepareDialog v-if="canPrepareOffline" v-model="offlineOpen" :event-id="event.id" :event-name="event.name" />
     </template>
   </v-container>
 </template>

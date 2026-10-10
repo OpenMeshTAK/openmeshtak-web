@@ -91,6 +91,6 @@ async function save(option: "meshtasticEnabled" | "permanentAccounts", value: bo
       </InfoHint>
     </div>
 
-    <TrafficRecordingOption v-if="session.can('tak-traffic.view', event.id)" :event-id="event.id" />
+    <TrafficRecordingOption v-if="session.can('tak-traffic.view', event.id) || session.can('tak-traffic.history', event.id) || session.can('tak-traffic.recording', event.id)" :event-id="event.id" />
   </v-card>
 </template>

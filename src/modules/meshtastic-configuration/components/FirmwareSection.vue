@@ -39,7 +39,7 @@ const preview = ref<FirmwareChangePreviewDto | null>(null);
 
 const facts = computed(() => [
   { label: "Minimum version", value: props.configuration.effectiveMinimumVersion ?? "Not supported" },
-  { label: "Tested on", value: props.profile?.testedVersions.join(", ") || "No device yet" },
+  { label: "Tested on", value: props.profile === null ? "—" : props.profile.testedVersions.join(", ") || "No device yet" },
   { label: "Release channel", value: props.profile ? capitalize(props.profile.channel) : "—" },
 ]);
 const lineOptions = computed(() =>

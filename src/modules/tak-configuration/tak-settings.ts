@@ -139,7 +139,8 @@ export function takSearchIndex(catalog: AtakPreferenceCatalogDto | null): Settin
     { id: "tak:import", sectionId: "targeted", sectionTitle: "Targeted & custom", label: "Import .pref file", description: "ATAK settings export" },
     { id: "tak:add", sectionId: "targeted", sectionTitle: "Targeted & custom", label: "Add setting", description: "Any key, including plugin settings" },
     { id: "presets:download", sectionId: "presets", sectionTitle: "Presets", label: "Download preset", description: "Export the ATAK settings as a JSON preset" },
-    { id: "presets:import-library", sectionId: "presets", sectionTitle: "Presets", label: "Load a preset", description: "Import ATAK settings from the library or a preset file" },
+    { id: "presets:import-library", sectionId: "presets", sectionTitle: "Presets", label: "Choose from library", description: "Import ATAK settings from the preset library" },
+    { id: "presets:import-file", sectionId: "presets", sectionTitle: "Presets", label: "Upload a preset file", description: "Import ATAK settings from a JSON preset file" },
     { id: "presets:save", sectionId: "presets", sectionTitle: "Presets", label: "Save to library", description: "Keep these settings as a reusable preset" },
   ];
   const keys = eventTopics(catalog).flatMap((topic) =>

@@ -70,8 +70,10 @@ const contextObject = computed(
   () => editor.objects.value.find(({ id }) => id === contextTarget.value?.objectId) ?? null,
 );
 
-const editable = computed(() => event.value?.status !== "archived" && session.can("data-packages.edit", eventId));
-const canPublish = computed(() => event.value?.status !== "archived" && session.can("data-packages.publish", eventId));
+const editable = computed(() => event.value !== null && editor.dataPackage.value !== null && event.value.status !== "archived" &&
+  session.can(editor.dataPackage.value.kind === "mission" ? "missions.edit" : "data-packages.edit", eventId));
+const canPublish = computed(() => event.value !== null && editor.dataPackage.value !== null && event.value.status !== "archived" &&
+  session.can(editor.dataPackage.value.kind === "mission" ? "missions.publish" : "data-packages.publish", eventId));
 
 const revisionLabel = computed(() => {
   const revision = editor.dataPackage.value?.latestRevision;
@@ -486,6 +488,7 @@ onBeforeUnmount(() => {
       v-if="copyLayerTarget"
       v-model="copyLayerOpen"
       source="draft"
+      :kind="editor.dataPackage.value?.kind ?? 'package'"
       :event-id="eventId"
       :default-name="`${editor.dataPackage.value?.name ?? 'Data package'} - ${copyLayerTarget.name}`"
       :source-label="`layer ${copyLayerTarget.name}`"

@@ -34,6 +34,7 @@ const dialogOpen = computed({
 });
 
 const canManage = computed(() => session.can("events.manage", props.event.id));
+const canPublish = computed(() => session.can("configuration.publish", props.event.id));
 const canReactivate = computed(() => session.can("events.reactivate", props.event.id));
 
 const dialog = computed(() => {
@@ -60,7 +61,7 @@ const TRANSITION_DONE: Record<EventTransition, string> = {
 
 /** A failed load only leaves the button disabled; publishing itself reports its own errors. */
 async function loadChanges(): Promise<void> {
-  if (props.event.status !== "active" || !canManage.value) {
+  if (props.event.status !== "active" || !canPublish.value) {
     changes.value = [];
     return;
   }
@@ -150,7 +151,7 @@ async function run(): Promise<void> {
         open access links and deletes the event's event accounts.
       </p>
       <div class="d-flex flex-wrap ga-3">
-        <v-btn v-if="canManage" color="primary" :disabled="changes.length === 0" @click="openPublish">
+        <v-btn v-if="canPublish" color="primary" :disabled="changes.length === 0" @click="openPublish">
           Publish configuration…
         </v-btn>
         <v-btn v-if="canManage" color="error" variant="tonal" @click="pending = 'archive'">Archive event…</v-btn>

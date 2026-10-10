@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { mdiDeleteOutline, mdiDownload, mdiMapClock } from "@mdi/js";
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import InfoHint from "@/shared/components/InfoHint.vue";
 import { useToast } from "@/shared/feedback/toast";
@@ -15,7 +15,7 @@ import {
 
 /**
  * Opt-in recording of the event's TAK traffic, a switch in the event options. Positions are personal data,
- * so recording is off by default, needs `events.manage` to change, and stored items are deleted
+ * so recording is off by default, needs `tak-traffic.recording` to change, and stored items are deleted
  * after the retention. TAK apps can query the recorded history from the TAK server.
  */
 const props = defineProps<{ eventId: string }>();
@@ -25,7 +25,7 @@ const toast = useToast();
 const recording = ref<TakTrafficRecordingDto | null>(null);
 const retentionDays = ref(30);
 const saving = ref(false);
-const canManage = session.can("events.manage", props.eventId);
+const canManage = computed(() => session.can("tak-traffic.recording", props.eventId));
 const confirmDelete = ref(false);
 const deleting = ref(false);
 
@@ -122,7 +122,7 @@ onMounted(async () => {
     </template>
     <!-- Stored traffic stays until the retention ends, so it can still be exported after recording stops. -->
     <v-btn
-      v-if="recording.storedItems > 0"
+      v-if="session.can('tak-traffic.export', eventId) && recording.storedItems > 0"
       :href="takTrafficExportUrl(eventId)"
       download
       size="small"
@@ -132,7 +132,7 @@ onMounted(async () => {
       Export
     </v-btn>
     <v-btn
-      v-if="recording.storedItems > 0"
+      v-if="session.can('tak-traffic.history', eventId) && recording.storedItems > 0"
       :to="{ name: 'event-history', params: { eventId } }"
       size="small"
       variant="text"
@@ -141,7 +141,7 @@ onMounted(async () => {
       History
     </v-btn>
     <v-btn
-      v-if="canManage && recording.storedItems > 0"
+      v-if="session.can('tak-traffic.delete', eventId) && recording.storedItems > 0"
       size="small"
       variant="text"
       :prepend-icon="mdiDeleteOutline"

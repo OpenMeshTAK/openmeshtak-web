@@ -5,6 +5,7 @@ import EmptyState from "@/shared/components/EmptyState.vue";
 import InfoHint from "@/shared/components/InfoHint.vue";
 import { describeError } from "@/shared/errors/api-problem";
 import { useToast } from "@/shared/feedback/toast";
+import { useSession } from "@/modules/auth/session";
 import MeshtasticPresetImportDialog from "./MeshtasticPresetImportDialog.vue";
 import PresetActionTile from "./PresetActionTile.vue";
 import { downloadPreset, KIND_LABELS, readPresetFile } from "./preset-file";
@@ -28,6 +29,7 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ imported: [] }>();
 const toast = useToast();
+const session = useSession();
 
 const label = computed(() => KIND_LABELS[props.kind]);
 const fileInput = ref<HTMLInputElement | null>(null);
@@ -126,6 +128,7 @@ function imported(): void {
       </div>
       <div class="action-grid mb-2">
         <PresetActionTile
+          v-if="session.can('presets.read', null)"
           setting-id="presets:import-library"
           :icon="mdiBookshelf"
           title="Choose from library"
@@ -159,6 +162,7 @@ function imported(): void {
     </div>
     <div class="action-grid mb-6">
       <PresetActionTile
+        v-if="session.can('presets.manage', null)"
         setting-id="presets:save"
         :icon="mdiContentSaveOutline"
         title="Save to library"

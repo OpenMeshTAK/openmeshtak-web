@@ -133,10 +133,10 @@ const contextEditor = computed(() =>
     : editors.value.find(({ path }) => path.packageId === contextObject.value?.packageId) ?? null,
 );
 const editable = computed(
-  () => event.value !== null && event.value.status !== "archived" && session.can("data-packages.edit", eventId),
+  () => event.value !== null && event.value.status !== "archived" && session.can(kind === "mission" ? "missions.edit" : "data-packages.edit", eventId),
 );
 const canPublish = computed(
-  () => event.value !== null && event.value.status !== "archived" && session.can("data-packages.publish", eventId),
+  () => event.value !== null && event.value.status !== "archived" && session.can(kind === "mission" ? "missions.publish" : "data-packages.publish", eventId),
 );
 const undoEditor = computed(() =>
   [...editors.value].sort((a, b) => b.undoSequence.value - a.undoSequence.value).find(({ canUndo }) => canUndo.value) ?? null,

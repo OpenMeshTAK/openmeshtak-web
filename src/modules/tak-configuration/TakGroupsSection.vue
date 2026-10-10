@@ -6,6 +6,7 @@ import ErrorState from "@/shared/components/ErrorState.vue";
 import { describeError } from "@/shared/errors/api-problem";
 import { fieldErrors, messagesFor } from "@/shared/errors/field-errors";
 import { useToast } from "@/shared/feedback/toast";
+import { useSession } from "@/modules/auth/session";
 import { listMembers, type EventMemberDto } from "@/modules/members/members.api";
 import {
   createTakGroup,
@@ -23,6 +24,7 @@ import {
  */
 const props = defineProps<{ eventId: string; editable: boolean }>();
 const toast = useToast();
+const session = useSession();
 
 const groups = ref<TakGroupSummaryDto[]>([]);
 const members = ref<EventMemberDto[]>([]);
@@ -49,7 +51,10 @@ const visibleMembers = computed(() => {
 async function load(): Promise<void> {
   state.value = "loading";
   try {
-    [groups.value, members.value] = await Promise.all([listTakGroups(props.eventId), listMembers(props.eventId)]);
+    [groups.value, members.value] = await Promise.all([
+      listTakGroups(props.eventId),
+      session.can("members.read", props.eventId) ? listMembers(props.eventId) : Promise.resolve([]),
+    ]);
     state.value = "ready";
   } catch (caught: unknown) {
     loadError.value = describeError(caught);

@@ -73,6 +73,9 @@ describe("permission grant editor", () => {
       { permission: "events.read", eventId: null },
       { permission: "events.manage", eventId: null },
       { permission: "events.reactivate", eventId: null },
+      { permission: "event-groups.manage", eventId: null },
+      { permission: "event-roles.manage", eventId: null },
+      { permission: "configuration.publish", eventId: null },
     ]);
   });
 

@@ -38,7 +38,7 @@ const router = useRouter();
 const session = useSession();
 const toast = useToast();
 const eventId = String(route.params.eventId);
-const canDelete = session.can("events.manage", eventId);
+const canDelete = computed(() => session.can("tak-traffic.delete", eventId));
 
 const TRACK_COLORS = ["#1e88e5", "#e53935", "#43a047", "#fb8c00", "#8e24aa", "#00acc1", "#6d4c41", "#d81b60", "#7cb342", "#3949ab"];
 const HOUR_MS = 3_600_000;
@@ -82,7 +82,7 @@ const span = computed(() => {
 });
 const exportLinks = computed(() => {
   const loaded = loadedFilter.value;
-  return loaded === null ? null : { geojson: takTrackExportUrl(eventId, "geojson", loaded), gpx: takTrackExportUrl(eventId, "gpx", loaded) };
+  return loaded === null || !session.can("tak-traffic.export", eventId) ? null : { geojson: takTrackExportUrl(eventId, "geojson", loaded), gpx: takTrackExportUrl(eventId, "gpx", loaded) };
 });
 const positions = computed(() => tracks.value.reduce((sum, { pointCount }) => sum + pointCount, 0));
 const staleAfterMs = computed(() => (result.value?.gapSeconds ?? 300) * 1000);
@@ -187,7 +187,7 @@ onMounted(async () => {
           </InfoHint>
         </div>
       </div>
-      <v-btn :to="{ name: 'event-live', params: { eventId } }" variant="text" size="small" :prepend-icon="mdiAccessPointNetwork">Live</v-btn>
+      <v-btn v-if="session.can('tak-traffic.view', eventId)" :to="{ name: 'event-live', params: { eventId } }" variant="text" size="small" :prepend-icon="mdiAccessPointNetwork">Live</v-btn>
     </header>
 
     <ErrorState v-if="state === 'error'" :message="error" class="ma-6" />

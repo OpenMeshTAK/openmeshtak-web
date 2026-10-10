@@ -13,7 +13,7 @@ import TakGroupsSection from "./TakGroupsSection.vue";
  * advanced mode. It applies to connected apps within seconds, without publishing; roles choose
  * separately whether they see every group.
  */
-const props = defineProps<{ eventId: string; editable: boolean }>();
+const props = defineProps<{ eventId: string; editable: boolean; groupsEditable: boolean }>();
 const toast = useToast();
 
 const modes = [
@@ -117,7 +117,7 @@ onMounted(load);
           </div>
         </template>
       </v-card>
-      <TakGroupsSection v-if="configuration.groupMode === 'advanced'" :event-id="eventId" :editable="editable" data-setting-id="tak:groups-list" />
+      <TakGroupsSection v-if="configuration.groupMode === 'advanced'" :event-id="eventId" :editable="groupsEditable" data-setting-id="tak:groups-list" />
     </template>
   </div>
 </template>

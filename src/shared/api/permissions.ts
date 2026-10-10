@@ -48,8 +48,11 @@ export const permissionAreas: PermissionArea[] = [
     prefix: "events.*",
     permissions: [
       { permission: "events.read", label: "View events" },
-      { permission: "events.manage", label: "Create and edit events" },
+      { permission: "events.manage", label: "Create events and edit their details" },
       { permission: "events.reactivate", label: "Reactivate archived events" },
+      { permission: "event-groups.manage", label: "Edit event groups" },
+      { permission: "event-roles.manage", label: "Edit event roles" },
+      { permission: "configuration.publish", label: "Publish configuration changes to participants" },
     ],
   },
   {
@@ -65,17 +68,58 @@ export const permissionAreas: PermissionArea[] = [
     ],
   },
   {
+    label: "TAK",
+    prefix: "tak-*",
+    permissions: [
+      { permission: "tak-settings.manage", label: "Edit TAK settings and ATAK preferences" },
+      { permission: "tak-groups.manage", label: "Edit TAK groups" },
+    ],
+  },
+  {
+    label: "TAK traffic",
+    prefix: "tak-traffic.*",
+    permissions: [
+      { permission: "tak-traffic.view", label: "Watch live TAK traffic" },
+      { permission: "tak-traffic.history", label: "View recorded track history" },
+      { permission: "tak-traffic.export", label: "Export recorded tracks" },
+      { permission: "tak-traffic.recording", label: "Turn recording on or off and set the retention" },
+      { permission: "tak-traffic.delete", label: "Delete recorded traffic" },
+    ],
+  },
+  {
     label: "Meshtastic",
-    prefix: "channel-keys.*",
-    permissions: [{ permission: "channel-keys.reveal", label: "Reveal channel keys" }],
+    prefix: "meshtastic-*",
+    permissions: [
+      { permission: "meshtastic-settings.manage", label: "Edit radio settings and firmware" },
+      { permission: "meshtastic-channels.manage", label: "Edit channels" },
+      { permission: "channel-keys.reveal", label: "Reveal channel keys" },
+    ],
+  },
+  {
+    label: "Settings presets",
+    prefix: "presets.*",
+    permissions: [
+      { permission: "presets.read", label: "View the preset library", instanceOnly: true },
+      { permission: "presets.manage", label: "Add, edit and delete library presets", instanceOnly: true },
+    ],
+  },
+  {
+    label: "Data Packages",
+    prefix: "data-packages.*",
+    permissions: [
+      { permission: "data-packages.read", label: "View Data Packages" },
+      { permission: "data-packages.edit", label: "Edit Data Packages" },
+      { permission: "data-packages.publish", label: "Publish Data Packages" },
+      { permission: "offline-snapshots.prepare", label: "Make published content available offline" },
+    ],
   },
   {
     label: "Missions",
-    prefix: "dataPackages.*",
+    prefix: "missions.*",
     permissions: [
-      { permission: "data-packages.read", label: "View data packages" },
-      { permission: "data-packages.edit", label: "Edit data packages" },
-      { permission: "data-packages.publish", label: "Publish data packages" },
+      { permission: "missions.read", label: "View missions" },
+      { permission: "missions.edit", label: "Edit missions" },
+      { permission: "missions.publish", label: "Sync missions and choose their audience and writers" },
     ],
   },
   {
@@ -85,7 +129,6 @@ export const permissionAreas: PermissionArea[] = [
       { permission: "artifacts.generate", label: "Generate setup files" },
       { permission: "artifacts.download", label: "Download setup files" },
       { permission: "member-artifacts.download", label: "Set up devices for members" },
-      { permission: "tak-traffic.view", label: "Watch live TAK traffic" },
     ],
   },
   {

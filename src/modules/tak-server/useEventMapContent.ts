@@ -1,5 +1,6 @@
 import { computed, shallowRef } from "vue";
 import { isApiProblem } from "@/shared/errors/api-problem";
+import { useSession } from "@/modules/auth/session";
 import { listDataPackages } from "@/modules/data-packages/data-packages.api";
 import { topFirst } from "@/modules/data-packages/package-order";
 import { mapContentItems } from "@/modules/editor/map/map-content";
@@ -10,6 +11,7 @@ import { usePackageEditor, type PackageEditor } from "@/modules/editor/usePackag
  * the same order as the event editor. Without `data-packages.read` the map simply has no packages.
  */
 export function useEventMapContent(eventId: string) {
+  const session = useSession();
   const editors = shallowRef<PackageEditor[]>([]);
 
   const ordered = computed(() => {
@@ -28,6 +30,10 @@ export function useEventMapContent(eventId: string) {
   const contents = computed(() => editors.value.flatMap((editor) => mapContentItems(editor.path, editor.contents.value)));
 
   async function load(): Promise<void> {
+    if (!session.can("data-packages.read", eventId)) {
+      editors.value = [];
+      return;
+    }
     try {
       const packages = await listDataPackages(eventId);
       const loaded = await Promise.all(

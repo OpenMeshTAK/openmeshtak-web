@@ -16,6 +16,8 @@ import { useSession } from "@/modules/auth/session";
 import { isSetupComplete } from "@/modules/setup/setup.api";
 import { untilCoreAnswers } from "@/shared/connection/core-connection";
 import type { RouteNavigation } from "./navigation";
+import type { Permission } from "@/shared/api/types";
+import { canOpenRoute } from "./access";
 
 declare module "vue-router" {
   interface RouteMeta {
@@ -25,6 +27,10 @@ declare module "vue-router" {
     offline?: boolean;
     /** Shows the route in the main navigation; see `navigationFromRoutes`. */
     navigation?: RouteNavigation;
+    /** Required permission for pages without a navigation entry; arrays mean any of them. */
+    permission?: Permission | readonly Permission[];
+    /** Event lists are visible with read access to any event. Details check their own event ID. */
+    anyEvent?: boolean;
   }
 }
 
@@ -72,27 +78,32 @@ const routes: RouteRecordRaw[] = [
   {
     path: "/admin/events/:eventId/data-packages",
     name: "event-editor",
+    meta: { permission: "data-packages.read" },
     component: () => import("@/modules/editor/EventEditorView.vue"),
   },
   // Missions use the same editor; the route name tells it to edit missions.
   {
     path: "/admin/events/:eventId/missions/editor",
     name: "mission-editor",
+    meta: { permission: "missions.read" },
     component: () => import("@/modules/editor/EventEditorView.vue"),
   },
   {
     path: "/admin/events/:eventId/live",
     name: "event-live",
+    meta: { permission: "tak-traffic.view" },
     component: () => import("@/modules/tak-server/LiveTrafficView.vue"),
   },
   {
     path: "/admin/events/:eventId/history",
     name: "event-history",
+    meta: { permission: "tak-traffic.history" },
     component: () => import("@/modules/tak-server/TrafficHistoryView.vue"),
   },
   {
     path: "/admin/events/:eventId/data-packages/:packageId",
     name: "package-editor",
+    meta: { permission: ["data-packages.read", "missions.read"] },
     component: () => import("@/modules/editor/PackageEditorView.vue"),
   },
   {
@@ -110,13 +121,18 @@ const routes: RouteRecordRaw[] = [
         name: "account",
         component: () => import("@/modules/account/AccountView.vue"),
       },
+      {
+        path: "access-denied",
+        name: "access-denied",
+        component: () => import("@/modules/auth/AccessDeniedView.vue"),
+      },
       // List and detail pages share a parent record without a component, so the navigation
       // item of the list stays active on its detail pages.
       {
         path: "admin/events",
         meta: { navigation: { title: "Events", icon: mdiCalendarMultiple, permission: "events.read" } },
         children: [
-          { path: "", name: "events", component: () => import("@/modules/events/views/EventListView.vue") },
+          { path: "", name: "events", meta: { anyEvent: true }, component: () => import("@/modules/events/views/EventListView.vue") },
           { path: ":eventId/:tab?", name: "event-detail", component: () => import("@/modules/events/views/EventDetailView.vue") },
         ],
       },
@@ -172,7 +188,7 @@ const routes: RouteRecordRaw[] = [
             path: "presets",
             name: "settings-presets",
             component: () => import("@/modules/settings-presets/PresetLibraryView.vue"),
-            meta: { navigation: { title: "Presets", icon: mdiBookshelf, permission: "events.manage" } },
+            meta: { navigation: { title: "Presets", icon: mdiBookshelf, permission: "presets.read" } },
           },
           {
             path: "server-log",
@@ -243,6 +259,9 @@ router.beforeEach(async (to) => {
   const needsSetup = session.state.principal?.hasPassword === false;
   if (needsSetup !== (to.name === "account-setup")) {
     return { name: needsSetup ? "account-setup" : "home" };
+  }
+  if (!canOpenRoute(to, session.can)) {
+    return { name: "access-denied" };
   }
   return true;
 });
