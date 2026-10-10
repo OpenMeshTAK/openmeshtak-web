@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { DEFAULT_GRID_SETTINGS } from "@/modules/editor/map/mgrs-grid";
 import { mdiAccessPointNetwork, mdiArrowLeft } from "@mdi/js";
-import { computed, onMounted, ref, shallowRef, watch, watchEffect } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch, watchEffect } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
@@ -14,10 +14,11 @@ import PackageMapView from "@/modules/editor/components/PackageMapView.vue";
 import HistoryAnalysis from "./history/HistoryAnalysis.vue";
 import HistoryFilterBar, { type HistoryFilterForm } from "./history/HistoryFilterBar.vue";
 import HistoryTimeline from "./history/HistoryTimeline.vue";
-import HistoryTrackList from "./history/HistoryTrackList.vue";
 import { createHistoryLayers } from "./history/history-layer";
 import { coverageCells } from "./history/track-analysis";
-import { formatAge, timeSpan, toTimelineTracks, type TimelineTrack } from "./history/track-timeline";
+import { formatAge, lastKnownAt, timeSpan, toTimelineTracks, type TimelineTrack } from "./history/track-timeline";
+import ContactList from "./contacts/ContactList.vue";
+import { DEFAULT_FILTER, type ContactFilter, type ContactRow } from "./contacts/contact-list";
 import {
   deleteRecordedTakTraffic,
   getTakTrafficHistory,
@@ -46,7 +47,6 @@ const HOUR_MS = 3_600_000;
 const { layers: mapLayers, objects, contents, load: loadPackages } = useEventMapContent(eventId);
 const mapView = ref<InstanceType<typeof PackageMapView> | null>(null);
 const history = createHistoryLayers();
-
 const state = ref<"loading" | "ready" | "error">("loading");
 const error = ref("");
 const loading = ref(false);
@@ -55,7 +55,7 @@ const result = shallowRef<TakTrafficHistoryDto | null>(null);
 const loadedFilter = ref<TakTrafficHistoryFilter | null>(null);
 const tracks = shallowRef<TimelineTrack[]>([]);
 const hidden = ref(new Set<string>());
-const devicesOnly = ref(false);
+const contactFilter = ref<ContactFilter>({ ...DEFAULT_FILTER });
 const cursor = ref(Date.now());
 const trailMs = ref<number | null>(null);
 const panelOpen = ref(true);
@@ -74,7 +74,11 @@ function localInput(time: number): string {
 const form = ref<HistoryFilterForm>({ from: localInput(Date.now() - 6 * HOUR_MS), to: localInput(Date.now()), groupId: null, gapSeconds: 300 });
 
 const colored = computed(() => tracks.value.map((track, index) => ({ track, color: TRACK_COLORS[index % TRACK_COLORS.length] as string })));
-const listed = computed(() => colored.value.filter(({ track }) => !devicesOnly.value || track.selfReported));
+// "Devices" or "markers" in the filter applies to the map as well; search and status only narrow the list.
+const listed = computed(() => {
+  const kind = contactFilter.value.kind;
+  return colored.value.filter(({ track }) => kind === "all" || (kind === "devices") === track.selfReported);
+});
 const shown = computed(() => listed.value.filter(({ track }) => !hidden.value.has(track.uid)));
 const span = computed(() => {
   const loaded = loadedFilter.value;
@@ -149,9 +153,47 @@ watchEffect(() => {
     cursor: cursor.value,
     trailMs: trailMs.value,
     staleAfterMs: staleAfterMs.value,
-    label: (track, age) => (age < 30_000 ? track.label : `${track.label} · ${formatAge(age)} ago`),
+    // Minutes only on the map: a label that changes every replay second would be redrawn every frame.
+    label: (track, age) => (age < 60_000 ? track.label : `${track.label} · ${formatAge(age)} ago`),
   });
 });
+
+// The list shows ages in seconds; refreshing it twice a second is enough even at high replay speed.
+const listCursor = ref(cursor.value);
+let listTimer: ReturnType<typeof setTimeout> | undefined;
+watch(cursor, () => {
+  listTimer ??= setTimeout(() => {
+    listTimer = undefined;
+    listCursor.value = cursor.value;
+  }, 500);
+});
+onBeforeUnmount(() => clearTimeout(listTimer));
+
+const contactRows = computed<ContactRow[]>(() =>
+  colored.value.map(({ track, color }) => {
+    const known = lastKnownAt(track, listCursor.value);
+    const ageMs = known === null ? null : listCursor.value - known.time;
+    return {
+      key: track.uid,
+      label: track.label,
+      group: track.groupName,
+      color,
+      ageMs,
+      stale: ageMs !== null && ageMs > staleAfterMs.value,
+      device: track.selfReported,
+      details: [
+        track.groupName === null ? track.senderName : `${track.senderName} · ${track.groupName}`,
+        [
+          `${String(track.pointCount)} positions`,
+          track.delayedCount > 0 ? `${String(track.delayedCount)} late` : null,
+          track.approximateCount > 0 ? `${String(track.approximateCount)} approximate` : null,
+          track.duplicatesDropped > 0 ? `${String(track.duplicatesDropped)} duplicates dropped` : null,
+        ].filter((part) => part !== null).join(" · "),
+      ],
+      searchText: track.senderName,
+    };
+  }),
+);
 
 watchEffect(() => {
   const cells = coverage.value ? coverageCells(shown.value.map(({ track }) => track), cellMetres.value) : [];
@@ -217,18 +259,20 @@ onMounted(async () => {
           @change-grid-settings="mapView?.setGridSettings($event)"
         />
 
-        <v-sheet v-if="panelOpen" elevation="4" rounded="lg" class="history-panel">
-          <v-tabs v-model="panelTab" density="compact" grow>
+        <v-sheet v-if="panelOpen" elevation="4" rounded="lg" class="history-panel" :class="{ 'history-panel--tracks': panelTab === 'tracks' }">
+          <v-tabs v-model="panelTab" density="compact" grow class="flex-0-0">
             <v-tab value="tracks">Tracks</v-tab>
             <v-tab value="analysis">Analysis</v-tab>
           </v-tabs>
-          <HistoryTrackList
+          <ContactList
             v-if="panelTab === 'tracks'"
             v-model:hidden="hidden"
-            v-model:devices-only="devicesOnly"
-            :tracks="listed"
-            :cursor="cursor"
+            v-model:filter="contactFilter"
+            class="history-panel-content"
+            :rows="contactRows"
+            kinds
             :can-delete="canDelete"
+            empty-text="No recorded positions in this range."
             @focus="focus"
             @delete="deleting = $event"
           />
@@ -237,6 +281,7 @@ onMounted(async () => {
             v-model:coverage="coverage"
             v-model:cell-metres="cellMetres"
             v-model:area-id="areaId"
+            class="history-panel-content history-panel-scroll"
             :tracks="shown.map(({ track }) => track)"
             :objects="objects"
           />
@@ -289,9 +334,25 @@ onMounted(async () => {
   position: absolute;
   top: 16px;
   right: 16px;
-  z-index: 1;
+  /* No z-index: Vuetify menus open above the page only while the panel stays in its stacking layer. */
+  display: flex;
+  flex-direction: column;
   width: 340px;
   max-height: calc(100% - 32px);
+  overflow: hidden;
+}
+
+/* The track list scrolls virtually and needs a fixed height to fill. */
+.history-panel--tracks {
+  height: calc(100% - 32px);
+}
+
+.history-panel-content {
+  flex: 1;
+  min-height: 0;
+}
+
+.history-panel-scroll {
   overflow-y: auto;
 }
 

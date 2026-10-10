@@ -86,6 +86,7 @@ export function rotateCertificateAuthority(): Promise<TakCertificateAuthorityDto
 }
 
 export type LiveTakTrafficDto = Schemas["LiveTakTrafficDto"];
+export type LiveTakItemDto = Schemas["LiveTakItemDto"];
 
 /** The event's current TAK traffic from the built-in server's memory. */
 export function getLiveTakTraffic(eventId: string): Promise<LiveTakTrafficDto> {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { DEFAULT_GRID_SETTINGS } from "@/modules/editor/map/mgrs-grid";
-import { mdiArrowLeft, mdiCrosshairsGps, mdiMapClock } from "@mdi/js";
+import { mdiArrowLeft, mdiMapClock } from "@mdi/js";
 import type { Socket } from "socket.io-client";
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
@@ -10,8 +10,9 @@ import { connectRealtime } from "@/shared/realtime/realtime";
 import { useSession } from "@/modules/auth/session";
 import EditorToolbar from "@/modules/editor/components/EditorToolbar.vue";
 import PackageMapView from "@/modules/editor/components/PackageMapView.vue";
-import { formatAge } from "./history/track-timeline";
-import type { LiveTakTrafficDto } from "./tak-server.api";
+import ContactList from "./contacts/ContactList.vue";
+import { DEFAULT_FILTER, type ContactFilter, type ContactRow } from "./contacts/contact-list";
+import type { LiveTakItemDto, LiveTakTrafficDto } from "./tak-server.api";
 import { useEventMapContent } from "./useEventMapContent";
 
 /**
@@ -33,18 +34,63 @@ const connectionsOpen = ref(true);
 const connected = ref(false);
 let socket: Socket | null = null;
 
-const liveItems = computed(() => traffic.value.items);
 const now = ref(Date.now());
 const clock = window.setInterval(() => (now.value = Date.now()), 5000);
+/** A position older than this counts as "not heard from" in the list. */
+const STALE_AFTER_MS = 2 * 60_000;
+const timeFormat = new Intl.DateTimeFormat(undefined, { timeStyle: "short" });
 
-/** How long ago the app's own position was taken, from the position's own time. */
-function positionAge(callsign: string | null): string | null {
-  const item = traffic.value.items.find((candidate) => candidate.callsign !== null && candidate.callsign === callsign);
-  return item === undefined ? null : `position ${formatAge(now.value - Date.parse(item.time))} old`;
-}
+const hidden = ref(new Set<string>());
+const contactFilter = ref<ContactFilter>({ ...DEFAULT_FILTER });
 
-function itemOf(callsign: string | null): string | null {
-  return traffic.value.items.find((item) => item.callsign !== null && item.callsign === callsign)?.uid ?? null;
+/** Items by callsign, built once per snapshot instead of searched for every list row. */
+const itemsByCallsign = computed(() => {
+  const index = new Map<string, LiveTakItemDto>();
+  for (const item of traffic.value.items) {
+    if (item.callsign !== null) index.set(item.callsign, item);
+  }
+  return index;
+});
+
+/**
+ * Apps hidden in the list disappear from the map with their own position. Markers they placed
+ * stay, because the live data does not say who placed a marker.
+ */
+const liveItems = computed(() => {
+  if (hidden.value.size === 0) return traffic.value.items;
+  const hiddenCallsigns = new Set(
+    traffic.value.connections.filter(({ id, callsign }) => callsign !== null && hidden.value.has(id)).map(({ callsign }) => callsign),
+  );
+  return traffic.value.items.filter((item) => item.callsign === null || !hiddenCallsigns.has(item.callsign));
+});
+
+const contactRows = computed<ContactRow[]>(() =>
+  traffic.value.connections.map((connection) => {
+    const label = connection.callsign ?? connection.userDisplayName;
+    const item = connection.callsign === null ? undefined : itemsByCallsign.value.get(connection.callsign);
+    // How long ago the app's own position was taken, from the position's own time.
+    const ageMs = item === undefined ? null : Math.max(0, now.value - Date.parse(item.time));
+    return {
+      key: connection.id,
+      label,
+      group: connection.eventGroup?.name ?? null,
+      color: null,
+      ageMs,
+      stale: ageMs !== null && ageMs > STALE_AFTER_MS,
+      device: true,
+      details: [
+        [connection.userDisplayName, connection.eventRole?.name].filter(Boolean).join(" · "),
+        `Connected since ${timeFormat.format(new Date(connection.connectedAt))}`,
+      ],
+      searchText: `${connection.userDisplayName} ${connection.eventRole?.name ?? ""}`,
+    };
+  }),
+);
+
+function focus(connectionId: string): void {
+  const callsign = traffic.value.connections.find(({ id }) => id === connectionId)?.callsign;
+  const uid = callsign === null || callsign === undefined ? undefined : itemsByCallsign.value.get(callsign)?.uid;
+  if (uid !== undefined) mapView.value?.zoomToLive(uid);
 }
 
 /** Core sends a full snapshot on connect and whenever the event's traffic changes. */
@@ -127,27 +173,19 @@ onBeforeUnmount(() => {
       />
 
       <v-sheet v-if="connectionsOpen" elevation="4" rounded="lg" class="live-panel">
-        <div class="d-flex align-center px-3 pt-3 pb-1">
+        <div class="d-flex align-center px-4 pt-3">
           <div class="text-title-small flex-grow-1">Connected apps</div>
           <span class="text-body-small text-medium-emphasis">{{ traffic.connections.length }}</span>
         </div>
-        <p v-if="traffic.connections.length === 0" class="text-body-medium text-medium-emphasis px-3 pb-3 my-0">
-          No TAK app of this event is connected.
-        </p>
-        <v-list v-else density="compact" lines="two" slim class="pa-1">
-          <v-list-item
-            v-for="connection in traffic.connections"
-            :key="connection.id"
-            rounded="md"
-            :title="connection.callsign ?? connection.userDisplayName"
-            :subtitle="itemOf(connection.callsign)
-              ? `${connection.userDisplayName} · ${positionAge(connection.callsign)}`
-              : `${connection.userDisplayName} · no position yet`"
-            :disabled="!itemOf(connection.callsign)"
-            :prepend-icon="mdiCrosshairsGps"
-            @click="mapView?.zoomToLive(itemOf(connection.callsign) ?? '')"
-          />
-        </v-list>
+        <ContactList
+          v-model:hidden="hidden"
+          v-model:filter="contactFilter"
+          class="live-panel-content"
+          :rows="contactRows"
+          without-position
+          empty-text="No TAK app of this event is connected."
+          @focus="focus"
+        />
       </v-sheet>
     </main>
   </div>
@@ -182,10 +220,22 @@ onBeforeUnmount(() => {
   position: absolute;
   top: 16px;
   right: 16px;
-  z-index: 1;
-  width: 300px;
+  /* No z-index: Vuetify menus open above the page only while the panel stays in its stacking layer. */
+  display: flex;
+  flex-direction: column;
+  width: 340px;
   max-height: calc(100% - 32px);
-  overflow-y: auto;
+  overflow: hidden;
+}
+
+/* The contact list scrolls virtually and needs a fixed height to fill. */
+.live-panel {
+  height: calc(100% - 32px);
+}
+
+.live-panel-content {
+  flex: 1;
+  min-height: 0;
 }
 
 @media (max-width: 599px) {
