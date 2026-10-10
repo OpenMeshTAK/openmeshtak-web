@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { mdiAlertCircleOutline, mdiCheckCircleOutline, mdiCloseCircleOutline, mdiMinusCircleOutline, mdiRefresh } from "@mdi/js";
-import { computed, onMounted, onUnmounted } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
 import InfoHint from "@/shared/components/InfoHint.vue";
 import ViewHeader from "@/shared/components/layout/ViewHeader.vue";
 import MetricChart from "./MetricChart.vue";
 import { useAsyncData } from "@/shared/composables/useAsyncData";
-import { getSystemStatus, type SystemCheckDto, type SystemCheckState, type SystemStatusDto } from "./system-status.api";
+import { getSystemStatus, type LoggedProblemDto, type SystemCheckDto, type SystemCheckState, type SystemStatusDto } from "./system-status.api";
 
 /** Health overview for operators; refreshes itself while open. */
 const REFRESH_MS = 30_000;
@@ -28,6 +28,25 @@ const icons: Record<SystemCheckState, string> = {
   off: mdiMinusCircleOutline,
 };
 const colors: Record<SystemCheckState, string> = { ok: "success", warning: "warning", error: "error", off: "medium-emphasis" };
+
+const dateTime = new Intl.DateTimeFormat(undefined, { dateStyle: "short", timeStyle: "medium" });
+/** Opened rows by time and message, so a refresh keeps them open. */
+const expanded = ref(new Set<string>());
+
+function problemKey(problem: LoggedProblemDto): string {
+  return `${problem.time ?? ""}|${problem.message}`;
+}
+
+function toggle(problem: LoggedProblemDto): void {
+  const key = problemKey(problem);
+  const next = new Set(expanded.value);
+  if (!next.delete(key)) next.add(key);
+  expanded.value = next;
+}
+
+function problemColor(level: LoggedProblemDto["level"]): string {
+  return level === "warn" ? "warning" : "error";
+}
 
 function bytes(value: number | null | undefined): string {
   if (value === null || value === undefined) return "Unknown";
@@ -136,10 +155,6 @@ onUnmounted(() => {
             <div class="min-width-0">
               <div class="text-title-small">{{ LABELS[check.id] }}</div>
               <div class="text-body-small text-medium-emphasis">{{ check.detail }}</div>
-              <div v-if="check.id === 'errors' && status.data.value.lastError" class="text-body-small text-truncate">
-                {{ status.data.value.lastError.message }} ·
-                <router-link :to="{ name: 'server-log' }">Server log</router-link>
-              </div>
             </div>
           </v-col>
         </v-row>
@@ -168,6 +183,52 @@ onUnmounted(() => {
           </v-card>
         </v-col>
       </v-row>
+
+      <div class="d-flex align-center mt-4 mb-2">
+        <div class="text-title-small">Warnings and errors</div>
+        <InfoHint
+          label="About stored warnings and errors"
+          text="Warnings and errors are also stored in the data directory, so they survive a restart or crash. The last seven days are shown, newest first. The full live log is under Server log."
+        />
+      </div>
+      <v-card>
+        <div v-if="status.data.value.problems.length === 0" class="px-4 py-3 text-body-medium text-medium-emphasis">
+          No warnings or errors in the last seven days.
+        </div>
+        <v-list v-else density="compact" class="py-0 problems">
+          <template v-for="problem in status.data.value.problems" :key="problemKey(problem)">
+            <v-list-item class="px-4" @click="toggle(problem)">
+              <div class="d-flex ga-3 align-baseline">
+                <span class="text-body-small text-medium-emphasis problem__time">{{ problem.time ? dateTime.format(new Date(problem.time)) : "" }}</span>
+                <span class="text-body-small font-weight-medium problem__level" :class="`text-${problemColor(problem.level)}`">
+                  {{ problem.level.toUpperCase() }}
+                </span>
+                <span class="text-body-medium text-truncate">{{ problem.message }}</span>
+              </div>
+              <pre v-if="expanded.has(problemKey(problem)) && problem.details" class="problem__details text-body-small mt-1">{{ problem.details }}</pre>
+            </v-list-item>
+          </template>
+        </v-list>
+      </v-card>
     </template>
   </div>
 </template>
+
+<style scoped>
+.problems {
+  max-height: 360px;
+  overflow-y: auto;
+}
+.problem__time {
+  flex: 0 0 auto;
+  min-width: 96px;
+}
+.problem__level {
+  flex: 0 0 48px;
+}
+.problem__details {
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+</style>

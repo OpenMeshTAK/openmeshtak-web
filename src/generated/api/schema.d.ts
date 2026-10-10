@@ -3708,6 +3708,16 @@ export interface components {
             /** @description One plain sentence for operators; never contains secrets. */
             detail: string;
         };
+        /** @enum {string} */
+        ServerLogLevel: "trace" | "debug" | "info" | "warn" | "error" | "fatal";
+        /** @description A stored warning or error, sanitized like the server log. */
+        LoggedProblemDto: {
+            time: string | null;
+            level: components["schemas"]["ServerLogLevel"];
+            message: string;
+            /** @description Structured fields as JSON, or null. */
+            details: string | null;
+        };
         /**
          * @description Whether system CPU and memory are the container's (cgroup) or the whole machine's.
          * @enum {string}
@@ -3784,14 +3794,13 @@ export interface components {
             activeEvents: number;
             /**
              * Format: double
-             * @description Error log lines among Core's recent log lines from the last 24 hours.
+             * @description Errors (including fatal) logged in the last 24 hours, also before a restart.
              */
             recentErrors: number;
-            /** @description Time and message of the newest of those errors. */
-            lastError: {
-                message: string;
-                time: string | null;
-            } | null;
+            /** Format: double */
+            recentWarnings: number;
+            /** @description Stored warnings and errors of the last seven days, newest first, at most 100. */
+            problems: components["schemas"]["LoggedProblemDto"][];
             /**
              * Format: double
              * @description Seconds between two samples of `history`.
@@ -4113,8 +4122,6 @@ export interface components {
             mappings: components["schemas"]["PresetTargetMappingDto"][];
             confirmation: string;
         };
-        /** @enum {string} */
-        ServerLogLevel: "trace" | "debug" | "info" | "warn" | "error" | "fatal";
         ServerLogEntryDto: {
             /**
              * Format: double
