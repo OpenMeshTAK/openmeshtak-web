@@ -5,7 +5,8 @@ export type ToastKind = "success" | "info" | "warning" | "error";
 
 export interface ToastMessage {
   text: string;
-  color: ToastKind;
+  /** Shown as a small colored icon; the toast itself stays neutral so it reads calmly. */
+  kind: ToastKind;
   /** Milliseconds; `-1` keeps the toast open until it is dismissed. */
   timeout: number;
   /** Optional button next to "Dismiss", e.g. "Reload". */
@@ -18,8 +19,8 @@ const LONG_TIMEOUT_MS = 8000;
 /** Single queue for the whole app; `ToastHost` renders it. */
 const queue = ref<ToastMessage[]>([]);
 
-function push(color: ToastKind, text: string, timeout: number, action?: ToastMessage["action"]): void {
-  queue.value = [...queue.value, { text, color, timeout, ...(action === undefined ? {} : { action }) }];
+function push(kind: ToastKind, text: string, timeout: number, action?: ToastMessage["action"]): void {
+  queue.value = [...queue.value, { text, kind, timeout, ...(action === undefined ? {} : { action }) }];
 }
 
 export function useToast() {
