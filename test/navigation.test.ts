@@ -20,6 +20,7 @@ describe("navigation from the route table", () => {
       "/admin/settings/general",
       "/admin/settings/tak-server",
       "/admin/settings/presets",
+      "/admin/settings/system-status",
       "/admin/settings/server-log",
       "/admin/settings/api-clients",
     ]);
