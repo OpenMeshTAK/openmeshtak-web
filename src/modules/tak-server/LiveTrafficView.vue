@@ -13,6 +13,7 @@ import PackageMapView from "@/modules/editor/components/PackageMapView.vue";
 import ContactList from "./contacts/ContactList.vue";
 import { DEFAULT_FILTER, type ContactFilter, type ContactRow } from "./contacts/contact-list";
 import type { LiveTakItemDto, LiveTakTrafficDto } from "./tak-server.api";
+import { applyTrafficChanges, type LiveTakTrafficChanges } from "./live-traffic-changes";
 import { useEventMapContent } from "./useEventMapContent";
 
 /**
@@ -94,11 +95,14 @@ function focus(connectionId: string): void {
   if (uid !== undefined) mapView.value?.zoomToLive(uid);
 }
 
-/** Core sends a full snapshot on connect and whenever the event's traffic changes. */
+/** Core sends a full snapshot on connect and afterwards only what changed. */
 function watchTraffic(): void {
   socket = connectRealtime("/tak-traffic", { eventId });
   socket.on("traffic", (snapshot: LiveTakTrafficDto) => {
     traffic.value = snapshot;
+  });
+  socket.on("traffic-changes", (changes: LiveTakTrafficChanges) => {
+    traffic.value = applyTrafficChanges(traffic.value, changes);
   });
   socket.on("connect", () => {
     connected.value = true;
