@@ -3,6 +3,7 @@ import { api } from "@/shared/api/client";
 import { useToast } from "@/shared/feedback/toast";
 import { logger } from "@/shared/logging/logger";
 import { isCompatibleCoreVersion } from "./version-compatibility";
+import { reloadWebApp } from "./reload-web-app";
 
 export const WEB_VERSION = __APP_VERSION__;
 
@@ -30,12 +31,11 @@ export async function checkCoreVersion(): Promise<void> {
         // Stays on screen: the page keeps working, but only a reload brings the matching Web app.
         useToast().lasting("info", `OpenMeshTak was updated to ${data.version}. Reload to use the new version.`, {
           label: "Reload",
-          run: () => window.location.reload(),
+          run: () => void reloadWebApp(),
         });
       }
-    } else if (!isCompatibleCoreVersion(WEB_VERSION, data.version)) {
-      state.incompatible = data.version;
     }
+    state.incompatible = isCompatibleCoreVersion(WEB_VERSION, data.version) ? null : data.version;
   } catch (error: unknown) {
     // An unreachable Core shows up in every other request; the version check stays quiet.
     logger.debug("Could not read the Core version", { error });

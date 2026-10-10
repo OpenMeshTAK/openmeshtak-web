@@ -49,7 +49,9 @@ describe("version mismatch bar", () => {
 
   it("warns when Core runs another release line", async () => {
     const wrapper = await mountWithCoreVersion("9.9.0");
-    expect(wrapper.text()).toContain(`This Web app (${__APP_VERSION__}) does not match the server (9.9.0)`);
+    expect(wrapper.text()).toContain(`This browser is running Web app ${__APP_VERSION__}; the server is 9.9.0`);
+    expect(wrapper.text()).toContain("Save your changes, then reload");
+    expect(wrapper.find("button").text()).toBe("Reload");
   });
 
   it("stays hidden for a compatible Core", async () => {
