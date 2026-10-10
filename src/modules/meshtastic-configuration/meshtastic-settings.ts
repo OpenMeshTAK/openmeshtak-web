@@ -68,7 +68,8 @@ export function meshtasticSearchIndex(
     { id: "meshtastic:add-channel", sectionId: "channels", sectionTitle: "Channels", label: "Add channel", description: "Primary and secondary channels, audiences, secret channels" },
     { id: "meshtastic:tak-channel", sectionId: "tak-connection", sectionTitle: "TAK connection", label: "TAK mesh channel", description: "Channel the Meshtastic app sends TAK on" },
     { id: "presets:download", sectionId: "presets", sectionTitle: "Presets", label: "Download preset", description: "Export the radio settings as a JSON preset" },
-    { id: "presets:import-file", sectionId: "presets", sectionTitle: "Presets", label: "Import preset", description: "Import radio settings from a preset file or the library" },
+    { id: "presets:import-library", sectionId: "presets", sectionTitle: "Presets", label: "Load a preset", description: "Import radio settings from the library or a preset file" },
+    { id: "presets:save", sectionId: "presets", sectionTitle: "Presets", label: "Save to library", description: "Keep these settings as a reusable preset" },
   ];
   const profileFields = fields
     .filter((field) => titles.has(field.section))

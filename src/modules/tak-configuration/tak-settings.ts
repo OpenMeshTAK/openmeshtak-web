@@ -139,7 +139,8 @@ export function takSearchIndex(catalog: AtakPreferenceCatalogDto | null): Settin
     { id: "tak:import", sectionId: "targeted", sectionTitle: "Targeted & custom", label: "Import .pref file", description: "ATAK settings export" },
     { id: "tak:add", sectionId: "targeted", sectionTitle: "Targeted & custom", label: "Add setting", description: "Any key, including plugin settings" },
     { id: "presets:download", sectionId: "presets", sectionTitle: "Presets", label: "Download preset", description: "Export the ATAK settings as a JSON preset" },
-    { id: "presets:import-file", sectionId: "presets", sectionTitle: "Presets", label: "Import preset", description: "Import ATAK settings from a preset file or the library" },
+    { id: "presets:import-library", sectionId: "presets", sectionTitle: "Presets", label: "Load a preset", description: "Import ATAK settings from the library or a preset file" },
+    { id: "presets:save", sectionId: "presets", sectionTitle: "Presets", label: "Save to library", description: "Keep these settings as a reusable preset" },
   ];
   const keys = eventTopics(catalog).flatMap((topic) =>
     topic.keys.map((definition) => ({
@@ -256,4 +257,45 @@ export function lockableItems(catalog: AtakPreferenceCatalogDto | null): Lockabl
   const screenItems = (catalog?.screenItems ?? []).map((item: AtakScreenItemDto) => ({ id: item.id, label: item.description, area: item.area }));
   const keys = (catalog?.topics ?? []).flatMap((topic) => topic.keys.map((definition) => ({ id: definition.key, label: fieldLabel(definition), area: topic.title })));
   return [...screenItems, ...keys];
+}
+
+type DescribedEntry = Pick<AtakPreferenceEntryDto, "preference" | "key" | "type">;
+
+/**
+ * Words for entries of any target: the catalog description, what a lock does, or the preference
+ * file and type of keys the catalog does not know, such as plugin settings.
+ */
+export function entryDescriber(catalog: AtakPreferenceCatalogDto): {
+  definitionOf: (entry: DescribedEntry) => AtakCatalogKeyDto | null;
+  describe: (entry: DescribedEntry) => string;
+  /** A value as the settings pages show it, such as "On" or "Meters". */
+  valueLabel: (entry: DescribedEntry, value: string) => string;
+} {
+  const known = new Map(catalog.topics.flatMap(({ keys }) => keys.map((definition) => [definition.key, definition] as const)));
+  const lockable = new Map(lockableItems(catalog).map((item) => [item.id, item.label]));
+  const definitionOf = (entry: DescribedEntry) => (entry.preference === APP_PREFERENCES ? (known.get(entry.key) ?? null) : null);
+  return {
+    definitionOf,
+    describe(entry) {
+      const itemId = restrictedItemOf(entry);
+      if (itemId !== null) {
+        const what = entry.key.startsWith(DISABLE_PREFIX) ? "Greys out" : "Hides";
+        return `${what} in ATAK: ${lockable.get(itemId) ?? itemId}`;
+      }
+      return (
+        definitionOf(entry)?.description ??
+        (entry.preference === APP_PREFERENCES ? `Not in the catalog · ${entry.type}` : `${entry.preference} · ${entry.type}`)
+      );
+    },
+    valueLabel(entry, value) {
+      const definition = definitionOf(entry);
+      if (definition?.values) {
+        return definition.values.find((option) => option.value === value)?.label ?? value;
+      }
+      if (entry.type === "boolean" && (value === "true" || value === "false")) {
+        return value === "true" ? "On" : "Off";
+      }
+      return value;
+    },
+  };
 }
