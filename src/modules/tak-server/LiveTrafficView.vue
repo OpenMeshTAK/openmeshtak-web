@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { DEFAULT_GRID_SETTINGS } from "@/modules/editor/map/mgrs-grid";
 import { mdiArrowLeft, mdiCrosshairsGps, mdiMapClock } from "@mdi/js";
 import type { Socket } from "socket.io-client";
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
@@ -114,9 +115,13 @@ onBeforeUnmount(() => {
         :base-maps="mapView?.baseMaps ?? []"
         :base-map-id="mapView?.activeBaseMapId ?? ''"
         class="live-toolbar"
+        :grid-visible="mapView?.gridVisible ?? false"
+        :grid-settings="mapView?.gridSettings ?? DEFAULT_GRID_SETTINGS"
         @toggle-layers="connectionsOpen = !connectionsOpen"
         @change-base-map="mapView?.selectBaseMap($event)"
         @fit="mapView?.fitToContent()"
+        @toggle-grid="mapView?.setGridVisible(!(mapView?.gridVisible ?? false))"
+        @change-grid-settings="mapView?.setGridSettings($event)"
       />
 
       <v-sheet v-if="connectionsOpen" elevation="4" rounded="lg" class="live-panel">

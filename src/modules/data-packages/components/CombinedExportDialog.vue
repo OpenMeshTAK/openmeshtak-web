@@ -123,6 +123,9 @@ async function createDraft(): Promise<void> {
             {{ report.included.reduce((sum, part) => sum + part.objects, 0) }} objects from
             {{ report.included.length }} {{ report.included.length === 1 ? "package" : "packages" }}.
           </p>
+          <v-alert v-if="report.presentationLosses.length > 0" type="info" density="compact" class="mb-2">
+            <div v-for="(loss, index) in report.presentationLosses" :key="index"><strong>{{ loss.objectName }}:</strong> {{ loss.message }}</div>
+          </v-alert>
           <v-alert v-if="report.skipped.length > 0" type="info" density="compact" class="mb-2">
             Skipped, not published: {{ report.skipped.map(({ name }) => name).join(", ") }}
           </v-alert>

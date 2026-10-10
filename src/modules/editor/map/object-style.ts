@@ -9,6 +9,11 @@ import type { PackageObjectStyle } from "@/modules/data-packages/data-packages.a
 import { symbolIcon } from "./cot-symbol";
 import { iconsetStandin } from "./iconset-standin";
 import { uploadedIcon } from "./uploaded-icon";
+import { directionArrowStyles, directionShaftGeometry } from "./direction-arrows";
+import { planningMapFootprint } from "./planning-geometry";
+import { tacticalStyles } from "./tactical-render";
+import { planningOverlayStyles } from "./planning-overlays";
+import { rangeBearingLabel } from "./range-bearing";
 
 /** Above this many metres per pixel (roughly zoom 12) only the selected object is labelled. */
 const LABEL_MAX_RESOLUTION = 30;
@@ -94,22 +99,25 @@ const styleCache = new WeakMap<FeatureLike, { key: string; styles: Style[] }>();
  * feature changes (its revision), the selection, the label visibility or the uploaded icon state.
  */
 export function objectStyle(feature: FeatureLike, resolution: number, selected: boolean): Style[] {
-  const labelled = selected || resolution <= LABEL_MAX_RESOLUTION;
+  const labelled = (selected || resolution <= LABEL_MAX_RESOLUTION) && (feature.get("objectStyle") as PackageObjectStyle).labelVisible !== false;
   const uploaded = feature.get("kind") === "point" ? uploadedIcon(feature, feature.get("iconImageUrl") as string | null, selected) : null;
   if (!(feature instanceof Feature)) {
-    return buildObjectStyle(feature, labelled, selected, uploaded);
+    return buildObjectStyle(feature, labelled, selected, uploaded, resolution);
   }
-  const key = `${String(feature.getRevision())}:${String(selected)}:${String(labelled)}:${String(uploaded !== null)}`;
+  const style = feature.get("objectStyle") as PackageObjectStyle;
+  const directionResolution = (style.arrowHeads ?? "none") !== "none" || style.routeDirectionArrows === true || style.tacticalGraphic != null ? resolution : 0;
+  const key = `${String(feature.getRevision())}:${String(selected)}:${String(labelled)}:${String(uploaded !== null)}:${String(directionResolution)}`;
   const cached = styleCache.get(feature);
   if (cached?.key === key) {
     return cached.styles;
   }
-  const styles = buildObjectStyle(feature, labelled, selected, uploaded);
+  const styles = tacticalStyles(feature, style, resolution, labelled) ?? buildObjectStyle(feature, labelled, selected, uploaded, resolution);
+  if (style.tacticalGraphic != null && feature.get("tacticalRenderError") != null) styles.push(new Style({ text: new Text({ text: "Graphic unavailable · control geometry", font: "12px Arial, sans-serif", fill: new Fill({ color: "#B71C1C" }), backgroundFill: new Fill({ color: "#FFFFFF" }), offsetY: 18, padding: [3, 5, 3, 5], overflow: true }) }));
   styleCache.set(feature, { key, styles });
   return styles;
 }
 
-function buildObjectStyle(feature: FeatureLike, labelled: boolean, selected: boolean, uploaded: ImageStyle | null): Style[] {
+function buildObjectStyle(feature: FeatureLike, labelled: boolean, selected: boolean, uploaded: ImageStyle | null, resolution: number): Style[] {
   const style = feature.get("objectStyle") as PackageObjectStyle;
   const kind = String(feature.get("kind"));
   const name = String(feature.get("name") ?? "");
@@ -119,19 +127,28 @@ function buildObjectStyle(feature: FeatureLike, labelled: boolean, selected: boo
   const iconsetPath = feature.get("iconsetPath") as string | null;
   const symbol = kind === "point" && cotType !== null && (iconsetPath == null || cotType !== "a-u-G") ? symbolIcon(cotType, selected) : null;
   const standIn = kind === "point" && iconsetPath != null ? iconsetStandin(iconsetPath, style.color, selected) : null;
+  const geometry = feature.getGeometry();
+  const footprint = (geometry instanceof Point || geometry instanceof LineString) && style.sector?.visible !== false ? planningMapFootprint(geometry, style) : null;
+  const shaft = kind === "line" && geometry instanceof LineString ? directionShaftGeometry(geometry, style, resolution) : null;
+  const displayedGeometry = footprint ?? shaft;
+  const nameText = style.rangeBearing === true && geometry instanceof LineString ? `${name}\n${rangeBearingLabel(geometry, style.distanceUnit ?? "m", style.bearingUnit ?? "degrees")}` : name;
 
   const main = new Style({
     zIndex: objectPriority(feature),
-    stroke: new Stroke({ color: style.color, width, lineDash: style.strokeStyle === "dashed" ? [width * 3, width * 2] : undefined }),
+    ...(displayedGeometry === null ? {} : { geometry: displayedGeometry }),
+    stroke: new Stroke({ color: style.color, width, lineCap: style.strokeStyle === "dotted" ? "round" : "butt",
+      lineDash: style.strokeStyle === "dashed" ? [width * 3, width * 2] : style.strokeStyle === "dotted" ? [1, width * 2 + 2] : style.strokeStyle === "custom" ? style.dashPattern ?? undefined : undefined }),
     fill: new Fill({ color: withOpacity(style.fillColor ?? style.color, style.fillOpacity) }),
-    ...(kind === "point" ? { image: uploaded ?? symbol ?? standIn ?? dot(style.color, selected, cotType) } : {}),
-    ...(labelled ? { text: label(name, kind, uploaded !== null || symbol !== null) } : {}),
+    ...(kind === "point" && (style.sector == null || style.sector.visible === false) ? { image: uploaded ?? symbol ?? standIn ?? dot(style.color, selected, cotType) } : {}),
+    ...(style.labelVisible === false || !labelled ? {} : { text: label(nameText, style.sector == null ? kind : "polygon", uploaded !== null || symbol !== null) }),
   });
   // A light halo under the selected shape keeps it visible on any base map.
-  const styles = selected && kind !== "point"
-    ? [new Style({ stroke: new Stroke({ color: "rgba(255, 255, 255, 0.9)", width: width + 4 }) }), main]
+  const styles = (selected || style.strokeStyle === "outlined") && kind !== "point"
+    ? [new Style({ ...(displayedGeometry === null ? {} : { geometry: displayedGeometry }), stroke: new Stroke({ color: "rgba(255, 255, 255, 0.9)", width: width + 4, lineCap: "butt" }) }), main]
     : [main];
-  const geometry = feature.getGeometry();
+  styles.push(...planningOverlayStyles(feature, style, labelled, selected));
+  if (style.corridorWidth != null) styles.push(new Style({ ...(shaft === null ? {} : { geometry: shaft }), stroke: new Stroke({ color: style.color, width, lineDash: [6, 6], lineCap: "butt" }), zIndex: objectPriority(feature) + 1 }));
+  if (geometry instanceof LineString) styles.push(...directionArrowStyles(geometry, kind, style, resolution, objectPriority(feature) + 1, selected));
   if (kind === "route" && geometry instanceof LineString && labelled) {
     const points = feature.get("routePoints") as Array<{ type: string; name: string }> | null;
     geometry.getCoordinates().forEach((position, index) => {

@@ -267,7 +267,6 @@ function objectGroup(layer: PackageLayerDto) {
                   <v-list-item title="Export as KML" :prepend-icon="mdiDownload" @click="emit('exportLayer', layer, 'kml')" />
                   <v-list-item
                     title="Create data package from layer…"
-                    :subtitle="canCopy ? '' : 'Publish this data package first'"
                     :prepend-icon="mdiContentCopy"
                     :disabled="!canCopy"
                     @click="emit('copyLayer', layer)"

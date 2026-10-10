@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { DEFAULT_GRID_SETTINGS } from "@/modules/editor/map/mgrs-grid";
 import { mdiArrowLeft, mdiClipboardCheckOutline, mdiFullscreen, mdiFullscreenExit, mdiUsb, mdiWifiOff } from "@mdi/js";
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import { useRoute, useRouter } from "vue-router";
@@ -158,9 +159,13 @@ onBeforeUnmount(() => {
         :layers-open="panelOpen"
         layers-label="radio and nodes"
         class="offline-toolbar"
+        :grid-visible="mapView?.gridVisible ?? false"
+        :grid-settings="mapView?.gridSettings ?? DEFAULT_GRID_SETTINGS"
         @toggle-layers="panelOpen = !panelOpen"
         @fit="mapView?.fitToContent()"
         @clear-measurements="mapView?.clearMeasurements()"
+        @toggle-grid="mapView?.setGridVisible(!(mapView?.gridVisible ?? false))"
+        @change-grid-settings="mapView?.setGridSettings($event)"
       />
 
       <v-sheet v-if="panelOpen" elevation="4" rounded="lg" class="offline-panel">

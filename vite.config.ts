@@ -36,7 +36,9 @@ const pwa = VitePWA({
     navigateFallback: "/index.html",
     navigateFallbackDenylist: [/^\/api\//],
     // No runtimeCaching: API responses always come from the network.
-    maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
+    // The official tactical renderer is a lazy worker (~7 MB uncompressed); precache it so
+    // existing graphics remain available in the offline HQ without contacting external assets.
+    maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
     cleanupOutdatedCaches: true,
   },
 });

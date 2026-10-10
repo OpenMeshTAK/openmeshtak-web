@@ -5,6 +5,7 @@ import { useSession } from "@/modules/auth/session";
 import { symbolPreview } from "../map/cot-symbol";
 import type { IconChoice } from "../useIconSets";
 import { AFFILIATIONS, cotTypeOf, POINT_MARKERS, SYMBOLS, type CatalogSymbol } from "./symbol-catalog";
+import { editorCotTypeAvailable } from "../editor-availability";
 
 /**
  * Emoji-picker style choice of a marker symbol: plain points (spot marker, waypoint, checkpoint),
@@ -31,8 +32,9 @@ const iconLimit = ref(ICON_PAGE);
 
 /** Each choice shows the real frame of its affiliation, e.g. a diamond for hostile. */
 const affiliations = computed(() =>
-  AFFILIATIONS.map((option) => ({ ...option, frame: symbolPreview(`a-${option.code}-G`, 16) })),
+  AFFILIATIONS.filter((option) => editorCotTypeAvailable(`a-${option.code}-G`)).map((option) => ({ ...option, frame: symbolPreview(`a-${option.code}-G`, 16) })),
 );
+const pointMarkers = POINT_MARKERS.filter(({ cotType }) => editorCotTypeAvailable(cotType)).map((marker) => ({ ...marker, label: marker.cotType === null ? "Spot" : marker.label }));
 
 watch(
   () => [props.cotType, props.iconsetPath, props.icons.length > 0] as const,
@@ -45,7 +47,7 @@ watch(
     } else {
       tab.value = military || (cotType !== null && !POINT_MARKERS.some((marker) => marker.cotType === cotType)) ? "military" : "points";
     }
-    affiliation.value = military ? (current ?? "f") : "f";
+    affiliation.value = military && editorCotTypeAvailable(`a-${current}-G`) ? (current ?? "f") : "f";
   },
   { immediate: true },
 );
@@ -67,6 +69,7 @@ const groups = computed(() => {
   const words = wordsOf(search.value);
   const tiles: Tile[] = SYMBOLS.flatMap((symbol) => {
     const cotType = cotTypeOf(affiliation.value, symbol);
+    if (!editorCotTypeAvailable(cotType)) return [];
     const preview = symbolPreview(cotType, 32);
     const haystack = `${symbol.label} ${symbol.group} ${symbol.keywords ?? ""}`.toLowerCase();
     return preview !== null && words.every((word) => haystack.includes(word)) ? [{ ...symbol, cotType, preview }] : [];
@@ -80,6 +83,7 @@ const groups = computed(() => {
 const matchingIcons = computed(() => {
   const words = wordsOf(iconSearch.value);
   return props.icons.filter((icon) => {
+    if (!editorCotTypeAvailable(icon.cotType)) return false;
     const haystack = `${icon.setName} ${icon.group} ${icon.filename}`.toLowerCase();
     return words.every((word) => haystack.includes(word));
   });
@@ -111,7 +115,7 @@ function iconLabel(icon: IconChoice): string {
 
     <div v-if="tab === 'points'" class="pa-4 d-flex ga-2">
       <button
-        v-for="marker in POINT_MARKERS"
+        v-for="marker in pointMarkers"
         :key="marker.label"
         type="button"
         class="symbol-tile point-tile"

@@ -22,6 +22,7 @@ export class EllipseEditor {
   private edited: EllipseGeometry | null = null;
   private active = true;
   private shiftHeld = false;
+  private repositioning = false;
 
   constructor(map: OlMap, preview: (geometry: ReturnType<typeof ellipsePolygon>) => void, commit: (id: string, geometry: EllipseGeometry) => void) {
     // Map listeners run before interactions, so each preview sees the current modifier state.
@@ -46,9 +47,17 @@ export class EllipseEditor {
     });
     this.source.on("changefeature", (event) => {
       const position = event.feature?.getGeometry()?.getCoordinates();
-      if (this.original === null || position === undefined || event.feature === undefined) return;
-      this.edited = ellipseFromHandle(this.original, event.feature.get("handle") as EllipseHandle, position, this.shiftHeld);
-      preview(ellipsePolygon(this.edited));
+      if (this.repositioning || this.original === null || position === undefined || event.feature === undefined) return;
+      const dragged = event.feature.get("handle") as EllipseHandle;
+      const edited = ellipseFromHandle(this.original, dragged, position, this.shiftHeld);
+      this.edited = edited;
+      preview(ellipsePolygon(edited));
+      // The other handles follow live; moving them must not count as another drag.
+      this.repositioning = true;
+      for (const { handle, position: at } of ellipseHandles(edited)) {
+        if (handle !== dragged) this.source.getFeatures().find((item) => item.get("handle") === handle)?.getGeometry()?.setCoordinates(at);
+      }
+      this.repositioning = false;
     });
     map.addInteraction(this.modify);
   }

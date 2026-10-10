@@ -18,6 +18,7 @@ const props = defineProps<{
   selection: CombinedExportSelection[];
   /** The kind of the new package; a mission editor copies into a new mission. */
   kind?: DataPackageKind;
+  source?: "published" | "draft";
 }>();
 const emit = defineEmits<{ created: [dataPackage: DataPackageDto] }>();
 const name = ref("");
@@ -32,7 +33,7 @@ watch(open, (isOpen) => {
 
 async function create(): Promise<void> {
   const created = await creation.run(() =>
-    createDataPackageCopy(props.eventId, { name: name.value.trim(), kind: props.kind ?? "package", packages: props.selection }),
+    createDataPackageCopy(props.eventId, { name: name.value.trim(), kind: props.kind ?? "package", source: props.source ?? "published", packages: props.selection }),
   );
   if (created !== null) {
     open.value = false;
@@ -47,7 +48,7 @@ async function create(): Promise<void> {
       <v-card-title>Create {{ kind === "mission" ? "mission" : "data package" }} from layer</v-card-title>
       <v-card-text>
         <p class="text-body-medium text-medium-emphasis mt-0 mb-4">
-          Copies {{ sourceLabel }} from its latest published revision. The new draft receives independent layer and item IDs.
+          Copies {{ sourceLabel }} from {{ source === 'draft' ? 'its current saved draft' : 'its latest published revision' }}. The new draft receives independent layer and item IDs.
         </p>
         <v-alert v-if="creation.error.value" type="error" class="mb-4">{{ creation.error.value }}</v-alert>
         <v-text-field

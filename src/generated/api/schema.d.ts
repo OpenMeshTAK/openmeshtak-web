@@ -2187,6 +2187,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/events/{eventId}/data-packages/{packageId}/presentation-report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Reports source-confirmed presentation differences before downloading an export.
+         *     Omit revision for the current draft. This is not a real-client acceptance result.
+         */
+        get: operations["Report"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/events/{eventId}/data-package-order": {
         parameters: {
             query?: never;
@@ -2198,6 +2218,23 @@ export interface paths {
         /** @description Replaces the order with the complete list of package IDs, bottom first. */
         put: operations["ReorderDataPackages"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{eventId}/data-packages/{packageId}/objects/batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Atomically edits/deletes/restores up to 500 objects; failures leave the draft unchanged. */
+        post: operations["BatchPackageObjects"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2396,7 +2433,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Copies selected published layers with new UUIDs and records their source revisions. */
+        /** @description Copies selected layers with new UUIDs. Published provenance is retained; explicit draft copies are audited by snapshot hash. */
         post: operations["CreateDataPackageCopy"];
         delete?: never;
         options?: never;
@@ -4287,7 +4324,7 @@ export interface components {
          * @description How lines, outlines and circles are drawn; ATAK writes it as `strokeStyle`.
          * @enum {string}
          */
-        StrokeStyle: "solid" | "dashed";
+        StrokeStyle: "solid" | "dashed" | "dotted" | "outlined" | "custom";
         /**
          * @description ATAK Span display units; the stored height itself is always metres.
          * @enum {number}
@@ -4295,6 +4332,46 @@ export interface components {
         HeightUnit: 0 | 1 | 2 | 3 | 4 | 5;
         /** @enum {string} */
         ExtrudeMode: "cylinder" | "cone_down";
+        /** @enum {string} */
+        ArrowHeads: "none" | "start" | "end" | "both";
+        /** @enum {string} */
+        DistanceUnit: "m" | "km" | "ft" | "mi" | "nm";
+        SectorStyle: {
+            /**
+             * Format: double
+             * @description True heading clockwise from north.
+             */
+            heading: number;
+            /** Format: double */
+            sweep: number;
+            /**
+             * Format: double
+             * @description Metres.
+             */
+            radius: number;
+            /** Format: double */
+            rangeLines?: number | null;
+            displayLabels?: boolean;
+            visible?: boolean;
+        };
+        BullseyeStyle: {
+            /** Format: double */
+            ringDistance: number;
+            /** Format: int32 */
+            ringCount: number;
+            ringsVisible: boolean;
+            edgeToCenter: boolean;
+        };
+        /** @description Construct a type with a set of properties K of type T */
+        "Record_string.string_": {
+            [key: string]: string;
+        };
+        /** @description Source-confirmed 2525D control measures; this deliberately excludes single-point symbols. */
+        TacticalGraphicStyle: {
+            sidc: string;
+            /** @description Native __milsym unitmodifier codes, bounded and validated against the selected graphic. */
+            modifiers: components["schemas"]["Record_string.string_"];
+        };
         PackageObjectStyle: {
             /** @description Marker, line and polygon outline colour. */
             color: components["schemas"]["HexColor"];
@@ -4321,6 +4398,48 @@ export interface components {
             heightUnit?: components["schemas"]["HeightUnit"] | null;
             /** @description Circle extrusion mode; absent uses the client's default. */
             extrudeMode?: components["schemas"]["ExtrudeMode"] | null;
+            /** @description Endpoint arrowheads for lines; absent means none. CoT/KML export the underlying line. */
+            arrowHeads?: components["schemas"]["ArrowHeads"];
+            /**
+             * Format: int32
+             * @description Arrowhead length in screen pixels, independent of map zoom.
+             */
+            arrowHeadSize?: number;
+            /** @description Direction indicators following route point order; absent means false. Web presentation only. */
+            routeDirectionArrows?: boolean;
+            /**
+             * Format: int32
+             * @description Distance between route indicators in screen pixels.
+             */
+            routeArrowSpacing?: number;
+            /** @description Saved, exactly two-point true Range & Bearing line. */
+            rangeBearing?: boolean;
+            distanceUnit?: components["schemas"]["DistanceUnit"];
+            /** @description Coverage sector centred at a Point; polygon export is an approximation. */
+            sector?: components["schemas"]["SectorStyle"] | null;
+            /**
+             * Format: double
+             * @description Full corridor width in metres around a line/route; null disables it.
+             */
+            corridorWidth?: number | null;
+            /** @description Alternating dash/gap lengths in screen pixels; custom line style only. */
+            dashPattern?: number[] | null;
+            /** @description Marker hideLabel / shape labels_on; defaults to visible. */
+            labelVisible?: boolean;
+            /** @description Native u-r-b-c-c presentation of Circle geometry. */
+            rangeCircle?: boolean;
+            /** Format: int32 */
+            rangeRings?: number;
+            bullseye?: components["schemas"]["BullseyeStyle"] | null;
+            /** @enum {string} */
+            bearingUnit?: "degrees" | "mils" | "radians" | "warsaw-mils" | "streck" | "clock";
+            /**
+             * Format: double
+             * @description Distance outside a shape in metres; native MSD. Incompatible with route/R&B/bullseye.
+             */
+            minimumSafeDistance?: number | null;
+            msdColor?: components["schemas"]["HexColor"] | null;
+            tacticalGraphic?: components["schemas"]["TacticalGraphicStyle"] | null;
         };
         /**
          * @description CoT event type, e.g. `b-m-p-s-m` (spot marker) or `a-f-G-U-C-I` (MIL-STD-2525 friendly
@@ -4338,6 +4457,8 @@ export interface components {
             iconsetPath: string | null;
         };
         PackageSnapshotObject: {
+            /** @description Derived export-only visual association; never written into canonical draft objects. */
+            supplementParent?: string;
             id: string;
             layerId: string;
             kind: components["schemas"]["PackageObjectKind"];
@@ -5654,6 +5775,17 @@ export interface components {
             created: boolean;
             revision: components["schemas"]["PackageRevisionDto"];
         };
+        PresentationLoss: {
+            objectId: string;
+            objectName: string;
+            code: string;
+            message: string;
+        };
+        PresentationReport: {
+            /** @enum {string} */
+            format: "cot" | "kml";
+            losses: components["schemas"]["PresentationLoss"][];
+        };
         DataPackageContentSummary: {
             /** Format: double */
             points: number;
@@ -5771,9 +5903,28 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
         };
-        PackageObjectPage: {
-            items: components["schemas"]["PackageObjectDto"][];
-            page: components["schemas"]["PageInfo"];
+        BatchPackageObjectsResponse: {
+            updated: components["schemas"]["PackageObjectDto"][];
+            created: components["schemas"]["PackageObjectDto"][];
+            deletedIds: components["schemas"]["Uuid"][];
+        };
+        BatchPackageObjectUpdate: {
+            /** Format: int32 */
+            version: number;
+            /** @description Moving an object to another layer of the same data package is allowed. */
+            layerId: components["schemas"]["Uuid"];
+            name: string;
+            description: string | null;
+            geometry: components["schemas"]["PackageGeometry"];
+            style: components["schemas"]["PackageObjectStyle"];
+            /** @description Markers only; send `null` for a plain spot marker. */
+            tak: components["schemas"]["TakMarker"] | null;
+            id: components["schemas"]["Uuid"];
+        };
+        BatchPackageObjectDelete: {
+            id: components["schemas"]["Uuid"];
+            /** Format: int32 */
+            version: number;
         };
         CreatePackageObjectRequest: {
             layerId: components["schemas"]["Uuid"];
@@ -5784,6 +5935,17 @@ export interface components {
             style?: components["schemas"]["PackageObjectStyle"];
             /** @description Markers only. */
             tak?: components["schemas"]["TakMarker"] | null;
+        };
+        /** @description Atomic changes in one draft. Any conflict or locked layer rejects the entire batch. */
+        BatchPackageObjectsRequest: {
+            updates: components["schemas"]["BatchPackageObjectUpdate"][];
+            deletes: components["schemas"]["BatchPackageObjectDelete"][];
+            /** @description Restores deleted objects with new server IDs, in request order. */
+            creates: components["schemas"]["CreatePackageObjectRequest"][];
+        };
+        PackageObjectPage: {
+            items: components["schemas"]["PackageObjectDto"][];
+            page: components["schemas"]["PageInfo"];
         };
         UpdatePackageObjectRequest: {
             /** Format: int32 */
@@ -5880,7 +6042,12 @@ export interface components {
             description?: string | null;
             /** @description The kind of the new package, e.g. `mission` to start a mission from published packages; `package` when omitted. */
             kind?: components["schemas"]["DataPackageKind"];
-            /** @description Published package revisions and optional layer selections to copy. */
+            /**
+             * @description Copy current drafts explicitly; defaults to immutable published revisions. Draft selections cannot specify revision numbers.
+             * @enum {string}
+             */
+            source?: "published" | "draft";
+            /** @description Source packages and optional layer selections to copy. */
             packages: components["schemas"]["CombinedExportSelection"][];
         };
         RubberSheetDto: {
@@ -6016,6 +6183,7 @@ export interface components {
             included: components["schemas"]["CombinedExportIncluded"][];
             skipped: components["schemas"]["CombinedExportSkipped"][];
             nameClashes: components["schemas"]["CombinedExportNameClash"][];
+            presentationLosses: components["schemas"]["PresentationLoss"][];
         };
         CombinedExportRequest: {
             /** @description Name of the combined Data Package; defaults to the event name. */
@@ -14637,6 +14805,60 @@ export interface operations {
             };
         };
     };
+    Report: {
+        parameters: {
+            query: {
+                format: "cot" | "kml";
+                revision?: number;
+                layerId?: components["schemas"]["Uuid"];
+            };
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+                packageId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Presentation differences */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PresentationReport"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     ReorderDataPackages: {
         parameters: {
             query?: never;
@@ -14698,6 +14920,80 @@ export interface operations {
                 };
             };
             /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    BatchPackageObjects: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                eventId: components["schemas"]["Uuid"];
+                packageId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BatchPackageObjectsRequest"];
+            };
+        };
+        responses: {
+            /** @description Batch saved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchPackageObjectsResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Version conflict, locked layer or archived event */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Invalid batch or geometry */
             422: {
                 headers: {
                     [name: string]: unknown;
