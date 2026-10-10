@@ -68,6 +68,67 @@ const PATH_STYLE: Rule[] = [
   { filter: visibleAs(AREA), style: { "fill-color": ["get", "fill"], "stroke-color": ["get", "color"], "stroke-width": 1 } satisfies FlatStyle },
 ];
 
+/** Canvas styles for the same pieces, used where the browser offers no WebGL. */
+function canvasPathStyle(kind: number, color: string, fill: string): Style {
+  switch (kind) {
+    case DOT:
+      return new Style({ image: new CircleStyle({ radius: 3, fill: new Fill({ color }), declutterMode: "none" }) });
+    case AREA:
+      return new Style({ fill: new Fill({ color: fill }), stroke: new Stroke({ color, width: 1 }) });
+    default:
+      return new Style({ stroke: new Stroke({ color, width: 3, lineDash: kind === ESTIMATED_LINE ? [8, 6] : undefined }) });
+  }
+}
+
+/** Whether this browser can draw WebGL, e.g. not on old tablets or with hardware acceleration off. */
+function webglAvailable(): boolean {
+  try {
+    const canvas = document.createElement("canvas");
+    return (canvas.getContext("webgl2") ?? canvas.getContext("webgl")) !== null;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The path layer and how to move its time window. WebGL filters the pieces on the GPU; without
+ * WebGL a canvas layer applies the same filter in a style function and redraws on every change,
+ * which is slower with many tracks but keeps the paths visible.
+ */
+function createPathLayer(source: VectorSource): { layer: BaseLayer; setWindow(cursor: number, trailStart: number): void } {
+  if (webglAvailable()) {
+    const layer = new WebGLVectorLayer({ source, style: PATH_STYLE, variables: { cursor: -1, trailStart: -1 }, disableHitDetection: true, zIndex: 890 });
+    return { layer, setWindow: (cursor, trailStart) => layer.updateStyleVariables({ cursor, trailStart }) };
+  }
+  const timeWindow = { cursor: -1, trailStart: -1 };
+  const styles = new Map<string, Style>();
+  const layer = new VectorLayer({
+    source,
+    zIndex: 890,
+    style: (feature) => {
+      if ((feature.get("end") as number) > timeWindow.cursor || (feature.get("start") as number) < timeWindow.trailStart) return undefined;
+      const kind = feature.get("kind") as number;
+      const color = feature.get("color") as string;
+      const key = `${String(kind)}|${color}`;
+      let style = styles.get(key);
+      if (style === undefined) {
+        style = canvasPathStyle(kind, color, feature.get("fill") as string);
+        styles.set(key, style);
+      }
+      return style;
+    },
+  });
+  return {
+    layer,
+    setWindow(cursor, trailStart) {
+      if (cursor === timeWindow.cursor && trailStart === timeWindow.trailStart) return;
+      timeWindow.cursor = cursor;
+      timeWindow.trailStart = trailStart;
+      layer.changed();
+    },
+  };
+}
+
 function markerStyle(color: string, label: string, stale: boolean): Style {
   return new Style({
     // Markers are never hidden by decluttering; only overlapping labels are.
@@ -99,14 +160,15 @@ function lastKnown(entry: ProjectedTrack, time: number): { point: TimelinePoint;
 
 /**
  * Recorded tracks on the shared event map: lines only inside Core's continuous segments (dashed
- * where a position was only estimated), lone positions as dots, approximate positions as accuracy circles, and one marker per track for the
- * last known position at the replay time. A coverage grid can be drawn underneath.
+ * where a position was only estimated), lone positions as dots, approximate positions as accuracy
+ * circles, and one marker per track for the last known position at the replay time. A coverage grid can be drawn underneath.
  *
  * Hundreds of tracks hold tens of thousands of positions, which the canvas renderer would redraw
  * completely whenever one line grows. The paths therefore live in a WebGL layer as one piece per
  * pair of positions, tagged with their time; replay only moves the time window. Times are seconds
  * from the first position, because WebGL compares 32-bit floats and epoch milliseconds would lose
- * their precision. The markers and labels stay on canvas and are only touched when they change.
+ * their precision. Browsers without WebGL get a slower canvas fallback with the same result. The
+ * markers and labels stay on canvas and are only touched when they change.
  */
 export function createHistoryLayers(): {
   layers: BaseLayer[];
@@ -119,16 +181,10 @@ export function createHistoryLayers(): {
   const pathSource = new VectorSource();
   const markerSource = new VectorSource({ useSpatialIndex: false });
   const coverageSource = new VectorSource();
-  const paths = new WebGLVectorLayer({
-    source: pathSource,
-    style: PATH_STYLE,
-    variables: { cursor: -1, trailStart: -1 },
-    disableHitDetection: true,
-    zIndex: 890,
-  });
+  const paths = createPathLayer(pathSource);
   const layers: BaseLayer[] = [
     new VectorLayer({ source: coverageSource, zIndex: 880 }),
-    paths,
+    paths.layer,
     new VectorLayer({ source: markerSource, zIndex: 900, declutter: true }),
   ];
   let projected: ProjectedTrack[] = [];
@@ -201,7 +257,7 @@ export function createHistoryLayers(): {
     lastFrame = frame;
     const cursor = seconds(frame.cursor);
     // A tiny tolerance keeps the piece that ends exactly at the cursor visible despite float rounding.
-    paths.updateStyleVariables({ cursor: cursor + 0.001, trailStart: frame.trailMs === null ? -1e9 : cursor - frame.trailMs / 1000 - 0.001 });
+    paths.setWindow(cursor + 0.001, frame.trailMs === null ? -1e9 : cursor - frame.trailMs / 1000 - 0.001);
     for (const entry of projected) drawMarker(entry, frame);
   }
 
