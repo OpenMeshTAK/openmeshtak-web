@@ -15,6 +15,7 @@ import SyncIssuesPanel from "@/modules/members/SyncIssuesPanel.vue";
 import { listOpenSyncIssues } from "@/modules/members/members.api";
 import DataPackagesPanel from "@/modules/data-packages/DataPackagesPanel.vue";
 import MissionsPanel from "@/modules/missions/MissionsPanel.vue";
+import AuditLog from "@/modules/audit-log/AuditLog.vue";
 import MeshtasticPanel from "@/modules/meshtastic-configuration/MeshtasticPanel.vue";
 import OfflinePrepareDialog from "@/modules/offline/OfflinePrepareDialog.vue";
 import EventOverviewPanel from "../components/EventOverviewPanel.vue";
@@ -37,12 +38,13 @@ const event = ref<EventDto | null>(null);
 const settings = ref(emptySettings());
 const state = ref<"loading" | "ready" | "error">("loading");
 const loadError = ref("");
-const TABS = ["overview", "settings", "roles", "groups", "members", "meshtastic", "tak", "sync-issues", "data-packages", "missions"];
+const TABS = ["overview", "settings", "roles", "groups", "members", "meshtastic", "tak", "sync-issues", "data-packages", "missions", "audit"];
 const availableTabs = computed(() => TABS.filter((name) => {
   if (name === "meshtastic") return event.value?.meshtasticEnabled !== false;
   if (name === "members" || name === "sync-issues") return session.can("members.read", eventId.value);
   if (name === "data-packages") return session.can("data-packages.read", eventId.value);
   if (name === "missions") return session.can("missions.read", eventId.value);
+  if (name === "audit") return session.can("audit.read", eventId.value);
   return true;
 }));
 const mutable = computed(() => event.value !== null && event.value.status !== "archived");
@@ -196,6 +198,7 @@ onMounted(load);
         </v-tab>
         <v-tab v-if="session.can('data-packages.read', event.id)" value="data-packages">Data packages</v-tab>
         <v-tab v-if="availableTabs.includes('missions')" value="missions">Missions</v-tab>
+        <v-tab v-if="availableTabs.includes('audit')" value="audit">Audit log</v-tab>
       </v-tabs>
 
       <v-window v-model="tab">
@@ -247,6 +250,9 @@ onMounted(load);
         </v-window-item>
         <v-window-item v-if="availableTabs.includes('missions')" value="missions">
           <MissionsPanel :event="event" />
+        </v-window-item>
+        <v-window-item v-if="availableTabs.includes('audit')" value="audit">
+          <AuditLog v-if="tab === 'audit'" :scope="{ eventId: event.id }" />
         </v-window-item>
       </v-window>
       <OfflinePrepareDialog v-if="canPrepareOffline" v-model="offlineOpen" :event-id="event.id" :event-name="event.name" />

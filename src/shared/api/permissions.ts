@@ -159,7 +159,7 @@ export const permissionAreas: PermissionArea[] = [
   {
     label: "Audit",
     prefix: "audit.*",
-    permissions: [{ permission: "audit.read", label: "Read the audit log", instanceOnly: true }],
+    permissions: [{ permission: "audit.read", label: "Read the audit log" }],
   },
   {
     label: "Server log",

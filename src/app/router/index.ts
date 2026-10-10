@@ -4,6 +4,7 @@ import {
   mdiAccountGroup,
   mdiBookshelf,
   mdiCalendarMultiple,
+  mdiClipboardTextClockOutline,
   mdiCogOutline,
   mdiConsole,
   mdiHeartPulse,
@@ -202,6 +203,12 @@ const routes: RouteRecordRaw[] = [
             name: "server-log",
             component: () => import("@/modules/server-logs/ServerLogView.vue"),
             meta: { navigation: { title: "Server log", icon: mdiConsole, permission: "server-logs.read" } },
+          },
+          {
+            path: "audit-log",
+            name: "audit-log",
+            component: () => import("@/modules/audit-log/AuditLogView.vue"),
+            meta: { navigation: { title: "Audit log", icon: mdiClipboardTextClockOutline, permission: "audit.read" } },
           },
           {
             path: "api-clients",

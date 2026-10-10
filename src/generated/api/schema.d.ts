@@ -2758,6 +2758,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/audit-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description The audit log, newest first. `eventId` keeps one event's entries; scope `instance` keeps the
+         *     entries that belong to no event. Requires instance-wide `audit.read`.
+         */
+        get: operations["ListAuditEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{eventId}/audit-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The event's audit entries, newest first. Requires `audit.read` for the event. */
+        get: operations["ListEventAuditEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api-clients": {
         parameters: {
             query?: never;
@@ -6343,6 +6380,46 @@ export interface components {
             name?: string;
             packages: components["schemas"]["CombinedExportSelection"][];
         };
+        /** @enum {string} */
+        AuditActorType: "user" | "api_client" | "anonymous" | "system";
+        AuditActorDto: {
+            type: components["schemas"]["AuditActorType"];
+            id: string | null;
+            /** @description Display name of the user or API client; null when it no longer exists or there is none. */
+            name: string | null;
+        };
+        /** @enum {string} */
+        AuditResult: "success" | "failure";
+        AuditEventDto: {
+            id: components["schemas"]["Uuid"];
+            /** @description ISO 8601 time the action happened. */
+            occurredAt: string;
+            actor: components["schemas"]["AuditActorDto"];
+            /** @description Dotted action name such as `event.updated` or `tak-server.client-certificate-issued`. */
+            action: string;
+            targetType: string;
+            targetId: string | null;
+            result: components["schemas"]["AuditResult"];
+            /** @description Event the action belongs to; null for installation-wide actions. */
+            eventId: components["schemas"]["Uuid"] | null;
+            /** @description Current name of that event. */
+            eventName: string | null;
+            /** @description Correlates the entry with the server log lines of the same request. */
+            traceId: string | null;
+            /** @description Safe identifiers and state names recorded with the action. Never contains secrets. */
+            metadata: {
+                [key: string]: unknown;
+            } | null;
+        };
+        AuditEventPage: {
+            items: components["schemas"]["AuditEventDto"][];
+            page: components["schemas"]["PageInfo"];
+        };
+        /**
+         * @description `instance`: only entries that belong to no event, such as user or TAK server administration.
+         * @enum {string}
+         */
+        AuditScope: "all" | "instance";
         /** @enum {string} */
         ApiClientStatus: "active" | "disabled";
         ApiClientDto: {
@@ -17471,6 +17548,143 @@ export interface operations {
             };
             /** @description Nothing published to export */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListAuditEvents: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string;
+                /** @description Part of the action, target type or target ID. */
+                search?: string;
+                result?: components["schemas"]["AuditResult"];
+                eventId?: components["schemas"]["Uuid"];
+                scope?: components["schemas"]["AuditScope"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Audit entries */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditEventPage"];
+                };
+            };
+            /** @description Invalid cursor */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListEventAuditEvents: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string;
+                /** @description Part of the action, target type or target ID. */
+                search?: string;
+                result?: components["schemas"]["AuditResult"];
+            };
+            header?: never;
+            path: {
+                eventId: components["schemas"]["Uuid"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Audit entries */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditEventPage"];
+                };
+            };
+            /** @description Invalid cursor */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
