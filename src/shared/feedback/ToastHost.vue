@@ -32,7 +32,7 @@ const kinds: Record<ToastKind, { icon: string; title: string }> = {
     content-class="omtk-toast"
   >
     <template #header="{ item }">
-      <div class="d-flex align-center ga-2 ps-4 pe-12 pt-3 text-subtitle-2">
+      <div class="d-flex align-center ga-2 ps-4 pe-12 pt-3 text-title-small">
         <v-icon :icon="kinds[item.kind].icon" :color="item.kind" size="20" />
         <span>{{ kinds[item.kind].title }}</span>
       </div>
