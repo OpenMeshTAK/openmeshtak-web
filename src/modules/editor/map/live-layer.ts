@@ -3,7 +3,7 @@ import Point from "ol/geom/Point";
 import VectorLayer from "ol/layer/Vector";
 import { fromLonLat } from "ol/proj";
 import VectorSource from "ol/source/Vector";
-import { Circle, Fill, RegularShape, Stroke, Style, Text } from "ol/style";
+import { Circle, Fill, Icon, RegularShape, Stroke, Style, Text } from "ol/style";
 
 /** A live CoT item or mesh node as the map needs it; the view converts its data into this shape. */
 export interface LiveMapItem {
@@ -16,6 +16,10 @@ export interface LiveMapItem {
   source?: "tak" | "mesh";
   /** A last known position older than the staleness threshold. */
   outdated?: boolean;
+  /** Direction of travel in degrees clockwise from true north, when the sender reports one. */
+  course?: number | null;
+  /** Ground speed in metres per second, when the sender reports one. */
+  speed?: number | null;
 }
 
 /**
@@ -46,8 +50,12 @@ const MESH_COLOR = "#8e24aa";
 const STALE_COLOR = "#9e9e9e";
 
 /** Mesh observations are squares so they are never mistaken for TAK/CoT markers. */
+function colorOf(item: LiveMapItem): string {
+  return item.outdated === true ? STALE_COLOR : item.source === "mesh" ? MESH_COLOR : colorFor(item.type);
+}
+
 function markerFor(item: LiveMapItem): Circle | RegularShape {
-  const color = item.outdated === true ? STALE_COLOR : item.source === "mesh" ? MESH_COLOR : colorFor(item.type);
+  const color = colorOf(item);
   const fill = new Fill({ color });
   const stroke = new Stroke({ color: "#ffffff", width: 2, lineDash: item.outdated === true ? [3, 3] : undefined });
   return item.source === "mesh"
@@ -55,8 +63,37 @@ function markerFor(item: LiveMapItem): Circle | RegularShape {
     : new Circle({ radius: 7, fill, stroke });
 }
 
-function styleFor(item: LiveMapItem): Style {
+/**
+ * Below walking pace a GPS course is mostly noise, and apps without a fix report 0°; the arrow
+ * only shows where someone is actually going.
+ */
+const MOVING_SPEED_MS = 0.5;
+
+/** The course to draw, or null for stationary, outdated or course-less items. */
+export function headingOf(item: LiveMapItem): number | null {
+  if (item.outdated === true || item.course === undefined || item.course === null) {
+    return null;
+  }
+  return item.speed !== undefined && item.speed !== null && item.speed < MOVING_SPEED_MS ? null : item.course;
+}
+
+/** A small arrowhead just outside the marker, drawn pointing north and rotated to the course. */
+function arrowFor(color: string, course: number): Style {
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">` +
+    `<path d="M20 1 L27 11 L20 8.5 L13 11 Z" fill="${color}" stroke="#ffffff" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
   return new Style({
+    image: new Icon({
+      src: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
+      rotation: (course * Math.PI) / 180,
+      rotateWithView: true,
+    }),
+  });
+}
+
+function styleFor(item: LiveMapItem): Style[] {
+  const heading = headingOf(item);
+  const marker = new Style({
     image: markerFor(item),
     text:
       item.callsign === null
@@ -69,6 +106,7 @@ function styleFor(item: LiveMapItem): Style {
             stroke: new Stroke({ color: "rgba(0, 0, 0, 0.75)", width: 3 }),
           }),
   });
+  return heading === null ? [marker] : [arrowFor(colorOf(item), heading), marker];
 }
 
 /** A read-only layer on top of the package content, replaced wholesale on every refresh. */

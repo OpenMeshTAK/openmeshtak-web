@@ -18,6 +18,10 @@ export interface RadioPosition {
   altitude: number | null;
   /** Seconds since 1970 as the sending node's clock reported it; may be wrong or missing. */
   time: number | null;
+  /** Direction of travel in degrees from true north; only sent when the node's position flags include heading. */
+  course: number | null;
+  /** Ground speed in metres per second; only sent when the node's position flags include speed. */
+  speed: number | null;
 }
 
 export type RadioEvent =
@@ -60,7 +64,16 @@ function positionOf(position: Mesh.Position | undefined): RadioPosition | null {
   if ((position.latitudeI === 0 && position.longitudeI === 0) || Math.abs(lat) > 90 || Math.abs(lon) > 180) {
     return null;
   }
-  return { lat, lon, altitude: position.altitude ?? null, time: position.time > 0 ? position.time : null };
+  // Firmware sends the track in 1e-5 degrees and the speed in km/h (GPS.cpp).
+  const course = position.groundTrack === undefined ? null : position.groundTrack / 1e5;
+  return {
+    lat,
+    lon,
+    altitude: position.altitude ?? null,
+    time: position.time > 0 ? position.time : null,
+    course: course !== null && course < 360 ? course : null,
+    speed: position.groundSpeed === undefined ? null : position.groundSpeed / 3.6,
+  };
 }
 
 function userOf(user: Mesh.User | undefined): RadioUser | null {

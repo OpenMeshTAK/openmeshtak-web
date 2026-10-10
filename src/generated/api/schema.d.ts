@@ -3243,6 +3243,16 @@ export interface components {
             lat: number;
             /** Format: double */
             lon: number;
+            /**
+             * Format: double
+             * @description Direction of travel in degrees clockwise from true north (CoT `track/course`), or null when not sent.
+             */
+            course: number | null;
+            /**
+             * Format: double
+             * @description Ground speed in metres per second (CoT `track/speed`), or null when not sent.
+             */
+            speed: number | null;
             /** Format: date-time */
             time: string;
             /** Format: date-time */

@@ -52,6 +52,20 @@ describe("FromRadio decoding", () => {
     const event = decodeFromRadio(positionPacket(0x1234, 7, 523_700_000, 118_100_000));
     expect(event).toMatchObject({ type: "packet", from: 0x1234, position: { lat: 52.37, lon: 11.81, time: 1_790_000_000 } });
     expect(decodeFromRadio(positionPacket(0x1234, 8, 0, 0))).toMatchObject({ type: "packet", position: null });
+    expect(event).toMatchObject({ position: { course: null, speed: null } });
+  });
+
+  it("reads the ground track and speed in degrees and metres per second", () => {
+    const payload = toBinary(Mesh.PositionSchema, create(Mesh.PositionSchema, { latitudeI: 1, longitudeI: 1, groundTrack: 27_150_000, groundSpeed: 18 }));
+    const bytes = fromRadio({
+      case: "packet",
+      value: create(Mesh.MeshPacketSchema, {
+        from: 3,
+        id: 1,
+        payloadVariant: { case: "decoded", value: create(Mesh.DataSchema, { portnum: Portnums.PortNum.POSITION_APP, payload }) },
+      }),
+    });
+    expect(decodeFromRadio(bytes)).toMatchObject({ position: { course: 271.5, speed: 5 } });
   });
 
   it("reads node database entries", () => {
@@ -99,7 +113,7 @@ describe("mesh node state", () => {
     const state = emptyMeshState();
     applyRadioEvent(
       state,
-      { type: "node-info", nodeNum: 9, user: null, position: { lat: 1, lon: 2, altitude: null, time: null }, lastHeard: 1000, batteryLevel: null, snr: null },
+      { type: "node-info", nodeNum: 9, user: null, position: { lat: 1, lon: 2, altitude: null, time: null, course: null, speed: null }, lastHeard: 1000, batteryLevel: null, snr: null },
       now,
     );
     expect(state.nodes.get(9)?.positionAt).toBeNull();
@@ -108,7 +122,7 @@ describe("mesh node state", () => {
 
   it("labels map markers with the long name and falls back to the short name", () => {
     const state = emptyMeshState();
-    const position = { lat: 1, lon: 2, altitude: null, time: null };
+    const position = { lat: 1, lon: 2, altitude: null, time: null, course: null, speed: null };
     const nodeInfo = { type: "node-info", position, lastHeard: null, batteryLevel: null, snr: null } as const;
     applyRadioEvent(state, { ...nodeInfo, nodeNum: 1, user: { id: "!00000001", longName: "Wolf Alpha", shortName: "Wolf" } }, now);
     applyRadioEvent(state, { ...nodeInfo, nodeNum: 2, user: { id: "!00000002", longName: "", shortName: "TNG" } }, now);
@@ -120,7 +134,7 @@ describe("mesh node state", () => {
     applyRadioEvent(state, decodeFromRadio(positionPacket(9, 1, 100_000_000, 100_000_000)) as RadioEvent, now);
     applyRadioEvent(
       state,
-      { type: "node-info", nodeNum: 9, user: null, position: { lat: 5, lon: 5, altitude: null, time: null }, lastHeard: 1_700_000_000, batteryLevel: null, snr: null },
+      { type: "node-info", nodeNum: 9, user: null, position: { lat: 5, lon: 5, altitude: null, time: null, course: null, speed: null }, lastHeard: 1_700_000_000, batteryLevel: null, snr: null },
       now,
     );
     expect(state.nodes.get(9)?.position?.lat).toBe(10);

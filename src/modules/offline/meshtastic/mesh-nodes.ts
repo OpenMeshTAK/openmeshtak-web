@@ -169,6 +169,8 @@ export function meshLiveItems(nodes: Iterable<MeshNode>, now: Date, staleAfterMs
             callsign: nodeLabel(node),
             lat: node.position.lat,
             lon: node.position.lon,
+            course: node.position.course,
+            speed: node.position.speed,
             source: "mesh" as const,
             outdated: isStale(node, now, staleAfterMs),
           },
