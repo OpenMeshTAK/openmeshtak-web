@@ -1,8 +1,9 @@
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { isApiProblem } from "@/shared/errors/api-problem";
 import { useToast } from "@/shared/feedback/toast";
 import {
   createLayer,
+  batchObjects,
   createObject,
   deleteLayer,
   deleteObject,
@@ -104,6 +105,8 @@ export function usePackageEditor(eventId: string, packageId: string) {
   const loadState = ref<"loading" | "ready" | "error">("loading");
   const saveState = ref<SaveState>("saved");
   const selectedId = ref<string | null>(null);
+  const selectedIds = ref<string[]>([]);
+  watch(selectedId, (id) => { if (id !== selectedIds.value[0]) selectedIds.value = id === null ? [] : [id]; }, { flush: "sync" });
   const activeLayerId = ref<string | null>(null);
   const history = useEditorHistory();
   const layerHandles = new Map<string, EntityHandle>();
@@ -111,6 +114,12 @@ export function usePackageEditor(eventId: string, packageId: string) {
 
   const sortedLayers = computed(() => [...layers.value].sort((a, b) => a.sortOrder - b.sortOrder));
   const selected = computed(() => objects.value.find(({ id }) => id === selectedId.value) ?? null);
+  const selectedObjects = computed(() => objects.value.filter(({ id }) => selectedIds.value.includes(id)));
+
+  function selectObjects(ids: string[]): void {
+    selectedIds.value = ids.filter((id) => objects.value.some((object) => object.id === id)).slice(0, 500);
+    selectedId.value = selectedIds.value[0] ?? null;
+  }
   const activeLayer = computed(() => layers.value.find(({ id }) => id === activeLayerId.value) ?? null);
 
   function handleFor(store: Map<string, EntityHandle>, id: string): EntityHandle {
@@ -327,7 +336,55 @@ export function usePackageEditor(eventId: string, packageId: string) {
 
   // ---- Objects --------------------------------------------------------------------------------
 
-  async function addObject(geometry: PackageGeometry): Promise<void> {
+  async function applyObjectStates(states: ObjectState[], mode: "update" | "delete" | "create"): Promise<boolean> {
+    if (saveState.value === "saving") return false;
+    const live = states.map((state) => objects.value.find(({ id }) => id === state.handle.id));
+    if (mode !== "create" && live.some((object) => object === undefined)) return false;
+    if (states.some((state) => layers.value.find(({ id }) => id === state.layer.id)?.locked !== false)) return false;
+    const bodies = states.map((state) => ({ layerId: state.layer.id, name: state.name, description: state.description,
+      geometry: cloneDto(state.geometry), style: cloneDto(state.style), tak: cloneDto(state.tak) }));
+    const result = await save(() => batchObjects(path, {
+      updates: mode === "update" ? bodies.map((body, index) => ({ ...body, id: states[index]!.handle.id, version: live[index]!.version })) : [],
+      deletes: mode === "delete" ? live.map((object) => ({ id: object!.id, version: object!.version })) : [],
+      creates: mode === "create" ? bodies : [],
+    }));
+    if (result === null) { objects.value = [...objects.value]; return false; }
+    const updated = new Map(result.updated.map((object) => [object.id, object]));
+    objects.value = [...objects.value.filter(({ id }) => !result.deletedIds.includes(id)).map((object) => updated.get(object.id) ?? object), ...result.created];
+    result.created.forEach((object, index) => replaceHandleId(objectHandles, states[index]!.handle, object.id));
+    selectObjects(mode === "delete" ? [] : states.map((state) => state.handle.id));
+    return true;
+  }
+
+  async function changeObjects(changes: Array<{ id: string; geometry?: PackageGeometry; style?: PackageObjectStyle }>): Promise<void> {
+    const live = changes.map(({ id }) => objects.value.find((object) => object.id === id));
+    if (live.some((object) => object === undefined) || changes.length === 0) return;
+    const before = live.map((object) => objectStateOf(object!));
+    const after = before.map((state, index) => ({ ...state, geometry: cloneDto(changes[index]?.geometry ?? state.geometry), style: cloneDto(changes[index]?.style ?? state.style) }));
+    if (await applyObjectStates(after, "update")) recordHistory("Edit selection", before.flatMap((state) => [state.handle, state.layer]),
+      () => applyObjectStates(before, "update"), () => applyObjectStates(after, "update"));
+  }
+
+  async function removeObjects(ids: string[]): Promise<void> {
+    const states = objects.value.filter((object) => ids.includes(object.id)).map(objectStateOf);
+    if (states.length === 0 || states.length !== new Set(ids).size) return;
+    if (await applyObjectStates(states, "delete")) recordHistory("Delete selection", states.flatMap((state) => [state.handle, state.layer]),
+      () => applyObjectStates(states, "create"), () => applyObjectStates(states, "delete"));
+  }
+
+  async function styleObjects(ids: string[], patch: Partial<PackageObjectStyle>): Promise<void> {
+    await changeObjects(objects.value.filter((object) => ids.includes(object.id)).map((object) => ({ id: object.id, style: { ...object.style, ...patch } })));
+  }
+
+  async function addObject(geometry: PackageGeometry, presentation: boolean | "sector" | "range-bearing" | "range-circle" | "bullseye" = false): Promise<void> {
+    const arrow = presentation === true;
+    const style: PackageObjectStyle = { color: "#1E88E5", strokeWidth: 3, fillOpacity: 0.25,
+      ...(arrow ? { arrowHeads: "end", arrowHeadSize: 16 } : {}),
+      ...(presentation === "range-circle" ? { rangeCircle: true, rangeRings: 3 } : {}),
+      ...(presentation === "bullseye" && geometry.type === "Circle" ? { bullseye: { ringDistance: geometry.radius / 3, ringCount: 3, ringsVisible: true, edgeToCenter: false } } : {}),
+      ...(presentation === "sector" ? { sector: { heading: 0, sweep: 60, radius: 100 } } : {}),
+      ...(presentation === "range-bearing" ? { rangeBearing: true, distanceUnit: "m", arrowHeads: "end" } : {}),
+    };
     const layer = activeLayer.value;
     if (layer === null || layer.locked) {
       toast.warning("Choose an unlocked layer before drawing.");
@@ -339,7 +396,9 @@ export function usePackageEditor(eventId: string, packageId: string) {
     }
     const sameKind = objects.value.filter((object) => object.geometry.type === geometry.type).length;
     const created = await save(() =>
-      createObject(path, { layerId: layer.id, name: `${KIND_NAMES[geometry.type]} ${String(sameKind + 1)}`, geometry }),
+      createObject(path, { layerId: layer.id, name: `${arrow ? "Arrow" : typeof presentation === "string" ? presentation : KIND_NAMES[geometry.type]} ${String(sameKind + 1)}`, geometry,
+        ...(presentation === false ? {} : { style }),
+      }),
     );
     if (created !== null) {
       objects.value = [...objects.value, created];
@@ -707,6 +766,7 @@ export function usePackageEditor(eventId: string, packageId: string) {
 
   /** Applies a change another tab or person saved, loading only what it touched. */
   async function applyRemoteChange(change: RemotePackageChange): Promise<void> {
+    if (change.path === "objects/batch") { await syncAll(); return; }
     const objectId = OBJECT_PATH.exec(change.path)?.[1] ?? (change.path === "objects" ? change.createdId : null);
     if (objectId !== null) {
       await syncObject(objectId);
@@ -742,6 +802,9 @@ export function usePackageEditor(eventId: string, packageId: string) {
     loadState,
     saveState,
     selectedId,
+    selectedIds,
+    selectedObjects,
+    selectObjects,
     selected,
     activeLayerId,
     activeLayer,
@@ -759,6 +822,9 @@ export function usePackageEditor(eventId: string, packageId: string) {
     syncAll,
     addObject,
     changeObject,
+    changeObjects,
+    removeObjects,
+    styleObjects,
     duplicateObject,
     removeObject,
     clipboard,

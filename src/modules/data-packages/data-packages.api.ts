@@ -10,6 +10,13 @@ export type PackageObjectStyle = Schemas["PackageObjectStyle"];
 export type TakMarker = Schemas["TakMarker"];
 export type ImportReport = Schemas["ImportReport"];
 export type PublishResult = Schemas["PublishDataPackageResponse"];
+export type PresentationReport = Schemas["PresentationReport"];
+
+export function getPresentationReport(path: PackagePath, format: "cot" | "kml", revision?: number, layerId?: string): Promise<PresentationReport> {
+  return unwrap(api.GET("/events/{eventId}/data-packages/{packageId}/presentation-report", { params: {
+    path, query: { format, ...(revision === undefined ? {} : { revision }), ...(layerId === undefined ? {} : { layerId }) },
+  } }));
+}
 
 type PackagePath = { eventId: string; packageId: string };
 
@@ -122,6 +129,10 @@ export function createObject(path: PackagePath, body: Schemas["CreatePackageObje
   return unwrap(api.POST("/events/{eventId}/data-packages/{packageId}/objects", { params: { path }, body }));
 }
 
+export function batchObjects(path: PackagePath, body: Schemas["BatchPackageObjectsRequest"]): Promise<Schemas["BatchPackageObjectsResponse"]> {
+  return unwrap(api.POST("/events/{eventId}/data-packages/{packageId}/objects/batch", { params: { path }, body }));
+}
+
 export function updateObject(
   path: PackagePath,
   objectId: string,
@@ -214,7 +225,7 @@ export function previewCombinedExport(eventId: string, body: CombinedExportReque
   return unwrap(api.POST("/events/{eventId}/data-package-exports/atak/preview", { params: { path: { eventId } }, body }));
 }
 
-/** Copies published packages or layers into a new editable package with new object UUIDs. */
+/** Copies selected published revisions or explicit drafts into a new editable package with independent IDs. */
 export function createDataPackageCopy(
   eventId: string,
   body: Schemas["CreateDataPackageCopyRequest"],

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { DEFAULT_GRID_SETTINGS } from "./map/mgrs-grid";
 import { saveFile } from "@/shared/files/save-file";
 import {
   mdiArrowLeft,
@@ -23,6 +24,8 @@ import { useSession } from "@/modules/auth/session";
 import CreatePackageCopyDialog from "@/modules/data-packages/components/CreatePackageCopyDialog.vue";
 import {
   createDataPackage,
+  getPresentationReport,
+  type PresentationReport,
   downloadAtak,
   downloadDraftKml,
   exportDraftGeoJson,
@@ -43,9 +46,11 @@ import EditorContextMenu, { type ContextTarget } from "./components/EditorContex
 import EditorPresence from "./components/EditorPresence.vue";
 import EditorToolbar from "./components/EditorToolbar.vue";
 import EventPackageTree from "./components/EventPackageTree.vue";
+import PresentationReportDialog from "./components/PresentationReportDialog.vue";
 import ImportReportDialog from "./components/ImportReportDialog.vue";
 import type { LayerExportFormat } from "./components/LayerPanel.vue";
 import ObjectInspector from "./components/ObjectInspector.vue";
+import BulkObjectInspector from "./components/BulkObjectInspector.vue";
 import { iconLibraries } from "./icon-libraries.api";
 import PackageMapView from "./components/PackageMapView.vue";
 import { topFirst } from "@/modules/data-packages/package-order";
@@ -56,6 +61,8 @@ import type { EventPackageBranch } from "./event-editor.types";
 import type { EditorTool } from "./map/package-map";
 import { usePackageChangeSync, type PackageChangeNotice } from "./usePackageChangeSync";
 import { usePackageEditor, type PackageEditor, type SaveState } from "./usePackageEditor";
+
+const presentationReport = ref<PresentationReport | null>(null);
 
 const route = useRoute();
 const router = useRouter();
@@ -245,6 +252,15 @@ function selectObject(objectId: string | null): void {
   }
 }
 
+function selectObjects(ids: string[]): void {
+  selectObject(ids[0] ?? null);
+  selectedEditor.value?.selectObjects(ids);
+}
+
+async function changeGeometries(changes: Array<{ id: string; geometry: PackageGeometry }>): Promise<void> {
+  await editorForObject(changes[0]?.id ?? "")?.changeObjects(changes);
+}
+
 async function undoLast(): Promise<void> {
   const editor = undoEditor.value;
   if (editor === null || eventHistoryBusy.value) {
@@ -386,7 +402,9 @@ async function exportDraft(editor: PackageEditor, layer?: PackageLayerDto): Prom
 
 async function exportKml(editor: PackageEditor, layer?: PackageLayerDto): Promise<void> {
   try {
+    const report = await getPresentationReport(editor.path, "kml", undefined, layer?.id);
     const { blob, fileName } = await downloadDraftKml(editor.path, layer?.id);
+    presentationReport.value = report;
     saveFile(blob, fileName);
   } catch (caught: unknown) {
     toast.error(caught);
@@ -400,7 +418,9 @@ async function exportAtak(editor: PackageEditor, layer?: PackageLayerDto): Promi
     return;
   }
   try {
+    const report = await getPresentationReport(editor.path, "cot", revision, layer?.id);
     const { blob, fileName } = await downloadAtak(editor.path, revision, layer?.id);
+    presentationReport.value = report;
     saveFile(blob, fileName);
   } catch (caught: unknown) {
     toast.error(isApiProblem(caught, "NOT_FOUND") ? `${words.publishFirst}: this layer is not in the latest revision.` : caught);
@@ -422,10 +442,11 @@ function exportLayer(branch: EventPackageBranch, layer: PackageLayerDto, format:
 }
 
 async function onDrawn(geometry: PackageGeometry): Promise<void> {
+  const presentation = tool.value === "arrow" ? true : tool.value === "sector" || tool.value === "range-bearing" || tool.value === "range-circle" || tool.value === "bullseye" ? tool.value : false;
   tool.value = "select";
   const editor = activeEditor.value;
   if (editor !== null) {
-    await editor.addObject(geometry);
+    await editor.addObject(geometry, presentation);
     selectObject(editor.selectedId.value);
   }
 }
@@ -473,8 +494,9 @@ async function duplicateSelected(): Promise<void> {
 async function removeSelected(): Promise<void> {
   const editor = selectedEditor.value;
   if (editor !== null && selectedId.value !== null) {
-    await editor.removeObject(selectedId.value);
-    selectedId.value = null;
+    if (editor.selectedIds.value.length > 1) await editor.removeObjects(editor.selectedIds.value);
+    else await editor.removeObject(selectedId.value);
+    selectedId.value = editor.selectedId.value;
   }
 }
 
@@ -513,7 +535,7 @@ function toggleLayers(): void {
   storeLayersOpen(layersOpen.value);
 }
 
-const SHORTCUTS: Record<string, EditorTool> = { s: "select", m: "point", l: "line", f: "freehand", a: "polygon", c: "circle", r: "rectangle", e: "ellipse", t: "route", q: "measure-length", w: "measure-area" };
+const SHORTCUTS: Record<string, EditorTool> = { s: "select", m: "point", l: "line", d: "arrow", v: "sector", b: "range-bearing", n: "measure-bearing", f: "freehand", a: "polygon", c: "circle", r: "rectangle", e: "ellipse", t: "route", q: "measure-length", w: "measure-area" };
 
 function onKeydown(keyEvent: KeyboardEvent): void {
   const target = keyEvent.target as HTMLElement | null;
@@ -538,7 +560,7 @@ function onKeydown(keyEvent: KeyboardEvent): void {
     return;
   }
   const shortcut = SHORTCUTS[key];
-  if (shortcut !== undefined && (editable.value || ["select", "measure-length", "measure-area"].includes(shortcut))) {
+  if (shortcut !== undefined && (editable.value || ["select", "measure-length", "measure-area", "measure-bearing"].includes(shortcut))) {
     tool.value = shortcut;
   } else if (keyEvent.key === "Escape") {
     tool.value = "select";
@@ -697,6 +719,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
+  <PresentationReportDialog :report="presentationReport" />
   <div class="event-editor-shell">
     <header class="event-editor-header d-flex align-center ga-3 px-4 py-2">
       <v-btn
@@ -768,11 +791,15 @@ onBeforeUnmount(() => {
         :contents="mapContents"
         :icon-libraries="editors.flatMap((editor) => iconLibraries(editor.path, editor.contents.value))"
         :selected-id="selectedId"
+        :selected-ids="selectedEditor?.selectedIds.value ?? []"
         :remote-selections="remoteSelections"
         :tool="tool"
         :editable="editable"
         @drawn="onDrawn"
         @modified="changeGeometry"
+        @styled="(id, style) => editorForObject(id)?.changeObject(id, { style })"
+        @modified-many="changeGeometries"
+        @select-many="selectObjects"
         @select="selectObject"
         @contextmenu="contextTarget = $event"
       />
@@ -820,16 +847,24 @@ onBeforeUnmount(() => {
         :redo-label="redoEditor?.redoLabel.value ?? null"
         class="event-editor-toolbar"
         :class="{ 'event-editor-toolbar--beside': layersOpen }"
+        :distance-unit="mapView?.measurementUnit ?? 'm'"
+        :grid-visible="mapView?.gridVisible ?? false"
+        :grid-settings="mapView?.gridSettings ?? DEFAULT_GRID_SETTINGS"
         @undo="undoLast"
         @redo="redoLast"
         @fit="mapView?.fitToContent()"
         @clear-measurements="mapView?.clearMeasurements()"
         @change-base-map="mapView?.selectBaseMap($event)"
+        @change-distance-unit="mapView?.setMeasurementUnit($event)"
         @toggle-layers="toggleLayers"
+        @toggle-grid="mapView?.setGridVisible(!(mapView?.gridVisible ?? false))"
+        @change-grid-settings="mapView?.setGridSettings($event)"
       />
 
       <v-sheet v-if="selected && selectedEditor" elevation="4" rounded="lg" class="event-editor-inspector">
+        <BulkObjectInspector v-if="selectedEditor.selectedObjects.value.length > 1" :objects="selectedEditor.selectedObjects.value" :layers="selectedLayers" :editable="editable" :saving="selectedEditor.saveState.value === 'saving'" @style="selectedEditor.styleObjects(selectedEditor.selectedIds.value, $event)" @remove="removeSelected" />
         <ObjectInspector
+          v-else
           :object="selected"
           :event-id="eventId"
           :contents="selectedEditor.contents.value"
@@ -847,6 +882,7 @@ onBeforeUnmount(() => {
     <CreatePackageCopyDialog
       v-if="copySource"
       v-model="copyOpen"
+      source="draft"
       :event-id="eventId"
       :default-name="`${copySource.branch.dataPackage.name} - ${copySource.layer.name}`"
       :source-label="`layer ${copySource.layer.name}`"

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ColorInput from "./ColorInput.vue";
 import InfoHint from "@/shared/components/InfoHint.vue";
 import { mdiContentCopy, mdiTrashCanOutline } from "@mdi/js";
 import { computed, ref, watch } from "vue";
@@ -13,6 +14,10 @@ import type {
 import MarkerSymbolField from "./MarkerSymbolField.vue";
 import EllipseDimensions from "./EllipseDimensions.vue";
 import RouteInspector from "./RouteInspector.vue";
+import PlanningStyleInspector from "./PlanningStyleInspector.vue";
+import InspectorToggle from "./InspectorToggle.vue";
+import SegmentedControl from "@/shared/components/SegmentedControl.vue";
+import GridCoordinateInput from "./GridCoordinateInput.vue";
 
 type ObjectChanges = Partial<{
   name: string;
@@ -31,6 +36,8 @@ const description = ref("");
 const position = ref({ longitude: "", latitude: "", altitude: "", radius: "" });
 const height = ref("");
 const heightError = ref("");
+const dashPattern = ref("");
+const dashError = ref("");
 const heightUnits = [
   { title: "Client default", value: null },
   { title: "Metres", value: 1 }, { title: "Feet", value: 4 },
@@ -45,6 +52,8 @@ watch(
     description.value = object.description ?? "";
     height.value = object.style.height == null ? "" : String(object.style.height);
     heightError.value = "";
+    dashPattern.value = (object.style.dashPattern ?? [8, 4]).join(", ");
+    dashError.value = "";
     if (object.geometry.type === "Point" || object.geometry.type === "Circle" || object.geometry.type === "Ellipse") {
       const [longitude, latitude, altitude] = object.geometry.coordinates;
       position.value = {
@@ -65,12 +74,13 @@ const vertexCount = computed(() => {
   return geometry.type === "LineString" || geometry.type === "Rectangle" || geometry.type === "Route" ? geometry.coordinates.length : geometry.type === "Polygon" ? (geometry.coordinates[0]?.length ?? 1) - 1 : 1;
 });
 const unlockedLayers = computed(() => props.layers.filter((layer) => !layer.locked || layer.id === props.object.layerId));
-const kindLabel = computed(() => ({
+const kindLabel = computed(() => props.object.style.sector != null ? "Bearing sector" : props.object.style.rangeBearing === true ? "Range & Bearing" : ({
   point: "Marker", line: "Line", polygon: "Polygon", circle: "Circle", rectangle: "Rectangle", ellipse: "Ellipse", route: "Route",
 })[props.object.kind]);
-const filled = computed(() => ["polygon", "circle", "rectangle", "ellipse"].includes(props.object.kind));
+const filled = computed(() => ["polygon", "circle", "rectangle", "ellipse"].includes(props.object.kind) || props.object.style.sector != null || props.object.style.corridorWidth != null);
 const packagePath = computed(() => (props.eventId ? { eventId: props.eventId, packageId: props.object.packageId } : null));
-const strokeStyles = [{ title: "Solid", value: "solid" }, { title: "Dashed", value: "dashed" }] as const;
+const strokeStyles = [{ title: "Solid", value: "solid" }, { title: "Dashed", value: "dashed" }, { title: "Dotted", value: "dotted" }, { title: "Outlined", value: "outlined" }, { title: "Custom", value: "custom" }] as const;
+const arrowHeads = [{ title: "None", value: "none" }, { title: "Start", value: "start" }, { title: "End", value: "end" }, { title: "Both", value: "both" }];
 const extrudeModes = [{ title: "Client default", value: null }, { title: "Cylinder", value: "cylinder" }, { title: "Downward cone", value: "cone_down" }];
 
 function commitText(): void {
@@ -101,6 +111,16 @@ function commitHeight(): void {
   }
   heightError.value = "";
   if (value !== (props.object.style.height ?? null)) changeStyle({ height: value });
+}
+
+function commitDashes(): void {
+  const values = dashPattern.value.split(",").map((part) => Number(part.trim()));
+  if (values.length < 2 || values.length > 8 || values.length % 2 !== 0 || values.some((value) => !Number.isInteger(value) || value < 1 || value > 64)) {
+    dashError.value = "Enter 2–8 alternating dash/gap lengths, whole pixels from 1 to 64 (e.g. 8, 4).";
+    return;
+  }
+  dashError.value = "";
+  if (JSON.stringify(values) !== JSON.stringify(props.object.style.dashPattern)) changeStyle({ dashPattern: values });
 }
 
 /** An empty altitude stays unknown; it is never sent as zero. Core validates the values. */
@@ -160,7 +180,7 @@ function commitPosition(): void {
       />
     </section>
 
-    <section v-if="object.kind === 'point'" class="inspector-section">
+    <section v-if="object.kind === 'point' && object.style.sector == null" class="inspector-section">
       <div class="text-label-medium text-uppercase text-medium-emphasis">Symbol</div>
       <MarkerSymbolField
         :tak="object.tak"
@@ -176,34 +196,21 @@ function commitPosition(): void {
       <div class="text-label-medium text-uppercase text-medium-emphasis">Style</div>
       <div class="style-row">
         <span class="style-label">{{ object.kind === 'point' ? 'Colour' : 'Outline' }}</span>
-        <input
-          type="color"
-          class="color-input"
-          :value="object.style.color.toLowerCase()"
-          :disabled="disabled"
-          aria-label="Colour"
-          @change="changeStyle({ color: ($event.target as HTMLInputElement).value.toUpperCase() })"
-        >
+        <ColorInput :model-value="object.style.color" :disabled="disabled" label="Colour" @update:model-value="changeStyle({ color: $event })" />
         <code class="text-body-small flex-grow-1">{{ object.style.color }}</code>
       </div>
       <div v-if="object.kind !== 'point'" class="style-row">
         <span class="style-label">Line</span>
-        <div class="segmented" role="radiogroup" aria-label="Line style">
-          <button
-            v-for="option in strokeStyles"
-            :key="option.value"
-            type="button"
-            role="radio"
-            class="segmented__option"
-            :class="{ 'segmented__option--active': (object.style.strokeStyle ?? 'solid') === option.value }"
-            :aria-checked="(object.style.strokeStyle ?? 'solid') === option.value"
-            :disabled="disabled"
-            @click="changeStyle({ strokeStyle: option.value })"
-          >
-            {{ option.title }}
-          </button>
-        </div>
+        <SegmentedControl
+          :model-value="object.style.strokeStyle ?? 'solid'"
+          :options="strokeStyles"
+          label="Line style"
+          :disabled="disabled"
+          @update:model-value="changeStyle({ strokeStyle: $event, ...($event === 'custom' ? { dashPattern: object.style.dashPattern ?? [8, 4] } : {}) })"
+        />
       </div>
+      <v-text-field v-if="object.style.strokeStyle === 'custom'" v-model="dashPattern" label="Dash / gap lengths (px)" density="compact" :disabled="disabled" :error-messages="dashError" @blur="commitDashes" @keydown.enter="commitDashes" />
+      <InfoHint v-if="object.style.strokeStyle === 'custom'" tone="warning" label="Custom pattern in other apps" text="ATAK and KML show a custom dash pattern as a solid line. Solid, dashed, dotted and outlined lines keep their look in ATAK." />
       <div v-if="object.kind !== 'point'" class="style-row">
         <span class="style-label">Width</span>
         <v-slider
@@ -223,14 +230,7 @@ function commitPosition(): void {
       <template v-if="filled">
         <div class="style-row">
           <span class="style-label">Fill</span>
-          <input
-            type="color"
-            class="color-input"
-            :value="(object.style.fillColor ?? object.style.color).toLowerCase()"
-            :disabled="disabled"
-            aria-label="Fill colour"
-            @change="changeStyle({ fillColor: ($event.target as HTMLInputElement).value.toUpperCase() })"
-          >
+          <ColorInput :model-value="object.style.fillColor ?? object.style.color" :disabled="disabled" label="Fill colour" @update:model-value="changeStyle({ fillColor: $event })" />
           <code v-if="object.style.fillColor" class="text-body-small flex-grow-1">{{ object.style.fillColor }}</code>
           <span v-else class="text-body-small text-medium-emphasis flex-grow-1">Same as outline</span>
           <v-btn v-if="object.style.fillColor" size="small" variant="text" class="text-none" :disabled="disabled" @click="changeStyle({ fillColor: null })">
@@ -252,6 +252,26 @@ function commitPosition(): void {
           />
           <span class="style-value">{{ Math.round(object.style.fillOpacity * 100) }} %</span>
         </div>
+      </template>
+      <template v-if="object.kind === 'line' || object.kind === 'route'">
+        <div class="d-flex align-center ga-2">
+          <div class="text-label-medium text-uppercase text-medium-emphasis">Direction</div>
+          <InfoHint label="How arrows look in ATAK" text="A straight arrow between two points appears as a Range & Bearing line with distance and bearing. Any further arrowhead becomes a small separate triangle with a fixed size on the ground. Route direction arrows are only shown in this editor." />
+        </div>
+        <v-select v-if="object.kind === 'line'" :model-value="object.style.arrowHeads ?? 'none'" :items="arrowHeads" label="Arrowheads" density="compact" hide-details :disabled="disabled" @update:model-value="changeStyle({ arrowHeads: $event })" />
+        <InspectorToggle v-else label="Show route direction" :model-value="object.style.routeDirectionArrows ?? false" :disabled="disabled" @update:model-value="changeStyle({ routeDirectionArrows: $event })" />
+        <template v-if="(object.style.arrowHeads ?? 'none') !== 'none' || object.style.routeDirectionArrows">
+          <div class="style-row">
+            <span class="style-label">Head</span>
+            <v-slider :model-value="object.style.arrowHeadSize ?? 16" :min="6" :max="64" :step="1" density="compact" hide-details aria-label="Arrowhead size" :disabled="disabled" @end="changeStyle({ arrowHeadSize: $event })" />
+            <span class="style-value">{{ object.style.arrowHeadSize ?? 16 }} px</span>
+          </div>
+          <div v-if="object.kind === 'route'" class="style-row">
+            <span class="style-label">Spacing</span>
+            <v-slider :model-value="object.style.routeArrowSpacing ?? 80" :min="24" :max="256" :step="1" density="compact" hide-details aria-label="Direction indicator spacing" :disabled="disabled" @end="changeStyle({ routeArrowSpacing: $event })" />
+            <span class="style-value">{{ object.style.routeArrowSpacing ?? 80 }} px</span>
+          </div>
+        </template>
       </template>
     </section>
 
@@ -296,6 +316,9 @@ function commitPosition(): void {
     <section v-if="object.geometry.type === 'Ellipse'" class="inspector-block">
       <EllipseDimensions :geometry="object.geometry" :disabled="disabled" @change="emit('change', { geometry: $event })" />
     </section>
+    <section v-if="object.style.sector != null || object.kind === 'line' || object.kind === 'route'" class="inspector-section">
+      <PlanningStyleInspector :geometry="object.geometry" :style="object.style" :disabled="disabled" @change="emit('change', { style: $event })" />
+    </section>
     <section v-if="object.geometry.type === 'Route'" class="inspector-block">
       <RouteInspector :geometry="object.geometry" :disabled="disabled" @change="emit('change', { geometry: $event })" />
     </section>
@@ -303,6 +326,7 @@ function commitPosition(): void {
     <section v-if="object.geometry.type !== 'Route'" class="inspector-section">
       <div class="text-label-medium text-uppercase text-medium-emphasis">Position (WGS84)</div>
       <template v-if="object.geometry.type === 'Point' || object.geometry.type === 'Circle' || object.geometry.type === 'Ellipse'">
+        <GridCoordinateInput :position="object.geometry.coordinates" :disabled="disabled" @apply="emit('change', { geometry: { ...object.geometry, coordinates: [...$event, ...object.geometry.coordinates.slice(2)] } })" />
         <div class="field-pair">
           <v-text-field v-model="position.latitude" label="Latitude" density="compact" hide-details :disabled="disabled" @blur="commitPosition" @keydown.enter="commitPosition" />
           <v-text-field v-model="position.longitude" label="Longitude" density="compact" hide-details :disabled="disabled" @blur="commitPosition" @keydown.enter="commitPosition" />
@@ -378,66 +402,9 @@ function commitPosition(): void {
 .style-row :deep(.v-slider.v-input--horizontal) {
   margin-inline: 0;
 }
-/* Joined options with one outer border, so touching edges are never rounded. */
-.segmented {
-  display: flex;
-  flex: 1 1 auto;
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.24);
-  border-radius: 8px;
-  overflow: hidden;
-}
-.segmented__option {
-  flex: 1 1 0;
-  appearance: none;
-  border: none;
-  border-radius: 0;
-  padding: 4px 8px;
-  font-size: 0.8125rem;
-  color: inherit;
-  background: none;
-  cursor: pointer;
-}
-.segmented__option + .segmented__option {
-  border-left: 1px solid rgba(var(--v-theme-on-surface), 0.24);
-}
-.segmented__option:hover:not(:disabled) {
-  background: rgba(var(--v-theme-on-surface), 0.08);
-}
-.segmented__option--active {
-  color: rgb(var(--v-theme-primary));
-  background: rgba(var(--v-theme-primary), 0.16);
-}
-.segmented__option:disabled {
-  cursor: default;
-  opacity: 0.5;
-}
 .field-pair {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
-}
-.color-input {
-  flex: 0 0 auto;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.24);
-  border-radius: 6px;
-  background: none;
-  cursor: pointer;
-  overflow: hidden;
-}
-.color-input:disabled {
-  cursor: default;
-  opacity: 0.5;
-}
-.color-input::-webkit-color-swatch-wrapper {
-  padding: 0;
-}
-.color-input::-webkit-color-swatch {
-  border: none;
-}
-.color-input::-moz-color-swatch {
-  border: none;
 }
 </style>

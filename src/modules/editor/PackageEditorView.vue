@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { DEFAULT_GRID_SETTINGS } from "./map/mgrs-grid";
 import { saveFile } from "@/shared/files/save-file";
 import { mdiArrowLeft, mdiChevronDown, mdiCloudCheckOutline, mdiCloudUploadOutline, mdiDownload, mdiPublish, mdiUpload } from "@mdi/js";
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
@@ -8,6 +9,8 @@ import { useToast } from "@/shared/feedback/toast";
 import { useSession } from "@/modules/auth/session";
 import { getEvent, type EventDto } from "@/modules/events/events.api";
 import {
+  getPresentationReport,
+  type PresentationReport,
   downloadAtak,
   downloadDraftKml,
   exportDraftGeoJson,
@@ -23,17 +26,21 @@ import CreatePackageCopyDialog from "@/modules/data-packages/components/CreatePa
 import { isApiProblem } from "@/shared/errors/api-problem";
 import EditorContextMenu, { type ContextTarget } from "./components/EditorContextMenu.vue";
 import EditorToolbar from "./components/EditorToolbar.vue";
+import PresentationReportDialog from "./components/PresentationReportDialog.vue";
 import ImportReportDialog from "./components/ImportReportDialog.vue";
 import LayerPanel, { type LayerExportFormat } from "./components/LayerPanel.vue";
 import PackageMapView from "./components/PackageMapView.vue";
 import { mapContentItems } from "./map/map-content";
 import ObjectInspector from "./components/ObjectInspector.vue";
+import BulkObjectInspector from "./components/BulkObjectInspector.vue";
 import { iconLibraries } from "./icon-libraries.api";
 import type { EditorTool } from "./map/package-map";
 import { readLayersOpen, storeLayersOpen } from "./editor-preferences";
 import EditorPresence from "./components/EditorPresence.vue";
 import { usePackageChangeSync, type PackageChangeNotice } from "./usePackageChangeSync";
 import { usePackageEditor } from "./usePackageEditor";
+
+const presentationReport = ref<PresentationReport | null>(null);
 
 const route = useRoute();
 const router = useRouter();
@@ -169,7 +176,9 @@ async function exportDraft(layer?: PackageLayerDto): Promise<void> {
 /** The draft as KML for GIS tools, optionally only one layer. */
 async function exportKml(layer?: PackageLayerDto): Promise<void> {
   try {
+    const report = await getPresentationReport(editor.path, "kml", undefined, layer?.id);
     const { blob, fileName } = await downloadDraftKml(editor.path, layer?.id);
+    presentationReport.value = report;
     saveFile(blob, fileName);
   } catch (caught: unknown) {
     toast.error(caught);
@@ -184,7 +193,9 @@ async function exportAtak(layer?: PackageLayerDto): Promise<void> {
     return;
   }
   try {
+    const report = await getPresentationReport(editor.path, "cot", revision, layer?.id);
     const { blob, fileName } = await downloadAtak(editor.path, revision, layer?.id);
+    presentationReport.value = report;
     saveFile(blob, fileName);
   } catch (caught: unknown) {
     // A layer created after the last publish is not in that revision yet.
@@ -213,11 +224,12 @@ function openCopiedPackage(created: DataPackageDto): void {
 
 /** After a finished drawing the editor returns to selecting, so the new object can be adjusted. */
 async function onDrawn(geometry: PackageGeometry): Promise<void> {
+  const presentation = tool.value === "arrow" ? true : tool.value === "sector" || tool.value === "range-bearing" || tool.value === "range-circle" || tool.value === "bullseye" ? tool.value : false;
   tool.value = "select";
-  await editor.addObject(geometry);
+  await editor.addObject(geometry, presentation);
 }
 
-const SHORTCUTS: Record<string, EditorTool> = { s: "select", m: "point", l: "line", f: "freehand", a: "polygon", c: "circle", r: "rectangle", e: "ellipse", t: "route", q: "measure-length", w: "measure-area" };
+const SHORTCUTS: Record<string, EditorTool> = { s: "select", m: "point", l: "line", d: "arrow", v: "sector", b: "range-bearing", n: "measure-bearing", f: "freehand", a: "polygon", c: "circle", r: "rectangle", e: "ellipse", t: "route", q: "measure-length", w: "measure-area" };
 
 /** Keyboard shortcuts, ignored while typing in a field. */
 /** Copy and paste of map objects; ignored while typing so text fields keep their own clipboard. */
@@ -253,13 +265,13 @@ function onKeydown(keyEvent: KeyboardEvent): void {
     return;
   }
   const shortcut = SHORTCUTS[keyEvent.key.toLowerCase()];
-  if (shortcut !== undefined && (editable.value || ["select", "measure-length", "measure-area"].includes(shortcut))) {
+  if (shortcut !== undefined && (editable.value || ["select", "measure-length", "measure-area", "measure-bearing"].includes(shortcut))) {
     tool.value = shortcut;
   } else if (keyEvent.key === "Escape") {
     tool.value = "select";
     editor.selectedId.value = null;
   } else if ((keyEvent.key === "Delete" || keyEvent.key === "Backspace") && editable.value && editor.selectedId.value !== null) {
-    void editor.removeObject(editor.selectedId.value);
+    void (editor.selectedIds.value.length > 1 ? editor.removeObjects(editor.selectedIds.value) : editor.removeObject(editor.selectedId.value));
   }
 }
 
@@ -336,6 +348,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
+  <PresentationReportDialog :report="presentationReport" />
   <div class="editor-shell">
     <div class="editor-header d-flex align-center ga-3 px-4 py-2">
       <v-btn
@@ -385,11 +398,15 @@ onBeforeUnmount(() => {
         :contents="mapContentItems(editor.path, editor.contents.value)"
         :icon-libraries="iconLibraries(editor.path, editor.contents.value)"
         :selected-id="editor.selectedId.value"
+        :selected-ids="editor.selectedIds.value"
         :remote-selections="remoteSelections"
         :tool="tool"
         :editable="editable"
         @drawn="onDrawn"
         @modified="(id, geometry) => editor.changeObject(id, { geometry })"
+        @styled="(id, style) => editor.changeObject(id, { style })"
+        @modified-many="editor.changeObjects"
+        @select-many="editor.selectObjects"
         @select="editor.selectedId.value = $event"
         @contextmenu="contextTarget = $event"
       />
@@ -403,7 +420,7 @@ onBeforeUnmount(() => {
           :active-layer-id="editor.activeLayerId.value"
           :selected-id="editor.selectedId.value"
           :editable="editable"
-          :can-copy="editable && typeof editor.dataPackage.value?.latestRevision === 'number'"
+          :can-copy="editable"
           @activate="editor.activeLayerId.value = $event"
           @select="editor.selectedId.value = $event"
           @add="editor.addLayer"
@@ -433,16 +450,24 @@ onBeforeUnmount(() => {
         :redo-label="editor.redoLabel.value"
         class="editor-toolbar-position"
         :class="{ 'editor-toolbar-position--beside': layersOpen }"
+        :distance-unit="mapView?.measurementUnit ?? 'm'"
+        :grid-visible="mapView?.gridVisible ?? false"
+        :grid-settings="mapView?.gridSettings ?? DEFAULT_GRID_SETTINGS"
         @undo="editor.undo"
         @redo="editor.redo"
         @fit="mapView?.fitToContent()"
         @clear-measurements="mapView?.clearMeasurements()"
         @change-base-map="mapView?.selectBaseMap($event)"
+        @change-distance-unit="mapView?.setMeasurementUnit($event)"
         @toggle-layers="toggleLayers"
+        @toggle-grid="mapView?.setGridVisible(!(mapView?.gridVisible ?? false))"
+        @change-grid-settings="mapView?.setGridSettings($event)"
       />
 
       <v-sheet v-if="editor.selected.value" elevation="4" rounded="lg" class="editor-floating editor-inspector">
+        <BulkObjectInspector v-if="editor.selectedObjects.value.length > 1" :objects="editor.selectedObjects.value" :layers="editor.layers.value" :editable="editable" :saving="editor.saveState.value === 'saving'" @style="editor.styleObjects(editor.selectedIds.value, $event)" @remove="editor.removeObjects(editor.selectedIds.value)" />
         <ObjectInspector
+          v-else
           :object="editor.selected.value"
           :event-id="eventId"
           :contents="editor.contents.value"
@@ -460,6 +485,7 @@ onBeforeUnmount(() => {
     <CreatePackageCopyDialog
       v-if="copyLayerTarget"
       v-model="copyLayerOpen"
+      source="draft"
       :event-id="eventId"
       :default-name="`${editor.dataPackage.value?.name ?? 'Data package'} - ${copyLayerTarget.name}`"
       :source-label="`layer ${copyLayerTarget.name}`"

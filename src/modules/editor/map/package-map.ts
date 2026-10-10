@@ -1,5 +1,5 @@
 import Collection from "ol/Collection";
-import Feature from "ol/Feature";
+import Feature, { type FeatureLike } from "ol/Feature";
 import OlMap from "ol/Map";
 import View from "ol/View";
 import { defaults as defaultControls, ScaleLine } from "ol/control";
@@ -7,6 +7,7 @@ import { extend, isEmpty } from "ol/extent";
 import { primaryAction } from "ol/events/condition";
 import type Geometry from "ol/geom/Geometry";
 import Polygon from "ol/geom/Polygon";
+import LineString from "ol/geom/LineString";
 import { Draw, Modify, Select, Snap, Translate } from "ol/interaction";
 import type BaseLayer from "ol/layer/Base";
 import LayerGroup from "ol/layer/Group";
@@ -15,20 +16,29 @@ import VectorLayer from "ol/layer/Vector";
 import { fromLonLat, toLonLat } from "ol/proj";
 import XYZ from "ol/source/XYZ";
 import VectorSource from "ol/source/Vector";
+import { Circle as CircleStyle, Fill, Stroke, Style } from "ol/style";
 import type { PackageGeometry, PackageLayerDto, PackageObjectDto } from "@/modules/data-packages/data-packages.api";
 import { fromMapGeometry, toMapGeometry } from "./geometry-codec";
 import { createLiveLayer, type LiveMapItem } from "./live-layer";
 import { mapContentExtent, mapContentLayer, type MapContentItem } from "./map-content";
 import { objectPriority, objectStyle, remoteSelectionStyle } from "./object-style";
 import { EllipseEditor } from "./ellipse-editor";
+import { SectorEditor } from "./sector-editor";
+import { MgrsGridLayer, type GridSettings } from "./mgrs-grid";
 import { createEllipseDrawing } from "./ellipse-drawing";
 import { createRectangleDrawing } from "./rectangle-drawing";
+import { constrainRectangleCorners } from "./shape-editing";
 import { ShiftDraw } from "./shift-draw";
 import { EndpointDraw } from "./endpoint-draw";
 import { newRoute } from "./route-editing";
 import { MeasurementTools } from "./measurement-tools";
+import { directionArrowStyles } from "./direction-arrows";
+import type { DistanceUnit } from "./range-bearing";
+import { planningMapFootprint } from "./planning-geometry";
+import { planningOverlayStyles } from "./planning-overlays";
+import type { PackageObjectStyle } from "@/modules/data-packages/data-packages.api";
 
-export type EditorTool = "select" | "point" | "line" | "freehand" | "polygon" | "circle" | "rectangle" | "ellipse" | "route" | "measure-length" | "measure-area";
+export type EditorTool = "select" | "point" | "sector" | "range-bearing" | "line" | "arrow" | "freehand" | "polygon" | "circle" | "range-circle" | "bullseye" | "rectangle" | "ellipse" | "route" | "measure-length" | "measure-area" | "measure-bearing";
 
 /** An object another editor has selected. */
 export interface RemoteSelection {
@@ -41,11 +51,15 @@ export interface PackageMapCallbacks {
   onDrawn: (geometry: PackageGeometry) => void;
   onModified: (objectId: string, geometry: PackageGeometry) => void;
   onSelected: (objectId: string | null) => void;
+  onSelectedMany?: (objectIds: string[]) => void;
+  onModifiedMany?: (changes: Array<{ id: string; geometry: PackageGeometry }>) => void;
+  /** A presentation change made on the map, e.g. dragging a sector handle. */
+  onStyled?: (objectId: string, style: PackageObjectStyle) => void;
   /** Right click: the object under the cursor (if any), screen position and WGS84 position. */
   onContextMenu: (target: { objectId: string | null; clientX: number; clientY: number; position: number[] }) => void;
 }
 
-const DRAW_TYPES = { point: "Point", line: "LineString", freehand: "LineString", polygon: "Polygon", circle: "Circle", rectangle: "Circle", ellipse: "Circle", route: "LineString" } as const;
+const DRAW_TYPES = { point: "Point", sector: "Point", "range-bearing": "LineString", line: "LineString", arrow: "LineString", freehand: "LineString", polygon: "Polygon", circle: "Circle", "range-circle": "Circle", bullseye: "Circle", rectangle: "Circle", ellipse: "Circle", route: "LineString" } as const;
 /** Freehand strokes keep a vertex only where it moves the line by more than this many pixels. */
 const FREEHAND_TOLERANCE_PIXELS = 2;
 const DEFAULT_CENTER = fromLonLat([10.45, 51.16]);
@@ -88,6 +102,8 @@ export class PackageMap {
   private readonly editable = new Collection<Feature<Geometry>>();
   private readonly vertexEditable = new Collection<Feature<Geometry>>();
   private readonly ellipseEditor: EllipseEditor;
+  private readonly sectorEditor: SectorEditor;
+  private readonly grid: MgrsGridLayer;
   private readonly measurements: MeasurementTools;
   private readonly modify: Modify;
   private readonly translate: Translate;
@@ -97,6 +113,7 @@ export class PackageMap {
   /** The object each feature was last drawn from, to skip unchanged objects in `setContent`. */
   private readonly drawn = new Map<string, { object: PackageObjectDto; layerKey: string; geometryRevision: number }>();
   private selectedId: string | null = null;
+  private selectedIds: string[] = [];
   private canEdit = false;
   private iconUrls = new Map<string, string>();
   /** Objects other editors have selected, with their color and name. */
@@ -111,7 +128,7 @@ export class PackageMap {
     const vectorLayer = new VectorLayer({
       source: this.source,
       style: (feature, resolution) => {
-        const own = objectStyle(feature, resolution, feature.getId() === this.selectedId);
+        const own = objectStyle(feature, resolution, this.selectedIds.includes(String(feature.getId())));
         const remote = this.remoteSelections.get(String(feature.getId()));
         return remote === undefined ? own : [...own, remoteSelectionStyle(feature, remote)];
       },
@@ -129,16 +146,48 @@ export class PackageMap {
     this.select = new Select({ layers: [vectorLayer], style: null });
     this.select.on("select", (event) => {
       const feature = this.topFeatureAtPixel(event.mapBrowserEvent.pixel, vectorLayer);
+      const pointer = event.mapBrowserEvent.originalEvent;
+      if (feature !== undefined && this.callbacks.onSelectedMany !== undefined && (pointer.shiftKey || pointer.ctrlKey || pointer.metaKey)) {
+        const id = String(feature.getId());
+        const samePackage = this.source.getFeatureById(this.selectedIds[0] ?? "")?.get("packageId") === feature.get("packageId");
+        const ids = samePackage ? this.selectedIds.includes(id) ? this.selectedIds.filter((selected) => selected !== id) : [...this.selectedIds, id] : [id];
+        this.highlightMany(ids.slice(0, 500));
+        this.callbacks.onSelectedMany(this.selectedIds);
+        return;
+      }
       this.highlight(feature === undefined ? null : String(feature.getId()));
       this.callbacks.onSelected(this.selectedId);
     });
 
     this.modify = new Modify({ features: this.vertexEditable,
       condition: (event) => primaryAction(event) && !event.originalEvent.shiftKey,
-      insertVertexCondition: () => !["Rectangle", "Route"].includes(this.originals.get(this.selectedId ?? "")?.type ?? ""),
-      deleteCondition: (event) => event.originalEvent.altKey && event.type === "singleclick" && !["Rectangle", "Route"].includes(this.originals.get(this.selectedId ?? "")?.type ?? ""),
+      insertVertexCondition: () => this.canChangeVertices(),
+      deleteCondition: (event) => event.originalEvent.altKey && event.type === "singleclick" && this.canChangeVertices(),
     });
-    this.modify.on("modifyend", (event) => this.reportChanged(event.features.getArray()));
+    // Rectangles stay rectangular while dragging, not only once the change is saved.
+    let stopRectangle: (() => void) | null = null;
+    this.modify.on("modifystart", (event) => {
+      const feature = event.features.getArray().find((item) => this.originals.get(String(item.getId()))?.type === "Rectangle");
+      const geometry = feature?.getGeometry();
+      if (!(geometry instanceof Polygon)) return;
+      let previous = geometry.getCoordinates()[0]?.slice(0, 4) ?? [];
+      let constraining = false;
+      const listener = () => {
+        if (constraining) return;
+        constraining = true;
+        const constrained = constrainRectangleCorners(geometry, previous);
+        geometry.setCoordinates(constrained.getCoordinates());
+        previous = constrained.getCoordinates()[0]?.slice(0, 4) ?? previous;
+        constraining = false;
+      };
+      geometry.on("change", listener);
+      stopRectangle = () => geometry.un("change", listener);
+    });
+    this.modify.on("modifyend", (event) => {
+      stopRectangle?.();
+      stopRectangle = null;
+      this.reportChanged(event.features.getArray());
+    });
     // Shift bypasses vertex editing, so even a freehand line can be moved from its stroke.
     // The tolerance makes thin strokes selectable without needing an exact pixel hit.
     this.translate = new Translate({ features: this.editable, hitTolerance: 8, condition: primaryAction });
@@ -154,7 +203,15 @@ export class PackageMap {
       (geometry) => this.source.getFeatureById(this.selectedId ?? "")?.setGeometry(geometry),
       (id, geometry) => this.callbacks.onModified(id, geometry),
     );
+    this.sectorEditor = new SectorEditor(this.map,
+      // Setting a property does not bump the feature revision the style cache uses.
+      (style) => { const feature = this.source.getFeatureById(this.selectedId ?? ""); feature?.set("objectStyle", style); feature?.changed(); },
+      (id, style) => this.callbacks.onStyled?.(id, style),
+    );
     this.measurements = new MeasurementTools(this.map);
+    // Above map content, below mission objects.
+    this.grid = new MgrsGridLayer(this.map);
+    this.map.getLayers().insertAt(2, this.grid.layer);
 
     this.map.on("pointermove", (event) => {
       this.pointer = toLonLat(event.coordinate);
@@ -169,6 +226,14 @@ export class PackageMap {
   }
 
   private reportChanged(features: Feature<Geometry>[]): void {
+    if (features.length > 1 && this.callbacks.onModifiedMany !== undefined) {
+      this.callbacks.onModifiedMany(features.flatMap((feature) => {
+        const geometry = feature.getGeometry();
+        const id = String(feature.getId());
+        return geometry === undefined ? [] : [{ id, geometry: fromMapGeometry(geometry, this.originals.get(id)) }];
+      }));
+      return;
+    }
     for (const feature of features) {
       const id = String(feature.getId());
       const geometry = feature.getGeometry();
@@ -176,6 +241,12 @@ export class PackageMap {
         this.callbacks.onModified(id, fromMapGeometry(geometry, this.originals.get(id)));
       }
     }
+  }
+
+  private canChangeVertices(): boolean {
+    const id = this.selectedId ?? "";
+    return !["Rectangle", "Route"].includes(this.originals.get(id)?.type ?? "")
+      && (this.source.getFeatureById(id)?.get("objectStyle") as PackageObjectDto["style"] | undefined)?.rangeBearing !== true;
   }
 
   private openContextMenu(event: MouseEvent, vectorLayer: VectorLayer): void {
@@ -259,7 +330,7 @@ export class PackageMap {
     for (const feature of removed) this.drawn.delete(String(feature.getId()));
     if (removed.length > 0) this.source.removeFeatures(removed);
     if (added.length > 0) this.source.addFeatures(added);
-    this.highlight(this.selectedId);
+    this.highlightMany(this.selectedIds);
   }
 
   private featureProperties(object: PackageObjectDto, layerRank: number, locked: boolean): Record<string, unknown> {
@@ -322,7 +393,7 @@ export class PackageMap {
   }
 
   setTool(requested: EditorTool): void {
-    const tool = this.canEdit || requested === "measure-length" || requested === "measure-area" ? requested : "select";
+    const tool = this.canEdit || requested.startsWith("measure-") ? requested : "select";
     if (this.draw !== null) {
       this.map.removeInteraction(this.draw);
       this.draw = null;
@@ -331,10 +402,11 @@ export class PackageMap {
     this.modify.setActive(tool === "select");
     this.translate.setActive(tool === "select");
     this.ellipseEditor.setActive(tool === "select");
-    this.highlight(this.selectedId);
-    const measuring = tool === "measure-length" || tool === "measure-area";
-    this.measurements.setTool(measuring ? tool : null);
-    if (measuring) {
+    this.sectorEditor.setActive(tool === "select" && this.callbacks.onStyled !== undefined);
+    this.highlightMany(this.selectedIds);
+    const measurementTool = tool === "measure-length" || tool === "measure-area" || tool === "measure-bearing" ? tool : null;
+    this.measurements.setTool(measurementTool);
+    if (tool === "measure-length" || tool === "measure-area" || tool === "measure-bearing") {
       this.map.removeInteraction(this.snap);
       this.map.addInteraction(this.snap);
       return;
@@ -344,8 +416,18 @@ export class PackageMap {
       const freehand = tool === "freehand";
       const constrained = () => this.draw instanceof ShiftDraw && this.draw.shiftHeld;
       const ellipseDrawing = tool === "ellipse" ? createEllipseDrawing(constrained) : null;
-      if (tool === "route") {
-        this.draw = new EndpointDraw({ type: "LineString", stopClick: true });
+      if (tool === "range-bearing") {
+        this.draw = new Draw({ type: "LineString", stopClick: true, maxPoints: 2, freehandCondition: () => false });
+      } else if (tool === "route" || tool === "arrow") {
+        this.draw = new EndpointDraw({ type: "LineString", stopClick: true,
+          ...(tool === "arrow" ? { style: (feature: FeatureLike) => {
+            const geometry = feature.getGeometry();
+            const style = { color: "#1E88E5", strokeWidth: 3, fillOpacity: 0, arrowHeads: "end" as const };
+            return [new Style({ stroke: new Stroke({ color: style.color, width: 3 }),
+              image: new CircleStyle({ radius: 5, fill: new Fill({ color: style.color }) }) }),
+            ...(geometry instanceof LineString ? directionArrowStyles(geometry, "line", style, this.map.getView().getResolution() ?? 1, 1) : [])];
+          } } : {}),
+        });
       } else if (tool === "rectangle" || tool === "ellipse") {
         this.draw = new ShiftDraw({ type: "Circle", stopClick: true, geometryFunction: ellipseDrawing?.geometryFunction ?? createRectangleDrawing(constrained) });
       } else {
@@ -378,24 +460,43 @@ export class PackageMap {
 
   /** Selects an object, e.g. from the object list, and makes it modifiable unless locked. */
   highlight(objectId: string | null): void {
+    this.highlightMany(objectId === null ? [] : [objectId]);
+  }
+
+  highlightMany(ids: string[]): void {
+    const features = ids.flatMap((id) => { const feature = this.source.getFeatureById(id); return feature === null ? [] : [feature]; });
+    this.selectedIds = features.map((feature) => String(feature.getId()));
+    const objectId = this.selectedIds[0] ?? null;
     this.selectedId = objectId;
     const feature = objectId === null ? null : this.source.getFeatureById(objectId);
     this.select.getFeatures().clear();
     this.editable.clear();
     this.vertexEditable.clear();
-    if (feature !== null) {
-      this.select.getFeatures().push(feature);
-      if (this.canEdit && feature.get("locked") !== true) {
-        this.editable.push(feature);
-        if (this.originals.get(objectId ?? "")?.type !== "Ellipse") this.vertexEditable.push(feature);
-      }
+    this.select.getFeatures().extend(features);
+    if (this.canEdit && features.every((item) => item.get("locked") !== true)) {
+      this.editable.extend(features);
+      if (features.length === 1 && feature !== null && this.originals.get(objectId ?? "")?.type !== "Ellipse") this.vertexEditable.push(feature);
     }
-    this.ellipseEditor.show(objectId, this.originals.get(objectId ?? ""), this.canEdit && feature !== null && feature.get("locked") !== true);
+    const single = features.length === 1 && feature !== null;
+    const unlocked = this.canEdit && feature !== null && feature.get("locked") !== true;
+    this.ellipseEditor.show(single ? objectId : null, single ? this.originals.get(objectId ?? "") : undefined, unlocked);
+    const original = single ? this.originals.get(objectId ?? "") : undefined;
+    this.sectorEditor.show(single ? objectId : null, original?.type === "Point" ? original.coordinates : undefined, feature?.get("objectStyle") as PackageObjectStyle | undefined, unlocked && this.callbacks.onStyled !== undefined);
     this.source.changed();
   }
 
   fitToContent(): void {
-    const candidates = [...this.contentExtents.values(), this.source.getExtent(), this.live.layer.getSource()?.getExtent() ?? null].filter(
+    const overlays = this.source.getFeatures().flatMap((feature) => {
+      const geometry = feature.getGeometry();
+      if (geometry === undefined) return [];
+      const style = feature.get("objectStyle") as PackageObjectStyle;
+      const footprint = style.sector?.visible === false ? null : planningMapFootprint(geometry, style);
+      return [...(footprint === null ? [] : [footprint.getExtent()]), ...planningOverlayStyles(feature, style, false, false).flatMap((overlay) => {
+        const overlayGeometry = overlay.getGeometry();
+        return overlayGeometry !== null && typeof overlayGeometry !== "string" && typeof overlayGeometry !== "function" ? [overlayGeometry.getExtent()] : [];
+      })];
+    });
+    const candidates = [...this.contentExtents.values(), this.source.getExtent(), ...overlays, this.live.layer.getSource()?.getExtent() ?? null].filter(
       (candidate): candidate is number[] => candidate !== null && !isEmpty(candidate),
     );
     const extent = candidates.reduce<number[] | null>(
@@ -403,15 +504,16 @@ export class PackageMap {
       null,
     );
     if (extent !== null) {
-      this.map.getView().fit(extent, { padding: [48, 48, 48, 48], maxZoom: 16, duration: 250 });
+      this.map.getView().fit(extent, { padding: [48, 48, 48, 88], maxZoom: 16, duration: 250 });
     }
   }
 
   clearMeasurements(): void { this.measurements.clear(); }
+  setMeasurementUnit(unit: DistanceUnit): void { this.measurements.setUnit(unit); }
 
   setEditable(editable: boolean): void {
     this.canEdit = editable;
-    this.highlight(this.selectedId);
+    this.highlightMany(this.selectedIds);
   }
 
   /** Zooms to one offline map or rubber sheet. */
@@ -420,6 +522,15 @@ export class PackageMap {
     if (extent !== undefined && !isEmpty(extent)) {
       this.map.getView().fit(extent, { padding: [48, 48, 48, 48], duration: 250 });
     }
+  }
+
+  /** Shows or hides the MGRS/UTM grid overlay. */
+  setGridVisible(visible: boolean): void {
+    this.grid.setVisible(visible);
+  }
+
+  setGridSettings(settings: GridSettings): void {
+    this.grid.setSettings(settings);
   }
 
   /** The online base map from the installation settings, with the provider's attribution. */
@@ -452,7 +563,7 @@ export class PackageMap {
   }
 
   fitExtent(extent: number[]): void {
-    if (!isEmpty(extent)) this.map.getView().fit(extent, { padding: [48, 48, 48, 48], maxZoom: 16, duration: 250 });
+    if (!isEmpty(extent)) this.map.getView().fit(extent, { padding: [48, 48, 48, 88], maxZoom: 16, duration: 250 });
   }
 
   /** Centres on a Web Mercator coordinate, zooming in to street level if needed. */

@@ -6,6 +6,7 @@ import type {
 } from "@/modules/data-packages/data-packages.api";
 
 const dataPackageApi = vi.hoisted(() => ({
+  batchObjects: vi.fn(),
   createLayer: vi.fn(),
   createObject: vi.fn(),
   deleteLayer: vi.fn(),
@@ -121,6 +122,68 @@ describe("package editor history", () => {
         updatedAt: "2026-10-05T00:00:00.000Z",
       } satisfies PackageObjectDto),
     );
+    dataPackageApi.batchObjects.mockImplementation(async (path: unknown, body: { updates: Array<PackageObjectDto>; deletes: Array<{ id: string }>; creates: Array<PackageObjectDto> }) => ({
+      updated: await Promise.all(body.updates.map((item) => dataPackageApi.updateObject(path, item.id, item))),
+      created: await Promise.all(body.creates.map((item) => dataPackageApi.createObject(path, item))),
+      deletedIds: body.deletes.map(({ id }) => id),
+    }));
+  });
+
+  it("groups style and delete operations with replacement IDs through undo/redo", async () => {
+    const editor = usePackageEditor("event-1", "package-1");
+    await editor.load();
+    await editor.addObject({ type: "Point", coordinates: [10, 50] });
+    await editor.addObject({ type: "Point", coordinates: [11, 50] });
+    const ids = editor.objects.value.map(({ id }) => id);
+    const originalStyles = editor.objects.value.map(({ style }) => JSON.parse(JSON.stringify(style)) as PackageObjectDto["style"]);
+    await editor.styleObjects(ids, { color: "#FF0000" });
+    expect(dataPackageApi.batchObjects).toHaveBeenCalledTimes(1);
+    expect(editor.objects.value.every(({ style }) => style.color === "#FF0000")).toBe(true);
+    await editor.undo();
+    expect(editor.objects.value.map(({ style }) => style)).toEqual(originalStyles);
+    await editor.redo();
+    await editor.removeObjects(ids);
+    expect(editor.objects.value).toEqual([]);
+    await editor.undo();
+    const replacements = editor.objects.value.map(({ id }) => id);
+    expect(replacements).not.toEqual(ids);
+    expect(replacements).toHaveLength(2);
+    await editor.redo();
+    expect(editor.objects.value).toEqual([]);
+    await editor.undo();
+    await editor.undo();
+    expect(editor.objects.value.every(({ style }) => style.color !== "#FF0000")).toBe(true);
+  });
+
+  it("rejects locked group edits and preserves state/history after a failed batch", async () => {
+    const editor = usePackageEditor("event-1", "package-1");
+    await editor.load();
+    await editor.addObject({ type: "Point", coordinates: [10, 50] });
+    const before = JSON.parse(JSON.stringify(editor.objects.value)) as PackageObjectDto[];
+    dataPackageApi.batchObjects.mockRejectedValueOnce(new Error("Conflict"));
+    await editor.styleObjects([before[0]!.id], { color: "#FF0000" });
+    expect(editor.objects.value).toEqual(before);
+    editor.layers.value = [{ ...layer, locked: true }];
+    await editor.styleObjects([before[0]!.id], { color: "#FF0000" });
+    expect(dataPackageApi.batchObjects).toHaveBeenCalledTimes(1);
+    expect(editor.objects.value).toEqual(before);
+  });
+
+  it("invalidates an entire group step after one remotely changed member, preserving unrelated history", async () => {
+    const editor = usePackageEditor("event-1", "package-1");
+    await editor.load();
+    for (const longitude of [10, 11, 12]) await editor.addObject({ type: "Point", coordinates: [longitude, 50] });
+    await editor.styleObjects(["object-1", "object-2"], { color: "#FF0000" });
+    await editor.changeObject("object-3", { name: "Independent" });
+    const remote = { ...editor.objects.value[0]!, name: "Remote", version: 99 };
+    dataPackageApi.listObjects.mockResolvedValue([remote, ...editor.objects.value.slice(1)]);
+    await editor.applyRemoteChange({ path: "objects/batch", method: "POST", createdId: null });
+    await editor.undo();
+    expect(editor.objects.value.find(({ id }) => id === "object-3")?.name).toBe("Point 3");
+    await editor.undo();
+    expect(editor.objects.value.map(({ id }) => id)).toEqual(["object-1", "object-2"]);
+    expect(editor.objects.value[0]?.name).toBe("Remote");
+    expect(editor.objects.value[1]?.style.color).toBe("#FF0000");
   });
 
   it("undoes and redoes object creation with the server-assigned replacement id", async () => {
@@ -160,6 +223,26 @@ describe("package editor history", () => {
     expect(editor.objects.value.map(({ id }) => id)).toEqual(["object-1"]);
     expect(editor.canUndo.value).toBe(false);
     expect(editor.objects.value[0]?.name).toBe("Changed elsewhere");
+  });
+
+  it("restores arrow geometry and presentation through edit undo/redo and recreation", async () => {
+    const editor = usePackageEditor("event-1", "package-1");
+    await editor.load();
+    const geometry = { type: "LineString" as const, coordinates: [[10, 50], [11, 51], [12, 50]] };
+    await editor.addObject(geometry, true);
+    const original = editor.objects.value[0]!;
+    expect(original.style.arrowHeads).toBe("end");
+    const changedStyle = { ...original.style, arrowHeads: "both" as const, arrowHeadSize: 32 };
+    await editor.changeObject(original.id, { style: changedStyle });
+    await editor.undo();
+    expect(editor.objects.value[0]?.style).toEqual(original.style);
+    expect(editor.objects.value[0]?.id).toBe(original.id);
+    await editor.redo();
+    expect(editor.objects.value[0]?.style).toEqual(changedStyle);
+    await editor.removeObject(original.id);
+    await editor.undo();
+    expect(editor.objects.value[0]?.geometry).toEqual(geometry);
+    expect(editor.objects.value[0]?.style).toEqual(changedStyle);
   });
 
   it("restores object edits and deletions across recreated ids", async () => {

@@ -4,7 +4,8 @@ type Route = Extract<PackageGeometry, { type: "Route" }>;
 export function newRoute(coordinates: number[][]): Route {
   return { type: "Route", coordinates,
     points: coordinates.map((_, index) => ({ id: crypto.randomUUID(), type: index === 0 || index === coordinates.length - 1 ? "waypoint" : "checkpoint", name: index === 0 ? "Start" : index === coordinates.length - 1 ? "Finish" : "", remarks: "" })),
-    options: { transportationType: "b-m-r", method: "Walking", direction: "Infil", routeType: "Primary", order: "Ascending" }, navigationCues: [],
+    // Defaults of a new ATAK-CIV route (5.6 export): `type` is a localized transport label ATAK fills itself.
+    options: { method: "Walking", direction: "Infil", routeType: "Primary", order: "Ascending Check Points", planningMethod: "Infil", prefix: "CP" }, navigationCues: [],
   };
 }
 

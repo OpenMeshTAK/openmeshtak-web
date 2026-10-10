@@ -169,7 +169,7 @@ function togglePackage(packageId: string): void {
             :active-layer-id="branch.dataPackage.id === activePackageId ? activeLayerId : null"
             :selected-id="selectedId"
             :editable="editable"
-            :can-copy="editable && branch.dataPackage.latestRevision !== null"
+            :can-copy="editable"
             @activate="emit('activateLayer', branch, $event)"
             @select="emit('select', $event)"
             @add="emit('addLayer', branch)"

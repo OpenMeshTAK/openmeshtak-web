@@ -3,6 +3,7 @@ import { computed, ref, watch } from "vue";
 import { mdiArrowDown, mdiArrowUp, mdiPlus, mdiTrashCanOutline } from "@mdi/js";
 import type { PackageGeometry } from "@/modules/data-packages/data-packages.api";
 import { reorderRoute } from "../map/route-editing";
+import GridCoordinateInput from "./GridCoordinateInput.vue";
 type Route = Extract<PackageGeometry, { type: "Route" }>;
 const props = defineProps<{ geometry: Route; disabled: boolean }>();
 const emit = defineEmits<{ change: [geometry: Route] }>();
@@ -12,11 +13,23 @@ const cue = ref<Route["navigationCues"][number]>({ pointId: "", text: "", voice:
 const error = ref("");
 const point = computed(() => props.geometry.points[selected.value]);
 const choices = computed(() => props.geometry.points.map((point, index) => ({ value: index, title: `${index + 1}. ${point.name || point.type}` })));
-const options = [
-  { key: "method", label: "Method" }, { key: "direction", label: "Direction" },
-  { key: "routeType", label: "Route type" }, { key: "order", label: "Order" },
-  { key: "transportationType", label: "Transportation type" }, { key: "planningMethod", label: "Planning method" }, { key: "prefix", label: "Waypoint prefix" },
+// Choices ATAK-CIV offers; an imported value outside them stays selectable.
+const choiceOptions = [
+  { key: "method", label: "Method", values: ["Driving", "Walking", "Flying", "Swimming", "Watercraft"] },
+  { key: "direction", label: "Direction", values: ["Infil", "Exfil"] },
+  { key: "routeType", label: "Route type", values: ["Primary", "Secondary"] },
+  { key: "order", label: "Checkpoint order", values: ["Ascending Check Points", "Descending Check Points"], titles: ["Ascending", "Descending"] },
 ] as const;
+const textOptions = [
+  { key: "planningMethod", label: "Planning method" }, { key: "prefix", label: "Checkpoint prefix" }, { key: "transportationType", label: "Transport label" },
+] as const;
+function itemsOf(option: (typeof choiceOptions)[number], current: string | undefined): Array<{ title: string; value: string }> {
+  const items = option.values.map((value, index) => ({ value, title: "titles" in option ? option.titles[index] ?? value : value }));
+  return current === undefined || current === "" || option.values.some((value) => value === current) ? items : [...items, { value: current, title: current }];
+}
+function setOption(key: keyof Route["options"], value: string | null): void {
+  change({ ...props.geometry, options: { ...props.geometry.options, [key]: value ?? "" } });
+}
 watch(() => [props.geometry, selected.value] as const, () => {
   selected.value = Math.min(selected.value, props.geometry.points.length - 1);
   const current = point.value;
@@ -27,6 +40,7 @@ watch(() => [props.geometry, selected.value] as const, () => {
   error.value = "";
 }, { immediate: true });
 function change(geometry: Route): void { if (!props.disabled) emit("change", geometry); }
+function applyGrid(position: number[]): void { draft.value.longitude = String(position[0]); draft.value.latitude = String(position[1]); commitPoint(); }
 function commitPoint(): void {
   const longitude = Number(draft.value.longitude);
   const latitude = Number(draft.value.latitude);
@@ -63,38 +77,64 @@ function commitCue(): void {
 }
 </script>
 <template>
-  <div class="text-label-medium text-uppercase text-medium-emphasis mb-3">Route points</div>
-  <v-select v-model="selected" :items="choices" label="Point" density="compact" />
-  <div class="d-flex ga-1 mb-2">
-    <v-btn :icon="mdiArrowUp" size="small" variant="text" aria-label="Move route point earlier" :disabled="disabled || selected === 0" @click="change(reorderRoute(geometry, selected, selected - 1))" />
-    <v-btn :icon="mdiArrowDown" size="small" variant="text" aria-label="Move route point later" :disabled="disabled || selected === geometry.points.length - 1" @click="change(reorderRoute(geometry, selected, selected + 1))" />
-    <v-btn :icon="mdiPlus" size="small" variant="text" aria-label="Insert checkpoint next to this point" :disabled="disabled || geometry.points.length >= 10000" @click="addPoint" />
-    <v-btn :icon="mdiTrashCanOutline" size="small" variant="text" aria-label="Remove route point and its navigation cue" :disabled="disabled || geometry.points.length <= 2" @click="removePoint" />
+  <div class="d-flex flex-column ga-2">
+    <div class="text-label-medium text-uppercase text-medium-emphasis">Route points</div>
+    <div class="d-flex align-center ga-1">
+      <v-select v-model="selected" :items="choices" label="Point" density="compact" hide-details />
+      <v-btn :icon="mdiArrowUp" size="small" variant="text" aria-label="Move route point earlier" :disabled="disabled || selected === 0" @click="change(reorderRoute(geometry, selected, selected - 1))" />
+      <v-btn :icon="mdiArrowDown" size="small" variant="text" aria-label="Move route point later" :disabled="disabled || selected === geometry.points.length - 1" @click="change(reorderRoute(geometry, selected, selected + 1))" />
+      <v-btn :icon="mdiPlus" size="small" variant="text" aria-label="Insert checkpoint next to this point" :disabled="disabled || geometry.points.length >= 10000" @click="addPoint" />
+      <v-btn :icon="mdiTrashCanOutline" size="small" variant="text" aria-label="Remove route point and its navigation cue" :disabled="disabled || geometry.points.length <= 2" @click="removePoint" />
+    </div>
+    <div class="field-pair">
+      <v-select :model-value="point?.type" :items="[{ title: 'Waypoint', value: 'waypoint' }, { title: 'Checkpoint', value: 'checkpoint' }]" label="Point type" density="compact" hide-details :disabled="disabled" @update:model-value="change({ ...geometry, points: geometry.points.map((item, index) => index === selected ? { ...item, type: $event ?? item.type } : item) })" />
+      <v-text-field v-model="draft.name" label="Point name" density="compact" maxlength="100" hide-details :disabled="disabled" @blur="commitPoint" />
+    </div>
+    <v-textarea v-model="draft.remarks" label="Point remarks" rows="1" auto-grow density="compact" maxlength="2000" hide-details :disabled="disabled" @blur="commitPoint" />
+    <div class="field-pair">
+      <v-text-field v-model="draft.latitude" label="Latitude" density="compact" hide-details :disabled="disabled" @blur="commitPoint" />
+      <v-text-field v-model="draft.longitude" label="Longitude" density="compact" hide-details :disabled="disabled" @blur="commitPoint" />
+    </div>
+    <v-text-field v-model="draft.altitude" label="Altitude (m HAE)" placeholder="Optional" density="compact" hide-details :disabled="disabled" @blur="commitPoint" />
+    <GridCoordinateInput :position="geometry.coordinates[selected] ?? []" :disabled="disabled" @apply="applyGrid" />
+    <div v-if="error" class="text-body-small text-error">{{ error }}</div>
+
+    <div class="route-subsection">
+      <div class="text-label-medium text-uppercase text-medium-emphasis">Route options</div>
+      <div class="field-pair">
+        <v-select v-for="option in choiceOptions" :key="option.key" :model-value="geometry.options[option.key] || null" :items="itemsOf(option, geometry.options[option.key])" :label="option.label" density="compact" hide-details :disabled="disabled" @update:model-value="setOption(option.key, $event)" />
+      </div>
+      <div class="d-flex flex-column ga-2">
+        <v-text-field v-for="option in textOptions" :key="option.key" :model-value="geometry.options[option.key] ?? ''" :label="option.label" maxlength="64" density="compact" hide-details :disabled="disabled" @change="setOption(option.key, ($event.target as HTMLInputElement).value)" />
+      </div>
+    </div>
+
+    <div class="route-subsection">
+      <div class="text-label-medium text-uppercase text-medium-emphasis">Navigation cue for this point</div>
+      <v-textarea v-model="cue.text" label="Text cue" rows="1" auto-grow maxlength="2000" density="compact" hide-details :disabled="disabled" @blur="commitCue" />
+      <v-textarea v-model="cue.voice" label="Voice cue" rows="1" auto-grow maxlength="2000" density="compact" hide-details :disabled="disabled" @blur="commitCue" />
+      <div v-for="(trigger, index) in cue.triggers" :key="index" class="d-flex align-center ga-2">
+        <v-select v-model="trigger.mode" :items="[{ title: 'Distance', value: 'd' }, { title: 'Time', value: 't' }]" label="Trigger" density="compact" hide-details :disabled="disabled" @update:model-value="commitCue" />
+        <v-text-field v-model.number="trigger.value" label="Value" type="number" min="0" step="1" density="compact" hide-details :disabled="disabled" @blur="commitCue" />
+        <v-btn :icon="mdiTrashCanOutline" size="small" variant="text" aria-label="Remove trigger" :disabled="disabled" @click="cue.triggers.splice(index, 1); commitCue()" />
+      </div>
+      <v-btn size="small" variant="text" class="align-self-start text-none" :prepend-icon="mdiPlus" :disabled="disabled || cue.triggers.length >= 16" @click="cue.triggers.push({ mode: 'd', value: 100 }); commitCue()">Add trigger</v-btn>
+    </div>
   </div>
-  <v-select :model-value="point?.type" :items="[{ title: 'Waypoint', value: 'waypoint' }, { title: 'Checkpoint', value: 'checkpoint' }]" label="Point type" density="compact" :disabled="disabled" @update:model-value="change({ ...geometry, points: geometry.points.map((item, index) => index === selected ? { ...item, type: $event ?? item.type } : item) })" />
-  <v-text-field v-model="draft.name" label="Point name" density="compact" maxlength="100" :disabled="disabled" @blur="commitPoint" />
-  <v-textarea v-model="draft.remarks" label="Point remarks" rows="2" density="compact" maxlength="2000" :disabled="disabled" @blur="commitPoint" />
-  <v-text-field v-model="draft.latitude" label="Point latitude" density="compact" :disabled="disabled" @blur="commitPoint" />
-  <v-text-field v-model="draft.longitude" label="Point longitude" density="compact" :disabled="disabled" @blur="commitPoint" />
-  <v-text-field v-model="draft.altitude" label="Point altitude (m HAE, optional)" density="compact" :disabled="disabled" @blur="commitPoint" />
-  <v-expansion-panels variant="accordion">
-    <v-expansion-panel title="Route options">
-      <v-expansion-panel-text>
-        <v-text-field v-for="option in options" :key="option.key" :model-value="geometry.options[option.key] ?? ''" :label="option.label" maxlength="64" density="compact" :disabled="disabled" @change="change({ ...geometry, options: { ...geometry.options, [option.key]: ($event.target as HTMLInputElement).value } })" />
-      </v-expansion-panel-text>
-    </v-expansion-panel>
-    <v-expansion-panel title="Navigation cue for this point">
-      <v-expansion-panel-text>
-        <v-textarea v-model="cue.text" label="Text cue" rows="2" maxlength="2000" density="compact" :disabled="disabled" @blur="commitCue" />
-        <v-textarea v-model="cue.voice" label="Voice cue" rows="2" maxlength="2000" density="compact" :disabled="disabled" @blur="commitCue" />
-        <div v-for="(trigger, index) in cue.triggers" :key="index">
-          <v-select v-model="trigger.mode" :items="[{ title: 'Distance', value: 'd' }, { title: 'Time', value: 't' }]" label="Trigger" density="compact" :disabled="disabled" @update:model-value="commitCue" />
-          <v-text-field v-model.number="trigger.value" label="Trigger value" type="number" min="0" step="1" density="compact" :disabled="disabled" @blur="commitCue" />
-          <v-btn size="small" variant="text" :disabled="disabled" @click="cue.triggers.splice(index, 1); commitCue()">Remove trigger</v-btn>
-        </div>
-        <v-btn size="small" variant="text" :disabled="disabled || cue.triggers.length >= 16" @click="cue.triggers.push({ mode: 'd', value: 100 }); commitCue()">Add distance trigger</v-btn>
-      </v-expansion-panel-text>
-    </v-expansion-panel>
-  </v-expansion-panels>
-  <v-alert v-if="error" type="error" density="compact" class="mt-2">{{ error }}</v-alert>
 </template>
+
+<style scoped>
+.field-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.route-subsection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+}
+</style>

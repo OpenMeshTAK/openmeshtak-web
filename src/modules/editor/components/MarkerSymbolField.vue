@@ -8,6 +8,7 @@ import { describeCotType } from "../symbols/symbol-catalog";
 import SymbolPicker from "../symbols/SymbolPicker.vue";
 import type { PackagePath } from "../icon-libraries.api";
 import { useIconSets, type IconChoice } from "../useIconSets";
+import { editorCotTypeAvailable } from "../editor-availability";
 
 const props = withDefaults(
   defineProps<{ tak: TakMarker | null; color: string; disabled: boolean; path?: PackagePath | null; contents?: PackageContentDto[] }>(),
@@ -43,17 +44,19 @@ const label = computed(() => {
   return describeCotType(props.tak.cotType) ?? props.tak.cotType;
 });
 const typeError = computed(() =>
-  typed.value === "" || COT_TYPE.test(typed.value) ? [] : ["Use a CoT type such as a-f-G-U-C-I."],
+  typed.value === "" || (COT_TYPE.test(typed.value) && editorCotTypeAvailable(typed.value)) ? [] : ["Choose an enabled editor CoT type, such as a-f-G-U-C-I."],
 );
 
 /** A symbol picked from the catalogue replaces any icon set image. */
 function pick(cotType: string | null): void {
+  if (!editorCotTypeAvailable(cotType)) return;
   pickerOpen.value = false;
   emit("change", cotType === null ? null : { cotType, iconsetPath: null });
 }
 
 /** Icon set images keep the current CoT type unless the icon set defines its own. */
 function pickIcon(choice: IconChoice): void {
+  if (!editorCotTypeAvailable(choice.cotType ?? props.tak?.cotType ?? null)) return;
   pickerOpen.value = false;
   emit("change", { cotType: choice.cotType ?? props.tak?.cotType ?? "a-u-G", iconsetPath: choice.path });
 }
@@ -61,7 +64,7 @@ function pickIcon(choice: IconChoice): void {
 /** Typing only changes the type and keeps a stored icon set path, e.g. from an imported ATAK marker. */
 function applyTyped(): void {
   const trimmed = typed.value.trim();
-  if (trimmed === (props.tak?.cotType ?? "") || (trimmed !== "" && !COT_TYPE.test(trimmed))) {
+  if (trimmed === (props.tak?.cotType ?? "") || (trimmed !== "" && (!COT_TYPE.test(trimmed) || !editorCotTypeAvailable(trimmed)))) {
     return;
   }
   emit("change", trimmed === "" ? null : { cotType: trimmed, iconsetPath: props.tak?.iconsetPath ?? null });
@@ -110,7 +113,7 @@ function removeIconset(): void {
       @keydown.enter="applyTyped(), (editingType = typeError.length > 0)"
     >
       <template #append-inner>
-        <InfoHint label="About the CoT type" text="Any ATAK CoT type; a-* types are drawn as MIL-STD-2525 symbols" />
+        <InfoHint label="About the CoT type" text="Any ATAK CoT type except standalone waypoints, checkpoints and Joker (a-j-…). Types starting with a- are drawn as MIL-STD-2525 symbols." />
       </template>
     </v-text-field>
     <div v-else class="d-flex align-center ga-1 mt-1 text-body-small text-medium-emphasis">

@@ -10,13 +10,37 @@ export function ellipsePolygon(geometry: EllipseGeometry): Polygon {
   return new Polygon(footprint.geometry.coordinates.map((ring) => ring.map((p) => fromLonLat(p))));
 }
 
-/** A dragged rectangle corner moves the adjacent corners; the opposite corner stays fixed. */
+/** Applies the rectangle rule to a saved shape; see {@link constrainRectangleCorners}. */
 export function constrainRectangle(polygon: Polygon, original: Extract<PackageGeometry, { type: "Rectangle" }>): Polygon {
-  const old = original.coordinates.map((p) => fromLonLat(p));
+  return constrainRectangleCorners(polygon, original.coordinates.map((p) => fromLonLat(p)));
+}
+
+/**
+ * Keeps a rectangle rectangular against its previous corners (map coordinates): a dragged corner
+ * moves the adjacent corners and keeps the opposite one; a dragged edge moves only across itself.
+ * Three or four changed corners are a translation or an already constrained shape.
+ */
+export function constrainRectangleCorners(polygon: Polygon, old: number[][]): Polygon {
   const next = polygon.getCoordinates()[0]?.slice(0, 4) ?? old;
   const moved = next.map((p, i) => Math.hypot((p[0] ?? 0) - (old[i]?.[0] ?? 0), (p[1] ?? 0) - (old[i]?.[1] ?? 0)) > 0.02);
+  const count = moved.filter(Boolean).length;
   // Whole-shape translation already preserves the rectangle.
-  if (moved.filter(Boolean).length !== 1) return polygon;
+  if (count === 0 || count >= 3) return polygon;
+  if (count === 2 && (moved[0] && moved[1] || moved[1] && moved[2] || moved[2] && moved[3] || moved[3] && moved[0])) {
+    // Dragging an edge moves both of its corners; keep only the movement across the edge.
+    const first = moved[3] && moved[0] ? 3 : moved.indexOf(true);
+    const second = (first + 1) % 4;
+    const a = old[first] ?? [0, 0];
+    const b = old[second] ?? [0, 0];
+    const length = Math.hypot((b[0] ?? 0) - (a[0] ?? 0), (b[1] ?? 0) - (a[1] ?? 0)) || 1;
+    const normal = [-((b[1] ?? 0) - (a[1] ?? 0)) / length, ((b[0] ?? 0) - (a[0] ?? 0)) / length];
+    const shift = [((next[first]?.[0] ?? 0) - (a[0] ?? 0) + (next[second]?.[0] ?? 0) - (b[0] ?? 0)) / 2, ((next[first]?.[1] ?? 0) - (a[1] ?? 0) + (next[second]?.[1] ?? 0) - (b[1] ?? 0)) / 2];
+    const across = (shift[0] ?? 0) * (normal[0] ?? 0) + (shift[1] ?? 0) * (normal[1] ?? 0);
+    const result = old.map((p) => [...p]);
+    result[first] = [(a[0] ?? 0) + (normal[0] ?? 0) * across, (a[1] ?? 0) + (normal[1] ?? 0) * across];
+    result[second] = [(b[0] ?? 0) + (normal[0] ?? 0) * across, (b[1] ?? 0) + (normal[1] ?? 0) * across];
+    return new Polygon([[...result, result[0] ?? []]]);
+  }
   const index = moved.indexOf(true);
   const opposite = (index + 2) % 4;
   const a = (index + 1) % 4;

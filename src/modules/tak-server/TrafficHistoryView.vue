@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { DEFAULT_GRID_SETTINGS } from "@/modules/editor/map/mgrs-grid";
 import { mdiAccessPointNetwork, mdiArrowLeft } from "@mdi/js";
 import { computed, onMounted, ref, shallowRef, watch, watchEffect } from "vue";
 import { useRoute, useRouter } from "vue-router";
@@ -207,9 +208,13 @@ onMounted(async () => {
           :base-maps="mapView?.baseMaps ?? []"
           :base-map-id="mapView?.activeBaseMapId ?? ''"
           class="history-toolbar"
+          :grid-visible="mapView?.gridVisible ?? false"
+          :grid-settings="mapView?.gridSettings ?? DEFAULT_GRID_SETTINGS"
           @toggle-layers="panelOpen = !panelOpen"
           @change-base-map="mapView?.selectBaseMap($event)"
           @fit="mapView?.fitToContent()"
+          @toggle-grid="mapView?.setGridVisible(!(mapView?.gridVisible ?? false))"
+          @change-grid-settings="mapView?.setGridSettings($event)"
         />
 
         <v-sheet v-if="panelOpen" elevation="4" rounded="lg" class="history-panel">

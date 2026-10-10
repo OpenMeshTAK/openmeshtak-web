@@ -2,14 +2,16 @@
 import "ol/ol.css";
 import type BaseLayer from "ol/layer/Base";
 import { onBeforeUnmount, onMounted, ref, watch } from "vue";
-import type { PackageGeometry, PackageLayerDto, PackageObjectDto } from "@/modules/data-packages/data-packages.api";
+import type { PackageGeometry, PackageLayerDto, PackageObjectDto, PackageObjectStyle } from "@/modules/data-packages/data-packages.api";
 import type { LiveMapItem } from "../map/live-layer";
 import type { MapContentItem } from "../map/map-content";
 import { PackageMap, type EditorTool, type RemoteSelection } from "../map/package-map";
 import { loadBaseMap, type BaseMapLayer } from "@/modules/map-settings/map-settings.api";
 import { iconImageUrl, listLibraryIcons, type IconLibraryRef, type PackageIcon } from "../icon-libraries.api";
 import { instanceIconUrl, loadInstanceIcons } from "@/modules/icon-settings/icon-settings.api";
-import { readBaseMapId, storeBaseMapId } from "../editor-preferences";
+import { readBaseMapId, readGridSettings, readGridVisible, storeBaseMapId, storeGridSettings, storeGridVisible } from "../editor-preferences";
+import type { GridSettings } from "../map/mgrs-grid";
+import type { DistanceUnit } from "../map/range-bearing";
 
 const props = withDefaults(defineProps<{
   layers: PackageLayerDto[];
@@ -19,6 +21,7 @@ const props = withDefaults(defineProps<{
   /** Live TAK positions and markers drawn above everything else. */
   live?: LiveMapItem[];
   selectedId: string | null;
+  selectedIds?: string[] | null;
   /** Objects other editors have selected, outlined in their color. */
   remoteSelections?: RemoteSelection[];
   tool: EditorTool;
@@ -29,17 +32,33 @@ const props = withDefaults(defineProps<{
    * icons stay off; markers use the built-in symbols and only stored map content is drawn.
    */
   offline?: boolean;
-}>(), { contents: () => [], live: () => [], remoteSelections: () => [], editable: false, iconLibraries: () => [], offline: false });
+}>(), { selectedIds: null, contents: () => [], live: () => [], remoteSelections: () => [], editable: false, iconLibraries: () => [], offline: false });
 const emit = defineEmits<{
   drawn: [geometry: PackageGeometry];
   modified: [objectId: string, geometry: PackageGeometry];
+  styled: [objectId: string, style: PackageObjectStyle];
   select: [objectId: string | null];
+  selectMany: [objectIds: string[]];
+  modifiedMany: [changes: Array<{ id: string; geometry: PackageGeometry }>];
   contextmenu: [target: { objectId: string | null; clientX: number; clientY: number; position: number[] }];
 }>();
 
 const container = ref<HTMLElement | null>(null);
 const baseMaps = ref<BaseMapLayer[]>([]);
 const activeBaseMapId = ref("");
+const gridVisible = ref(readGridVisible());
+const gridSettings = ref<GridSettings>(readGridSettings());
+function setGridSettings(settings: GridSettings): void {
+  gridSettings.value = settings;
+  map?.setGridSettings(settings);
+  storeGridSettings(settings);
+}
+function setGridVisible(visible: boolean): void {
+  gridVisible.value = visible;
+  map?.setGridVisible(visible);
+  storeGridVisible(visible);
+}
+const measurementUnit = ref<DistanceUnit>("m");
 let map: PackageMap | null = null;
 /** Overlays handed over before the map exists join it when it is created. */
 const pendingOverlays: BaseLayer[] = [];
@@ -84,10 +103,15 @@ onMounted(() => {
   map = new PackageMap(container.value, {
     onDrawn: (geometry) => emit("drawn", geometry),
     onModified: (objectId, geometry) => emit("modified", objectId, geometry),
+    onStyled: (objectId, style) => emit("styled", objectId, style),
     onSelected: (objectId) => emit("select", objectId),
+    ...(props.selectedIds === null ? {} : { onSelectedMany: (ids: string[]) => emit("selectMany", ids),
+      onModifiedMany: (changes: Array<{ id: string; geometry: PackageGeometry }>) => emit("modifiedMany", changes) }),
     onContextMenu: (target) => emit("contextmenu", target),
   });
   map.setEditable(props.editable);
+  map.setGridSettings(gridSettings.value);
+  map.setGridVisible(gridVisible.value);
   map.setContent(props.layers, props.objects);
   if (!props.offline) void loadIcons();
   map.setMapContent(props.contents, props.layers);
@@ -125,7 +149,7 @@ watch(() => props.remoteSelections, (selections) => map?.setRemoteSelections(sel
 watch(() => props.tool, (tool) => map?.setTool(tool));
 watch(() => props.iconLibraries, () => { if (!props.offline) void loadIcons(); });
 watch(() => props.editable, (editable) => { map?.setEditable(editable); map?.setTool(props.tool); });
-watch(() => props.selectedId, (objectId) => map?.highlight(objectId));
+watch(() => [props.selectedId, props.selectedIds] as const, ([objectId, ids]) => ids === null ? map?.highlight(objectId) : map?.highlightMany(ids));
 
 onBeforeUnmount(() => {
   iconGeneration += 1;
@@ -135,9 +159,15 @@ onBeforeUnmount(() => {
 });
 
 defineExpose({
+  measurementUnit,
+  setMeasurementUnit: (unit: DistanceUnit) => { measurementUnit.value = unit; map?.setMeasurementUnit(unit); },
   baseMaps,
   activeBaseMapId,
   selectBaseMap,
+  gridVisible,
+  setGridVisible,
+  gridSettings,
+  setGridSettings,
   clearMeasurements: () => map?.clearMeasurements(),
   zoomToLive: (uid: string) => map?.zoomToLive(uid),
   addOverlayLayers,
@@ -168,6 +198,20 @@ defineExpose({
   padding: 2px 8px 4px;
   border-radius: 8px;
   background: rgba(var(--v-theme-surface), 0.85);
+  pointer-events: none;
+}
+/* The 100 km square under the view centre while the MGRS grid shows finer lines. */
+.package-map :deep(.editor-grid-square) {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: rgba(var(--v-theme-surface), 0.85);
+  color: rgb(var(--v-theme-on-surface));
+  font-size: 12px;
+  font-weight: 600;
   pointer-events: none;
 }
 .package-map :deep(.editor-scale-inner) {

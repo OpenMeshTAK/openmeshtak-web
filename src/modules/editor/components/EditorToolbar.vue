@@ -1,13 +1,17 @@
 <script setup lang="ts">
 import {
   mdiBroom, mdiCheck, mdiChevronDown, mdiCircleOutline, mdiCursorDefault, mdiDraw,
-  mdiEllipseOutline, mdiFitToScreenOutline, mdiLayersOutline, mdiMapMarkerPlusOutline, mdiMapOutline,
+  mdiEllipseOutline, mdiFitToScreenOutline, mdiGrid, mdiLayersOutline, mdiMapMarkerPlusOutline, mdiMapOutline,
   mdiRectangleOutline, mdiRedo, mdiRoutes, mdiRuler, mdiShapePolygonPlus, mdiUndo,
-  mdiVectorPolyline, mdiVectorSquare,
+  mdiVectorPolyline, mdiVectorSquare, mdiArrowTopRight, mdiAngleAcute, mdiCompassOutline,
 } from "@mdi/js";
 import { computed, ref } from "vue";
 import type { EditorTool } from "../map/package-map";
 import type { BaseMapLayer } from "@/modules/map-settings/map-settings.api";
+import { DISTANCE_UNITS, type DistanceUnit } from "../map/range-bearing";
+import { DEFAULT_GRID_SETTINGS, type GridSettings } from "../map/mgrs-grid";
+import SegmentedControl from "@/shared/components/SegmentedControl.vue";
+import InspectorToggle from "./InspectorToggle.vue";
 
 const props = withDefaults(defineProps<{
   editable: boolean;
@@ -20,9 +24,17 @@ const props = withDefaults(defineProps<{
   baseMapId?: string;
   viewOnly?: boolean;
   layersLabel?: string;
-}>(), { undoLabel: null, redoLabel: null, baseMaps: () => [], baseMapId: "", viewOnly: false, layersLabel: "layers" });
+  distanceUnit?: DistanceUnit;
+  gridVisible?: boolean;
+  gridSettings?: GridSettings;
+}>(), { gridVisible: false, gridSettings: () => DEFAULT_GRID_SETTINGS, distanceUnit: "m", undoLabel: null, redoLabel: null, baseMaps: () => [], baseMapId: "", viewOnly: false, layersLabel: "layers" });
 const tool = defineModel<EditorTool>("tool", { required: true });
-defineEmits<{ fit: []; toggleLayers: []; undo: []; redo: []; clearMeasurements: []; changeBaseMap: [id: string] }>();
+defineEmits<{ fit: []; toggleLayers: []; undo: []; redo: []; clearMeasurements: []; changeBaseMap: [id: string]; changeDistanceUnit: [unit: DistanceUnit]; toggleGrid: []; changeGridSettings: [settings: GridSettings] }>();
+const gridSpacings: Array<{ title: string; value: GridSettings["spacing"] }> = [
+  { title: "Auto", value: "auto" }, { title: "100 km", value: 100_000 }, { title: "10 km", value: 10_000 }, { title: "1 km", value: 1_000 }, { title: "100 m", value: 100 },
+];
+const gridTones: Array<{ title: string; value: GridSettings["tone"] }> = [{ title: "Dark", value: "dark" }, { title: "Light", value: "light" }];
+const gridWidths: Array<{ title: string; value: GridSettings["width"] }> = [{ title: "Thin", value: "thin" }, { title: "Normal", value: "normal" }, { title: "Thick", value: "thick" }];
 
 interface ToolChoice { value: EditorTool; icon: string; label: string; hint?: string }
 interface ToolGroup { id: string; label: string; icon: string; editing: boolean; items: ToolChoice[] }
@@ -30,24 +42,30 @@ const openGroup = ref<string | null>(null);
 const baseMapTooltip = computed(() => "Base map: " + (props.baseMaps.find(({ id }) => id === props.baseMapId)?.providerName ?? "Choose map"));
 const layersTooltip = computed(() => (props.layersOpen ? "Hide " : "Show ") + props.layersLabel);
 const directTools: ToolChoice[] = [
-  { value: "select", icon: mdiCursorDefault, label: "Select and move (S)", hint: "Shift + drag moves the whole selected drawing" },
+  { value: "select", icon: mdiCursorDefault, label: "Select and move (S)", hint: "Shift/Ctrl-click selects multiple objects; Shift + drag moves a drawing" },
   { value: "point", icon: mdiMapMarkerPlusOutline, label: "Add marker (M)" },
 ];
 const groups: ToolGroup[] = [
   { id: "lines", label: "Lines and routes", icon: mdiVectorPolyline, editing: true, items: [
     { value: "line", icon: mdiVectorPolyline, label: "Line (L)" },
+    { value: "arrow", icon: mdiArrowTopRight, label: "Arrow (D)", hint: "Two clicks finish; Shift adds more points" },
     { value: "freehand", icon: mdiDraw, label: "Freehand (F)", hint: "Shift + drag in Select mode moves the whole drawing" },
     { value: "route", icon: mdiRoutes, label: "Route (T)", hint: "Two clicks finish; Shift adds more points" },
+    { value: "range-bearing", icon: mdiCompassOutline, label: "Save Range & Bearing (B)", hint: "Two points; saved and published with the package" },
   ] },
   { id: "shapes", label: "Shapes", icon: mdiShapePolygonPlus, editing: true, items: [
     { value: "polygon", icon: mdiShapePolygonPlus, label: "Area (A)" },
     { value: "circle", icon: mdiCircleOutline, label: "Circle (C)" },
+    { value: "range-circle", icon: mdiCircleOutline, label: "Range rings", hint: "Draw the first ring; set the ring count in the inspector" },
+    { value: "bullseye", icon: mdiCompassOutline, label: "Bullseye", hint: "Draw the outer radius; set the rings in the inspector" },
     { value: "rectangle", icon: mdiRectangleOutline, label: "Rectangle (R)", hint: "Hold Shift while drawing for a square" },
     { value: "ellipse", icon: mdiEllipseOutline, label: "Ellipse (E)", hint: "Shift draws a circle; Shift + drag on the rotation handle snaps to 15°" },
+    { value: "sector", icon: mdiAngleAcute, label: "Bearing sector (V)", hint: "Place the centre, then drag the handles; Shift snaps to 15°" },
   ] },
   { id: "measure", label: "Measure", icon: mdiRuler, editing: false, items: [
     { value: "measure-length", icon: mdiRuler, label: "Distance (Q)", hint: "Two clicks to finish; hold Shift to add points" },
     { value: "measure-area", icon: mdiVectorSquare, label: "Area and perimeter (W)", hint: "Click the boundary points, then double-click to finish" },
+    { value: "measure-bearing", icon: mdiCompassOutline, label: "Temporary Range & Bearing (N)", hint: "Two points; not saved or published" },
   ] },
 ];
 const visibleGroups = computed(() => groups.filter((group) => props.editable || !group.editing));
@@ -93,6 +111,28 @@ function choose(value: EditorTool): void {
           </v-list-item>
         </v-list>
       </v-menu>
+      <v-menu :model-value="openGroup === 'grid'" location="end top" offset="8" :close-on-content-click="false" @update:model-value="openGroup = $event ? 'grid' : null">
+        <template #activator="{ props: menu }">
+          <v-tooltip text="MGRS grid" location="end">
+            <template #activator="{ props: tooltip }">
+              <v-btn v-bind="{ ...tooltip, ...menu }" icon :variant="gridVisible ? 'tonal' : 'text'" size="small" rounded="lg" aria-label="MGRS grid">
+                <v-icon :icon="mdiGrid" />
+                <v-icon :icon="mdiChevronDown" size="12" class="tool-chevron" />
+              </v-btn>
+            </template>
+          </v-tooltip>
+        </template>
+        <v-card min-width="260" rounded="lg" elevation="2" class="grid-popout" aria-label="MGRS grid">
+          <InspectorToggle label="Show MGRS grid" :model-value="gridVisible" @update:model-value="$emit('toggleGrid')" />
+          <div class="grid-popout__label">Line spacing</div>
+          <SegmentedControl :model-value="gridSettings.spacing" :options="gridSpacings" label="Grid line spacing" @update:model-value="$emit('changeGridSettings', { ...gridSettings, spacing: $event })" />
+          <div class="grid-popout__label">Line colour</div>
+          <SegmentedControl :model-value="gridSettings.tone" :options="gridTones" label="Grid line colour" @update:model-value="$emit('changeGridSettings', { ...gridSettings, tone: $event })" />
+          <div class="grid-popout__label">Line width</div>
+          <SegmentedControl :model-value="gridSettings.width" :options="gridWidths" label="Grid line width" @update:model-value="$emit('changeGridSettings', { ...gridSettings, width: $event })" />
+          <InspectorToggle label="Grid labels" class="mt-2" :model-value="gridSettings.labels" @update:model-value="$emit('changeGridSettings', { ...gridSettings, labels: $event })" />
+        </v-card>
+      </v-menu>
       <v-tooltip text="Zoom to content" location="end">
         <template #activator="{ props: tooltip }">
           <v-btn v-bind="tooltip" :icon="mdiFitToScreenOutline" variant="text" size="small" rounded="lg" aria-label="Zoom to content" @click="$emit('fit')" />
@@ -124,6 +164,7 @@ function choose(value: EditorTool): void {
             </template>
           </v-tooltip>
           <template v-if="group.id === 'measure'">
+            <v-select :model-value="distanceUnit ?? 'm'" :items="DISTANCE_UNITS" label="Distance unit" density="compact" hide-details style="min-width: 110px" @update:model-value="$emit('changeDistanceUnit', $event)" />
             <v-divider vertical class="popout-divider" />
             <v-tooltip text="Clear measurements" location="top">
               <template #activator="{ props: tooltip }">
@@ -160,6 +201,8 @@ function choose(value: EditorTool): void {
 .toolbar-popout { display: flex; align-items: center; gap: 4px; padding: 4px; }
 .popout-divider { height: 24px; align-self: center; margin: 0 2px; }
 .toolbar-map-popout { padding: 4px; }
+.grid-popout { display: flex; flex-direction: column; gap: 4px; padding: 8px 12px 12px; }
+.grid-popout__label { margin-top: 6px; font-size: 0.75rem; color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); }
 .toolbar-map-popout :deep(.v-list-item) { min-height: 36px; }
 .toolbar-map-popout :deep(.v-list-item__prepend > .v-icon) { margin-inline-end: 12px; }
 </style>

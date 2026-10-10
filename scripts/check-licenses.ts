@@ -27,6 +27,9 @@ const allowedLicenses = new Set([
  *   worker; it is not part of the shipped app (reviewed 2026-10-06).
  */
 const reviewedExceptions = new Map<string, Set<string>>([
+  // Reviewed 2026-10-10: choose EDL (BSD-3-Clause terms), never EPL. Pinned buffer dependency;
+  // the upstream text omitted by npm is retained in licenses/ and release notices.
+  ["(EDL-1.0 OR EPL-1.0)", new Set(["@turf/jsts@2.7.2", "jsts@2.7.1"])],
   ["0BSD", new Set(["tslib@1.14.1", "tslib@2.8.1"])],
   ["MIT-0", new Set(["@csstools/color-helpers@6.1.2", "@csstools/css-syntax-patches-for-csstree@1.1.15"])],
   ["CC0-1.0", new Set(["mdn-data@2.27.1", "xml-utils@1.10.2"])],
