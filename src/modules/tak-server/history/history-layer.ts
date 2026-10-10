@@ -43,6 +43,8 @@ interface ProjectedTrack {
 const LINE = 1;
 const DOT = 2;
 const AREA = 3;
+/** A line to or from an estimated position: drawn dashed, because nobody measured that way. */
+const ESTIMATED_LINE = 4;
 
 function rgba(hex: string, alpha: number): string {
   const value = Number.parseInt(hex.slice(1), 16);
@@ -60,6 +62,7 @@ function visibleAs(kind: number): Rule["filter"] {
 
 const PATH_STYLE: Rule[] = [
   { filter: visibleAs(LINE), style: { "stroke-color": ["get", "color"], "stroke-width": 3 } satisfies FlatStyle },
+  { filter: visibleAs(ESTIMATED_LINE), style: { "stroke-color": ["get", "color"], "stroke-width": 3, "stroke-line-dash": [8, 6] } satisfies FlatStyle },
   { filter: visibleAs(DOT), style: { "circle-radius": 3, "circle-fill-color": ["get", "color"] } satisfies FlatStyle },
   // Approximate positions are areas, not points: the circle is the sender's stated accuracy.
   { filter: visibleAs(AREA), style: { "fill-color": ["get", "fill"], "stroke-color": ["get", "color"], "stroke-width": 1 } satisfies FlatStyle },
@@ -95,8 +98,8 @@ function lastKnown(entry: ProjectedTrack, time: number): { point: TimelinePoint;
 }
 
 /**
- * Recorded tracks on the shared event map: lines only inside Core's continuous segments, lone
- * positions as dots, approximate positions as accuracy circles, and one marker per track for the
+ * Recorded tracks on the shared event map: lines only inside Core's continuous segments (dashed
+ * where a position was only estimated), lone positions as dots, approximate positions as accuracy circles, and one marker per track for the
  * last known position at the replay time. A coverage grid can be drawn underneath.
  *
  * Hundreds of tracks hold tens of thousands of positions, which the canvas renderer would redraw
@@ -158,7 +161,8 @@ export function createHistoryLayers(): {
         for (let index = 1; index < points.length; index += 1) {
           const from = points[index - 1] as TimelinePoint;
           const to = points[index] as TimelinePoint;
-          pieces.push(piece(new LineString([coordinates[index - 1] as number[], coordinates[index] as number[]]), LINE, entry.color, from.time, to.time));
+          const kind = from.estimated || to.estimated ? ESTIMATED_LINE : LINE;
+          pieces.push(piece(new LineString([coordinates[index - 1] as number[], coordinates[index] as number[]]), kind, entry.color, from.time, to.time));
         }
       }
     }

@@ -7,7 +7,7 @@ import type { TakTrackDto, TakTrackPointDto } from "@/modules/tak-server/tak-ser
 const START = Date.parse("2026-10-01T10:00:00.000Z");
 
 function point(seconds: number, lon: number, approximate = false): TakTrackPointDto {
-  return { time: new Date(START + seconds * 1000).toISOString(), lat: 50, lon, ce: approximate ? 1500 : 5, delayed: false, approximate };
+  return { time: new Date(START + seconds * 1000).toISOString(), lat: 50, lon, ce: approximate ? 1500 : 5, delayed: false, approximate, estimated: false };
 }
 
 function track(segments: TakTrackPointDto[][]): TakTrackDto {

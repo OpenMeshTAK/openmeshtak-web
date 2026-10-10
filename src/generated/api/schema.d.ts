@@ -3074,8 +3074,10 @@ export interface components {
             ce: number | null;
             /** @description Reached Core more than a minute after its own time, for example relayed over a mesh. */
             delayed: boolean;
-            /** @description A large circular error or a human estimate; never connected to other positions. */
+            /** @description A circular error of 100 m or more; never connected to other positions. */
             approximate: boolean;
+            /** @description The sender marked the position as estimated (CoT `how` `h-e`); drawn as a dashed line. */
+            estimated: boolean;
         };
         /** @description The recorded movement of one CoT UID, such as a member's device or a marker. */
         TakTrackDto: {

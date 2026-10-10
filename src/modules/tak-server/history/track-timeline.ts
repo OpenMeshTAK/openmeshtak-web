@@ -12,6 +12,8 @@ export interface TimelinePoint {
   ce: number | null;
   delayed: boolean;
   approximate: boolean;
+  /** The sender marked the position as estimated, e.g. a PC without GPS. */
+  estimated: boolean;
 }
 
 export interface TimelineTrack {
