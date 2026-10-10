@@ -6,6 +6,7 @@ import {
   mdiCalendarMultiple,
   mdiCogOutline,
   mdiConsole,
+  mdiHeartPulse,
   mdiKeyChain,
   mdiServerNetwork,
   mdiTuneVariant,
@@ -189,6 +190,12 @@ const routes: RouteRecordRaw[] = [
             name: "settings-presets",
             component: () => import("@/modules/settings-presets/PresetLibraryView.vue"),
             meta: { navigation: { title: "Presets", icon: mdiBookshelf, permission: "presets.read" } },
+          },
+          {
+            path: "system-status",
+            name: "system-status",
+            component: () => import("@/modules/system-status/SystemStatusView.vue"),
+            meta: { navigation: { title: "System status", icon: mdiHeartPulse, permission: "server-logs.read" } },
           },
           {
             path: "server-log",

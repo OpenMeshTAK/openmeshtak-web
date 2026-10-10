@@ -827,6 +827,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/system-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Health overview for operators: database, data disk, TAK server, its certificate and recent
+         *     errors, with a few numbers. Requires instance-wide `server-logs.read`.
+         */
+        get: operations["GetSystemStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/setup": {
         parameters: {
             query?: never;
@@ -3675,6 +3695,68 @@ export interface components {
                 reason: string;
                 key: string;
             }[];
+        };
+        /**
+         * @description `off` marks a part that is switched off on purpose, such as a disabled TAK server.
+         * @enum {string}
+         */
+        SystemCheckState: "ok" | "warning" | "error" | "off";
+        SystemCheckDto: {
+            /** @enum {string} */
+            id: "database" | "storage" | "tak-server" | "tak-certificate" | "errors";
+            state: components["schemas"]["SystemCheckState"];
+            /** @description One plain sentence for operators; never contains secrets. */
+            detail: string;
+        };
+        SystemStatusDto: {
+            /** @description Core release version. */
+            version: string;
+            startedAt: string;
+            checks: components["schemas"]["SystemCheckDto"][];
+            /**
+             * Format: double
+             * @description Database round trip of a trivial query in milliseconds; null when it failed.
+             */
+            databaseLatencyMs: number | null;
+            /**
+             * Format: double
+             * @description Size of the SQLite database file in bytes; null when unknown.
+             */
+            databaseBytes: number | null;
+            /**
+             * Format: double
+             * @description Bytes of stored files (Data Package content, icon sets).
+             */
+            storedFileBytes: number;
+            /**
+             * Format: double
+             * @description Free and total bytes on the disk that holds the data directory; null when unknown.
+             */
+            diskFreeBytes: number | null;
+            /** Format: double */
+            diskTotalBytes: number | null;
+            /**
+             * Format: double
+             * @description Resident memory of the Core process in bytes.
+             */
+            memoryBytes: number;
+            /**
+             * Format: double
+             * @description Open TAK connections (streaming) right now.
+             */
+            takConnections: number;
+            /** Format: double */
+            activeEvents: number;
+            /**
+             * Format: double
+             * @description Error log lines among Core's recent log lines from the last 24 hours.
+             */
+            recentErrors: number;
+            /** @description Time and message of the newest of those errors. */
+            lastError: {
+                message: string;
+                time: string | null;
+            } | null;
         };
         SetupStatusResponse: {
             /** @description `false` until the first administrator exists; the Web app then opens the setup flow. */
@@ -9302,6 +9384,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AtakPreferenceCatalogDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetSystemStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description System status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SystemStatusDto"];
                 };
             };
             /** @description Authentication required */
