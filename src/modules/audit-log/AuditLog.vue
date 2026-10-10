@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { mdiContentCopy, mdiDownload, mdiMagnify, mdiRefresh } from "@mdi/js";
-import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
 import { describeError, isApiProblem } from "@/shared/errors/api-problem";
 import { useToast } from "@/shared/feedback/toast";
 import { listAuditEvents, type AuditEventDto, type AuditLogScope, type AuditResult } from "./audit-log.api";
 
 /**
- * The audit log in the same console as the server log, newest at the top. Filters run in Core,
+ * The audit log in the same console as the server log, newest at the bottom. Filters run in Core,
  * so they cover the whole log and not only the loaded entries; older entries load on request.
  */
 const props = defineProps<{ scope: AuditLogScope }>();
@@ -25,6 +25,7 @@ const error = ref("");
 const shownResults = ref<AuditResult[]>(["success", "failure"]);
 const search = ref("");
 const expanded = ref(new Set<string>());
+const body = ref<HTMLElement | null>(null);
 let request = 0;
 
 const resultFilter = computed(() => (shownResults.value.length === 1 ? shownResults.value[0] : undefined));
@@ -43,15 +44,37 @@ async function load(more = false): Promise<void> {
       ...(more && nextCursor.value ? { cursor: nextCursor.value } : {}),
     });
     if (current !== request) return;
-    entries.value = more ? [...entries.value, ...page.items] : page.items;
+    // Core pages newest first; the console reads like the server log, oldest at the top.
+    const older = [...page.items].reverse();
+    const element = body.value;
+    const fromBottom = element === null ? 0 : element.scrollHeight - element.scrollTop;
+    entries.value = more ? [...older, ...entries.value] : older;
     nextCursor.value = page.page.nextCursor;
     state.value = "ready";
+    await nextTick();
+    // A fresh load shows the newest entries; older ones added above keep the reader's place.
+    if (body.value !== null) {
+      body.value.scrollTop = more ? body.value.scrollHeight - fromBottom : body.value.scrollHeight;
+    }
+    loadOlderIfAtTop();
   } catch (caught: unknown) {
     if (current !== request) return;
     error.value = describeError(caught);
     state.value = isApiProblem(caught) && caught.status === 403 ? "denied" : "error";
   } finally {
     if (current === request) loadingMore.value = false;
+  }
+}
+
+/**
+ * Older entries load by themselves once the reader scrolls near the top, and also while the
+ * loaded entries do not yet fill the console, since it then cannot scroll at all.
+ */
+function loadOlderIfAtTop(): void {
+  const element = body.value;
+  if (element === null || state.value !== "ready" || loadingMore.value || nextCursor.value === null) return;
+  if (element.scrollTop < 80 || element.scrollHeight <= element.clientHeight) {
+    void load(true);
   }
 }
 
@@ -158,7 +181,11 @@ function download(): void {
       </div>
 
       <div class="log-console">
-        <div class="log-body">
+        <div ref="body" class="log-body" @scroll="loadOlderIfAtTop">
+          <div v-if="state === 'ready' && nextCursor !== null" class="log-note">
+            {{ loadingMore ? "Loading older entries…" : "Scroll up for older entries" }}
+          </div>
+          <div v-else-if="state === 'ready' && entries.length > 0" class="log-note">Start of the audit log</div>
           <div v-if="state === 'loading'" class="log-note">Loading the audit log…</div>
           <div v-else-if="visible.length === 0" class="log-note">No entry matches the filter.</div>
           <div
@@ -178,9 +205,6 @@ function download(): void {
               <v-icon :icon="mdiContentCopy" size="14" />
             </button>
             <pre v-if="expanded.has(entry.id)" class="log-details--open">{{ detailsOf(entry) }}</pre>
-          </div>
-          <div v-if="state === 'ready' && nextCursor !== null" class="log-more">
-            <v-btn size="small" variant="tonal" :loading="loadingMore" @click.stop="load(true)">Load older entries</v-btn>
           </div>
         </div>
       </div>
@@ -341,9 +365,6 @@ function download(): void {
   color: #6e7681;
 }
 
-.log-more {
-  padding: 8px 16px;
-}
 
 @media (max-width: 699px) {
   .log-line {
