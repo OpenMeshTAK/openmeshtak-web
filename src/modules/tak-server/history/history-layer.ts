@@ -1,6 +1,5 @@
 import Feature from "ol/Feature";
 import Circle from "ol/geom/Circle";
-import type Geometry from "ol/geom/Geometry";
 import LineString from "ol/geom/LineString";
 import Point from "ol/geom/Point";
 import Polygon from "ol/geom/Polygon";
@@ -9,7 +8,7 @@ import VectorLayer from "ol/layer/Vector";
 import { fromLonLat, getPointResolution } from "ol/proj";
 import VectorSource from "ol/source/Vector";
 import { Circle as CircleStyle, Fill, Stroke, Style, Text } from "ol/style";
-import { lastIndexAtOrBefore, lastKnownAt, type TimelinePoint, type TimelineTrack } from "./track-timeline";
+import { lastIndexAtOrBefore, type TimelinePoint, type TimelineTrack } from "./track-timeline";
 
 /** What the replay shows at one moment. */
 export interface HistoryFrame {
@@ -29,10 +28,20 @@ export interface CoverageCell {
   weight: number;
 }
 
+/** One continuous segment and the part of it the last frame drew, so unchanged parts are skipped. */
+interface DrawnSegment {
+  points: TimelinePoint[];
+  coordinates: number[][];
+  feature: Feature;
+  drawn: string;
+}
+
 interface ProjectedTrack {
   track: TimelineTrack;
   color: string;
-  segments: Array<{ points: TimelinePoint[]; coordinates: number[][] }>;
+  segments: DrawnSegment[];
+  marker: Feature;
+  markerKey: string;
 }
 
 function rgba(hex: string, alpha: number): string {
@@ -45,7 +54,7 @@ function lineStyle(color: string): Style {
 }
 
 function dotStyle(color: string): Style {
-  return new Style({ image: new CircleStyle({ radius: 3, fill: new Fill({ color }) }) });
+  return new Style({ image: new CircleStyle({ radius: 3, fill: new Fill({ color }), declutterMode: "none" }) });
 }
 
 /** Approximate positions are areas, not points: the circle is the sender's stated accuracy. */
@@ -55,10 +64,12 @@ function areaStyle(color: string): Style {
 
 function markerStyle(color: string, label: string, stale: boolean): Style {
   return new Style({
+    // Markers are never hidden by decluttering; only overlapping labels are.
     image: new CircleStyle({
       radius: 7,
       fill: new Fill({ color: stale ? "#ffffff" : color }),
       stroke: new Stroke({ color: stale ? color : "#ffffff", width: stale ? 3 : 2 }),
+      declutterMode: "none",
     }),
     text: new Text({
       text: label,
@@ -70,21 +81,29 @@ function markerStyle(color: string, label: string, stale: boolean): Style {
   });
 }
 
-function feature(geometry: Geometry, style: Style): Feature {
-  const created = new Feature({ geometry });
-  created.setStyle(style);
-  return created;
-}
-
 /** First index whose time is at or after `time` (points are ordered by time). */
 function firstIndexAtOrAfter(points: readonly TimelinePoint[], time: number): number {
   return lastIndexAtOrBefore(points, time - 1) + 1;
+}
+
+/** The newest recorded position at or before `time` over all segments, with its map coordinate. */
+function lastKnown(entry: ProjectedTrack, time: number): { point: TimelinePoint; coordinate: number[] } | null {
+  for (let index = entry.segments.length - 1; index >= 0; index -= 1) {
+    const segment = entry.segments[index] as DrawnSegment;
+    const found = lastIndexAtOrBefore(segment.points, time);
+    if (found >= 0) return { point: segment.points[found] as TimelinePoint, coordinate: segment.coordinates[found] as number[] };
+  }
+  return null;
 }
 
 /**
  * Recorded tracks on the shared event map: lines only inside Core's continuous segments, lone
  * positions as dots, approximate positions as accuracy circles, and one marker per track for the
  * last known position at the replay time. A coverage grid can be drawn underneath.
+ *
+ * Replay calls `render` on every animation frame, so the features are created once per change of
+ * the shown tracks and a frame only updates the geometries and styles that actually changed.
+ * Styles are cached, because a new text style forces OpenLayers to render the label again.
  */
 export function createHistoryLayers(): {
   layers: VectorLayer[];
@@ -94,57 +113,107 @@ export function createHistoryLayers(): {
   positionOf(uid: string): number[] | null;
   extent(): number[] | null;
 } {
-  const trackSource = new VectorSource();
+  // Every feature changes during replay; a spatial index would be rebuilt on each frame for nothing.
+  const trackSource = new VectorSource({ useSpatialIndex: false });
   const coverageSource = new VectorSource();
-  const layers = [new VectorLayer({ source: coverageSource, zIndex: 880 }), new VectorLayer({ source: trackSource, zIndex: 900 })];
+  const layers = [
+    new VectorLayer({ source: coverageSource, zIndex: 880 }),
+    new VectorLayer({ source: trackSource, zIndex: 900, declutter: true }),
+  ];
   let projected: ProjectedTrack[] = [];
   const markers = new Map<string, number[]>();
+  const styles = new Map<string, Style>();
+  let lastFrame: HistoryFrame | null = null;
 
-  function drawSegment(entry: ProjectedTrack, segment: ProjectedTrack["segments"][number], frame: HistoryFrame): Feature[] {
+  function cachedStyle(key: string, create: () => Style): Style {
+    let style = styles.get(key);
+    if (style === undefined) {
+      style = create();
+      styles.set(key, style);
+    }
+    return style;
+  }
+
+  function drawSegment(entry: ProjectedTrack, segment: DrawnSegment, frame: HistoryFrame): void {
     const end = lastIndexAtOrBefore(segment.points, frame.cursor);
     const start = frame.trailMs === null ? 0 : firstIndexAtOrAfter(segment.points, frame.cursor - frame.trailMs);
-    if (end < 0 || start > end) return [];
+    const drawn = end < 0 || start > end ? "" : `${String(start)}-${String(end)}`;
+    if (drawn === segment.drawn) return;
+    segment.drawn = drawn;
+    if (drawn === "") {
+      segment.feature.setGeometry(undefined);
+      return;
+    }
     const first = segment.points[start] as TimelinePoint;
     const coordinate = segment.coordinates[start] as number[];
     if (first.approximate && first.ce !== null) {
       const radius = first.ce / getPointResolution("EPSG:3857", 1, coordinate, "m");
-      return [feature(new Circle(coordinate, radius), areaStyle(entry.color))];
+      segment.feature.setGeometry(new Circle(coordinate, radius));
+      segment.feature.setStyle(cachedStyle(`area|${entry.color}`, () => areaStyle(entry.color)));
+    } else if (end === start) {
+      segment.feature.setGeometry(new Point(coordinate));
+      segment.feature.setStyle(cachedStyle(`dot|${entry.color}`, () => dotStyle(entry.color)));
+    } else {
+      segment.feature.setGeometry(new LineString(segment.coordinates.slice(start, end + 1)));
+      segment.feature.setStyle(cachedStyle(`line|${entry.color}`, () => lineStyle(entry.color)));
     }
-    if (end === start) return [feature(new Point(coordinate), dotStyle(entry.color))];
-    return [feature(new LineString(segment.coordinates.slice(start, end + 1)), lineStyle(entry.color))];
+  }
+
+  function drawMarker(entry: ProjectedTrack, frame: HistoryFrame): void {
+    const known = lastKnown(entry, frame.cursor);
+    if (known === null || (frame.trailMs !== null && frame.cursor - known.point.time > frame.trailMs)) {
+      markers.delete(entry.track.uid);
+      if (entry.markerKey !== "") entry.marker.setGeometry(undefined);
+      entry.markerKey = "";
+      return;
+    }
+    markers.set(entry.track.uid, known.coordinate);
+    const age = frame.cursor - known.point.time;
+    const label = frame.label(entry.track, age);
+    const stale = age > frame.staleAfterMs;
+    const key = `${String(known.point.time)}|${label}|${String(stale)}`;
+    if (key === entry.markerKey) return;
+    entry.markerKey = key;
+    entry.marker.setGeometry(new Point(known.coordinate));
+    entry.marker.setStyle(cachedStyle(`marker|${entry.color}|${label}|${String(stale)}`, () => markerStyle(entry.color, label, stale)));
+  }
+
+  function render(frame: HistoryFrame): void {
+    lastFrame = frame;
+    for (const entry of projected) {
+      for (const segment of entry.segments) drawSegment(entry, segment, frame);
+      drawMarker(entry, frame);
+    }
   }
 
   return {
     layers,
     setTracks(tracks) {
+      styles.clear();
+      markers.clear();
       projected = tracks.map(({ track, color }) => ({
         track,
         color,
-        segments: track.segments.map((points) => ({ points, coordinates: points.map(({ lon, lat }) => fromLonLat([lon, lat])) })),
+        segments: track.segments.map((points) => ({ points, coordinates: points.map(({ lon, lat }) => fromLonLat([lon, lat])), feature: new Feature(), drawn: "" })),
+        marker: new Feature(),
+        markerKey: "",
       }));
-    },
-    render(frame) {
       trackSource.clear();
-      markers.clear();
-      const features: Feature[] = [];
-      for (const entry of projected) {
-        for (const segment of entry.segments) features.push(...drawSegment(entry, segment, frame));
-        const known = lastKnownAt(entry.track, frame.cursor);
-        if (known === null || (frame.trailMs !== null && frame.cursor - known.time > frame.trailMs)) continue;
-        const coordinate = fromLonLat([known.lon, known.lat]);
-        markers.set(entry.track.uid, coordinate);
-        const age = frame.cursor - known.time;
-        features.push(feature(new Point(coordinate), markerStyle(entry.color, frame.label(entry.track, age), age > frame.staleAfterMs)));
-      }
-      trackSource.addFeatures(features);
+      trackSource.addFeatures(projected.flatMap((entry) => [...entry.segments.map(({ feature }) => feature), entry.marker]));
+      // New features start empty; draw them at the current replay time right away instead of
+      // waiting for the next frame, which does not come while replay is paused.
+      if (lastFrame !== null) render(lastFrame);
     },
+    render,
     setCoverage(cells, color) {
       coverageSource.clear();
       coverageSource.addFeatures(
         cells.map((cell) => {
           const [minX = 0, minY = 0, maxX = 0, maxY = 0] = cell.extent;
           const polygon = new Polygon([[[minX, minY], [maxX, minY], [maxX, maxY], [minX, maxY], [minX, minY]]]);
-          return feature(polygon, new Style({ fill: new Fill({ color: rgba(color, 0.1 + 0.5 * cell.weight) }) }));
+          const created = new Feature({ geometry: polygon });
+          created.setStyle(new Style({ fill: new Fill({ color: rgba(color, 0.1 + 0.5 * cell.weight) }) }));
+          return created;
         }),
       );
     },

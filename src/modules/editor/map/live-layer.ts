@@ -58,9 +58,10 @@ function markerFor(item: LiveMapItem): Circle | RegularShape {
   const color = colorOf(item);
   const fill = new Fill({ color });
   const stroke = new Stroke({ color: "#ffffff", width: 2, lineDash: item.outdated === true ? [3, 3] : undefined });
+  // Markers are never hidden by decluttering; only overlapping labels are.
   return item.source === "mesh"
-    ? new RegularShape({ points: 4, radius: 9, angle: Math.PI / 4, fill, stroke })
-    : new Circle({ radius: 7, fill, stroke });
+    ? new RegularShape({ points: 4, radius: 9, angle: Math.PI / 4, fill, stroke, declutterMode: "none" })
+    : new Circle({ radius: 7, fill, stroke, declutterMode: "none" });
 }
 
 /**
@@ -77,6 +78,9 @@ export function headingOf(item: LiveMapItem): number | null {
   return item.speed !== undefined && item.speed !== null && item.speed < MOVING_SPEED_MS ? null : item.course;
 }
 
+/** Courses are drawn in 5° steps, so the arrow styles can be shared between items and updates. */
+const ARROW_STEP_DEGREES = 5;
+
 /** A small arrowhead just outside the marker, drawn pointing north and rotated to the course. */
 function arrowFor(color: string, course: number): Style {
   const svg =
@@ -87,50 +91,106 @@ function arrowFor(color: string, course: number): Style {
       src: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
       rotation: (course * Math.PI) / 180,
       rotateWithView: true,
+      declutterMode: "none",
     }),
   });
 }
 
-function styleFor(item: LiveMapItem): Style[] {
-  const heading = headingOf(item);
-  const marker = new Style({
-    image: markerFor(item),
-    text:
-      item.callsign === null
-        ? undefined
-        : new Text({
-            text: item.callsign,
-            offsetY: -16,
-            font: "600 12px Roboto, sans-serif",
-            fill: new Fill({ color: "#ffffff" }),
-            stroke: new Stroke({ color: "rgba(0, 0, 0, 0.75)", width: 3 }),
-          }),
+function labelFor(callsign: string): Text {
+  return new Text({
+    text: callsign,
+    offsetY: -16,
+    font: "600 12px Roboto, sans-serif",
+    fill: new Fill({ color: "#ffffff" }),
+    stroke: new Stroke({ color: "rgba(0, 0, 0, 0.75)", width: 3 }),
   });
-  return heading === null ? [marker] : [arrowFor(colorOf(item), heading), marker];
 }
 
-/** A read-only layer on top of the package content, replaced wholesale on every refresh. */
+/**
+ * Styles are cached, because every new style makes OpenLayers prepare the marker, decode the
+ * arrow image and render the label again. With hundreds of contacts refreshing twice a second
+ * that is what made the live map stutter.
+ */
+const markerStyles = new Map<string, Style>();
+const arrowStyles = new Map<string, Style>();
+const MAX_CACHED_STYLES = 5_000;
+
+function cached(cache: Map<string, Style>, key: string, create: () => Style): Style {
+  let style = cache.get(key);
+  if (style === undefined) {
+    if (cache.size >= MAX_CACHED_STYLES) cache.clear();
+    style = create();
+    cache.set(key, style);
+  }
+  return style;
+}
+
+/** A key that changes only when the drawing changes, so unchanged items keep their style. */
+function styleKey(item: LiveMapItem): string {
+  const heading = headingOf(item);
+  const step = heading === null ? "" : String(Math.round(heading / ARROW_STEP_DEGREES) * ARROW_STEP_DEGREES % 360);
+  return `${colorOf(item)}|${item.source ?? "tak"}|${String(item.outdated === true)}|${step}|${item.callsign ?? ""}`;
+}
+
+function styleFor(item: LiveMapItem): Style[] {
+  const color = colorOf(item);
+  const markerKey = `${color}|${item.source ?? "tak"}|${String(item.outdated === true)}|${item.callsign ?? ""}`;
+  const marker = cached(markerStyles, markerKey, () => new Style({ image: markerFor(item), text: item.callsign === null ? undefined : labelFor(item.callsign) }));
+  const heading = headingOf(item);
+  if (heading === null) return [marker];
+  const step = Math.round(heading / ARROW_STEP_DEGREES) * ARROW_STEP_DEGREES % 360;
+  return [cached(arrowStyles, `${color}|${String(step)}`, () => arrowFor(color, step)), marker];
+}
+
+interface Drawn {
+  feature: Feature<Point>;
+  key: string;
+}
+
+/**
+ * A read-only layer on top of the package content. Each refresh moves the existing features and
+ * swaps styles only where something changed, instead of rebuilding the whole layer. Overlapping
+ * labels are hidden; the markers themselves always stay visible.
+ */
 export function createLiveLayer(): { layer: VectorLayer; update(items: readonly LiveMapItem[]): void; positionOf(uid: string): number[] | null } {
   const source = new VectorSource();
-  const layer = new VectorLayer({ source, zIndex: 1000 });
-  const positions = new Map<string, number[]>();
+  const layer = new VectorLayer({ source, zIndex: 1000, declutter: true });
+  const drawn = new Map<string, Drawn>();
   return {
     layer,
     update(items) {
-      source.clear();
-      positions.clear();
-      source.addFeatures(
-        items.map((item) => {
-          const coordinate = fromLonLat([item.lon, item.lat]);
-          positions.set(item.uid, coordinate);
+      const seen = new Set<string>();
+      const added: Feature[] = [];
+      for (const item of items) {
+        seen.add(item.uid);
+        const coordinate = fromLonLat([item.lon, item.lat]);
+        const key = styleKey(item);
+        const existing = drawn.get(item.uid);
+        if (existing === undefined) {
           const feature = new Feature({ geometry: new Point(coordinate) });
           feature.setStyle(styleFor(item));
-          return feature;
-        }),
-      );
+          drawn.set(item.uid, { feature, key });
+          added.push(feature);
+          continue;
+        }
+        const geometry = existing.feature.getGeometry();
+        const [x, y] = geometry?.getCoordinates() ?? [];
+        if (x !== coordinate[0] || y !== coordinate[1]) geometry?.setCoordinates(coordinate);
+        if (existing.key !== key) {
+          existing.key = key;
+          existing.feature.setStyle(styleFor(item));
+        }
+      }
+      for (const [uid, entry] of drawn) {
+        if (!seen.has(uid)) {
+          source.removeFeature(entry.feature);
+          drawn.delete(uid);
+        }
+      }
+      if (added.length > 0) source.addFeatures(added);
     },
     positionOf(uid) {
-      return positions.get(uid) ?? null;
+      return drawn.get(uid)?.feature.getGeometry()?.getCoordinates() ?? null;
     },
   };
 }
