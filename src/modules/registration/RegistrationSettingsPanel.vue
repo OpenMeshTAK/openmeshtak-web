@@ -3,6 +3,7 @@ import { mdiLinkPlus } from "@mdi/js";
 import { computed, onMounted, ref } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
+import InfoHint from "@/shared/components/InfoHint.vue";
 import OneTimeLinkReveal from "@/shared/components/OneTimeLinkReveal.vue";
 import FormSection from "@/shared/components/layout/FormSection.vue";
 import { describeError } from "@/shared/errors/api-problem";
@@ -38,9 +39,9 @@ const creating = ref(false);
 const created = ref<{ url: string; expiresAt: string } | null>(null);
 
 const modes: { value: RegistrationMode; title: string; text: string }[] = [
-  { value: "closed", title: "Closed", text: "Only administrators create accounts, and participants arrive through access links." },
-  { value: "invite", title: "Invite only", text: "People sign up with a single-use invite link you create below." },
-  { value: "open", title: "Open", text: "Anyone who can reach this installation can create an account." },
+  { value: "closed", title: "Closed", text: "Only administrators create accounts." },
+  { value: "invite", title: "Invite only", text: "Sign-up with a single-use invite link." },
+  { value: "open", title: "Open", text: "Anyone can create an account." },
 ];
 const changed = computed(() => settings.value !== null && mode.value !== settings.value.mode);
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
@@ -118,7 +119,13 @@ onMounted(load);
 </script>
 
 <template>
-  <FormSection title="Registration" description="Whether people can create their own account. New accounts have no permissions until you add them to user groups or events.">
+  <FormSection title="Registration" description="Whether people can create their own account.">
+    <template #actions>
+      <InfoHint label="About registration">
+        <p class="mb-2">New accounts have no permissions until you add them to user groups or events.</p>
+        <p class="mb-0">Event participants never need to register: they arrive through their personal access links in every mode.</p>
+      </InfoHint>
+    </template>
     <div v-if="state === 'loading'" class="pa-4"><v-skeleton-loader type="article" /></div>
     <div v-else-if="state === 'error'" class="pa-4"><ErrorState :message="loadError" @retry="load" /></div>
     <template v-else>

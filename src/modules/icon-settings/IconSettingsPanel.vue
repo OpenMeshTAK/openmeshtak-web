@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
-import { mdiDatabaseArrowUpOutline, mdiDeleteOutline } from "@mdi/js";
+import { mdiDatabaseArrowUpOutline, mdiTrashCanOutline } from "@mdi/js";
+import InfoHint from "@/shared/components/InfoHint.vue";
 import FormSection from "@/shared/components/layout/FormSection.vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
@@ -59,25 +60,40 @@ async function remove(): Promise<void> {
 </script>
 
 <template>
-  <FormSection title="Icon sets" description="A shared WinTAK icon database for all Data Package and mission editors.">
-    <div v-if="page.state.value === 'loading'" class="pa-4"><v-skeleton-loader type="article" /></div>
-    <div v-else-if="page.state.value === 'error' || page.data.value === null" class="pa-4"><ErrorState :message="page.error.value" @retry="page.load" /></div>
-    <div v-else class="px-4 pb-4 pt-3">
-      <p class="text-body-medium">Close WinTAK, then copy and upload <code>%APPDATA%\WinTAK\Databases\iconsets.sqlite</code>.</p>
-      <p class="text-body-small text-medium-emphasis mb-3">Installed assets are also under <code>C:\Program Files\WinTAK\Assets</code>. Upload accepts the SQLite database (up to 10 MB). You are responsible for permission to use these images.</p>
-      <v-alert :type="page.data.value.icons > 0 ? 'success' : 'info'" variant="tonal" density="compact" class="mb-3">
-        <template v-if="page.data.value.icons > 0">{{ page.data.value.icons }} icons · {{ page.data.value.sets }} sets · {{ page.data.value.groups }} groups</template>
-        <template v-else>No shared icon database uploaded.</template>
-      </v-alert>
-      <p v-if="page.data.value.updatedAt" class="text-body-small text-medium-emphasis">Last changed: {{ new Date(page.data.value.updatedAt).toLocaleString() }}</p>
-      <v-alert v-if="result?.rejected.length" type="warning" density="compact" class="my-3">{{ result.rejected.length }} entries could not be imported.</v-alert>
-      <v-expansion-panels v-if="result?.rejected.length" class="mb-3"><v-expansion-panel title="Rejected entries"><v-expansion-panel-text><p v-for="entry in result.rejected" :key="entry.feature">{{ entry.feature }}: {{ entry.message }}</p></v-expansion-panel-text></v-expansion-panel></v-expansion-panels>
-      <input ref="input" type="file" accept=".sqlite,.db" hidden @change="choose">
-      <div class="d-flex justify-end flex-wrap ga-2">
-        <v-btn v-if="page.data.value.icons > 0" variant="text" color="error" :prepend-icon="mdiDeleteOutline" :disabled="busy" @click="removalOpen = true">Remove</v-btn>
-        <v-btn color="primary" :prepend-icon="mdiDatabaseArrowUpOutline" :loading="busy" @click="input?.click()">{{ page.data.value.icons > 0 ? 'Replace database' : 'Upload iconsets.sqlite' }}</v-btn>
+  <FormSection title="Icon sets" description="Shared WinTAK icons for every Data Package and mission editor.">
+    <template #actions>
+      <div class="d-flex align-center ga-1">
+        <InfoHint label="About icon sets">
+          <p class="mb-2">Close WinTAK, then upload <code>%APPDATA%\WinTAK\Databases\iconsets.sqlite</code> (up to 10 MB). Installed assets are also under <code>C:\Program Files\WinTAK\Assets</code>.</p>
+          <p class="mb-0">The editor matches existing TAK icon paths automatically.</p>
+        </InfoHint>
+        <InfoHint tone="warning" label="Icon set caveats">
+          <p class="mb-2">TAK clients need the same icon set installed separately; uploaded images are not included in TAK exports.</p>
+          <p class="mb-0">You are responsible for permission to use these images.</p>
+        </InfoHint>
       </div>
-      <p class="text-body-small text-medium-emphasis mt-3 mb-0">The editor matches existing TAK icon paths automatically. TAK clients need the same set installed separately; uploaded images are not included in TAK exports.</p>
+    </template>
+    <div v-if="page.state.value === 'loading'" class="pa-4"><v-skeleton-loader type="list-item-two-line" /></div>
+    <div v-else-if="page.state.value === 'error' || page.data.value === null" class="pa-4"><ErrorState :message="page.error.value" @retry="page.load" /></div>
+    <div v-else class="d-flex align-center flex-wrap ga-3 px-4 pb-4 pt-3">
+      <div class="flex-grow-1">
+        <template v-if="page.data.value.icons > 0">
+          <div class="text-body-large">{{ page.data.value.icons }} icons · {{ page.data.value.sets }} sets · {{ page.data.value.groups }} groups</div>
+          <div v-if="page.data.value.updatedAt" class="text-body-medium text-medium-emphasis">Changed {{ new Date(page.data.value.updatedAt).toLocaleString() }}</div>
+        </template>
+        <div v-else class="text-body-medium text-medium-emphasis">No icon database uploaded. Editors use fallback symbols.</div>
+        <div v-if="result?.rejected.length" class="d-flex align-center ga-1 text-body-medium text-warning">
+          {{ result.rejected.length }} entries could not be imported
+          <InfoHint tone="warning" label="Rejected entries">
+            <div class="rejected-list"><p v-for="entry in result.rejected" :key="entry.feature" class="mb-1">{{ entry.feature }}: {{ entry.message }}</p></div>
+          </InfoHint>
+        </div>
+      </div>
+      <input ref="input" type="file" accept=".sqlite,.db" hidden @change="choose">
+      <div class="d-flex align-center ga-1">
+        <v-btn v-if="page.data.value.icons > 0" :icon="mdiTrashCanOutline" variant="text" size="small" color="error" aria-label="Remove icon database" :disabled="busy" @click="removalOpen = true" />
+        <v-btn color="primary" variant="tonal" :prepend-icon="mdiDatabaseArrowUpOutline" :loading="busy" @click="input?.click()">{{ page.data.value.icons > 0 ? 'Replace' : 'Upload' }}</v-btn>
+      </div>
     </div>
     <ConfirmDialog v-model="replaceOpen" title="Replace the shared icon database?" confirm-label="Replace" :loading="busy" @confirm="upload">
       {{ chosenFile?.name }} replaces the shared images used by all editors. Marker paths stay unchanged; paths absent from the new database use fallback symbols.
@@ -87,3 +103,11 @@ async function remove(): Promise<void> {
     </ConfirmDialog>
   </FormSection>
 </template>
+
+<style scoped>
+/* A large import can reject many entries; keep the hint within the screen. */
+.rejected-list {
+  max-height: 280px;
+  overflow-y: auto;
+}
+</style>

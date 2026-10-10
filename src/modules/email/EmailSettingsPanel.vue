@@ -160,7 +160,7 @@ onMounted(async () => {
               v-model="newPassword"
               type="password"
               autocomplete="new-password"
-              :label="page.data.value.passwordSet ? 'New password (leave empty to keep)' : 'Password (optional)'"
+              :label="page.data.value.passwordSet ? 'Password (saved)' : 'Password (optional)'"
               :append-inner-icon="page.data.value.passwordSet && newPassword === '' ? mdiClose : undefined"
               @click:append-inner="confirmRemovePassword = true"
             />

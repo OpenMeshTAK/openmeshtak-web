@@ -22,17 +22,17 @@ interface Section {
   component: Component;
 }
 
-/** Installation and map on the left, account-related settings on the right. */
+/** Installation and accounts on the left, maps and devices on the right. */
 const COLUMNS: Section[][] = [
   [
     { key: "instance", permission: "settings.manage", component: InstanceSettingsPanel },
+    { key: "registration", permission: "registration.manage", component: RegistrationSettingsPanel },
+    { key: "email", permission: "email.manage", component: EmailSettingsPanel },
+  ],
+  [
     { key: "base-map", permission: "settings.manage", component: MapSettingsPanel },
     { key: "icon-sets", permission: "settings.manage", component: IconSettingsPanel },
     { key: "firmware-releases", permission: "settings.manage", component: FirmwareReleaseSettingsPanel },
-  ],
-  [
-    { key: "registration", permission: "registration.manage", component: RegistrationSettingsPanel },
-    { key: "email", permission: "email.manage", component: EmailSettingsPanel },
   ],
 ];
 
@@ -43,7 +43,7 @@ const columns = computed(() =>
 
 <template>
   <div>
-    <ViewHeader title="General" subtitle="Name, sign-up, email delivery, base map, icon sets and firmware release lookup of this installation." />
+    <ViewHeader title="General" subtitle="Instance-wide settings of this installation." />
     <!-- Several small forms on one page: compact fields keep them all within a screen or two. -->
     <v-defaults-provider :defaults="{ VTextField: { density: 'compact' }, VSelect: { density: 'compact' } }">
       <v-row>
