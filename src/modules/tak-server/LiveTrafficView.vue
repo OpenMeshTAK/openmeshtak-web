@@ -2,7 +2,7 @@
 import { DEFAULT_GRID_SETTINGS } from "@/modules/editor/map/mgrs-grid";
 import { mdiArrowLeft, mdiMapClock } from "@mdi/js";
 import type { Socket } from "socket.io-client";
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import ErrorState from "@/shared/components/ErrorState.vue";
 import { describeError } from "@/shared/errors/api-problem";
@@ -26,7 +26,8 @@ const session = useSession();
 const eventId = String(route.params.eventId);
 
 const { layers: mapLayers, objects, contents, load: loadPackages } = useEventMapContent(eventId);
-const traffic = ref<LiveTakTrafficDto>({ connections: [], items: [] });
+// Each update replaces the whole snapshot; deep reactivity over hundreds of items would only cost time.
+const traffic = shallowRef<LiveTakTrafficDto>({ connections: [], items: [] });
 const state = ref<"loading" | "ready" | "error">("loading");
 const error = ref("");
 const mapView = ref<InstanceType<typeof PackageMapView> | null>(null);
