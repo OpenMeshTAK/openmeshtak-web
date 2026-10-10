@@ -46,6 +46,8 @@ export const vuetify = createVuetify({
     VTextField: { variant: "outlined", density: "comfortable", color: "primary" },
     VSelect: { variant: "outlined", density: "comfortable", color: "primary" },
     VTextarea: { variant: "outlined", density: "comfortable", color: "primary" },
+    VAutocomplete: { variant: "outlined", density: "comfortable", color: "primary" },
+    VCombobox: { variant: "outlined", density: "comfortable", color: "primary" },
     VAlert: { variant: "tonal", rounded: "lg" },
     // Short slide-and-fade tab panels, see src/app/styles/transitions.css.
     VWindowItem: { transition: "tab-panel-forward", reverseTransition: "tab-panel-back" },

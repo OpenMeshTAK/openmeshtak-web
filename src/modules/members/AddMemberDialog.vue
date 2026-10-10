@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import InfoHint from "@/shared/components/InfoHint.vue";
+import SegmentedControl from "@/shared/components/SegmentedControl.vue";
 import { computed, ref, watch } from "vue";
 import { describeError, isApiProblem } from "@/shared/errors/api-problem";
 import { fieldErrors, messagesFor } from "@/shared/errors/field-errors";
@@ -35,6 +36,13 @@ const canSync = computed(() => session.can("members.sync", props.eventId));
 const sourceCount = computed(() => [canCreate.value, canPickUsers.value, canSync.value].filter(Boolean).length);
 
 type Source = "new" | "user" | "external";
+const sourceOptions = computed(() =>
+  [
+    { title: "New person", value: "new" as Source, shown: canCreate.value },
+    { title: "Existing user", value: "user" as Source, shown: canPickUsers.value },
+    { title: "External identity", value: "external" as Source, shown: canSync.value },
+  ].filter(({ shown }) => shown),
+);
 const source = ref<Source>("new");
 /** The new person's setup link, shown once after creating them and cleared on close. */
 const created = ref<{ displayName: string; setupLink: SetupLinkDto } | null>(null);
@@ -193,19 +201,7 @@ async function save(): Promise<void> {
         </OneTimeLinkReveal>
       </v-card-text>
       <v-card-text v-else>
-        <v-btn-toggle
-          v-if="sourceCount > 1"
-          v-model="source"
-          mandatory
-          density="compact"
-          variant="outlined"
-          divided
-          class="mb-4 flex-wrap"
-        >
-          <v-btn v-if="canCreate" value="new">New person</v-btn>
-          <v-btn v-if="canPickUsers" value="user">Existing user</v-btn>
-          <v-btn v-if="canSync" value="external">External identity</v-btn>
-        </v-btn-toggle>
+        <SegmentedControl v-if="sourceCount > 1" v-model="source" :options="sourceOptions" label="Who to add" size="default" class="mb-4" />
 
         <v-alert v-if="error" type="error" class="mb-4">{{ error }}</v-alert>
 

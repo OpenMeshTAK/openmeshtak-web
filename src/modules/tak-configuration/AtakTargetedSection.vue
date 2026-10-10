@@ -8,11 +8,20 @@ import AddAtakPreferenceDialog from "./AddAtakPreferenceDialog.vue";
 import AtakPreferenceValueField from "./AtakPreferenceValueField.vue";
 import AtakTargetLabel from "./AtakTargetLabel.vue";
 import type { AtakPreferenceCatalogDto, AtakPreferenceEntryDto, ImportAtakPreferencesResponse } from "./tak-configuration.api";
-import { APP_PREFERENCES, DISABLE_PREFIX, entryMessages, lockableItems, restrictedItemOf, targetKey, type TargetOption } from "./tak-settings";
+import {
+  APP_PREFERENCES,
+  entryDescriber,
+  entryMessages,
+  eventTopics,
+  restrictedItemOf,
+  targetKey,
+  type TargetOption,
+} from "./tak-settings";
 
 /**
- * Every ATAK setting of the event at once, for all targets: the place for plugin keys and other
- * keys without a ready field, and for importing a `.pref` file.
+ * The ATAK settings that have no other home: settings for single groups, roles or members, and
+ * whole-event plugin keys or other keys without a topic page. Whole-event settings with a topic
+ * page show there and locks under "Lock ATAK settings", so each setting has exactly one place.
  */
 const props = defineProps<{
   catalog: AtakPreferenceCatalogDto;
@@ -28,40 +37,36 @@ const emit = defineEmits<{ import: [file: File] }>();
 
 const adding = ref(false);
 const fileInput = ref<HTMLInputElement | null>(null);
-const known = computed(() => new Map(props.catalog.topics.flatMap(({ keys }) => keys.map((entry) => [entry.key, entry] as const))));
 const order = computed(() => new Map(props.targetItems.map(({ value }, index) => [value, index])));
 const options = computed(() => new Map(props.targetItems.map((item) => [item.value, item])));
 
-/** Entries by target in menu order, keeping each entry's index in the whole list for errors. */
+const topicKeys = computed(() => new Set(eventTopics(props.catalog).flatMap(({ keys }) => keys.map(({ key }) => key))));
+
+function belongsHere(entry: AtakPreferenceEntryDto): boolean {
+  if (restrictedItemOf(entry) !== null) {
+    return false;
+  }
+  return entry.target.type !== "event" || entry.preference !== APP_PREFERENCES || !topicKeys.value.has(entry.key);
+}
+
+/** This section's entries by target in menu order, keeping each entry's index in the whole list for errors. */
 const rows = computed(() =>
   entries.value
     .map((entry, index) => ({ entry, index }))
+    .filter(({ entry }) => belongsHere(entry))
     .sort(
       (a, b) =>
         (order.value.get(targetKey(a.entry.target)) ?? 0) - (order.value.get(targetKey(b.entry.target)) ?? 0) ||
         a.entry.key.localeCompare(b.entry.key),
     ),
 );
+const elsewhere = computed(() => ({
+  topics: entries.value.filter((entry) => restrictedItemOf(entry) === null && !belongsHere(entry)).length,
+  locks: entries.value.filter((entry) => restrictedItemOf(entry) !== null).length,
+}));
 const skipped = computed(() => (props.importResult?.removedKeys.length ?? 0) + (props.importResult?.invalidKeys.length ?? 0));
 
-const lockable = computed(() => new Map(lockableItems(props.catalog).map((item) => [item.id, item.label])));
-
-/** What an entry does, in words: the catalog description, a lock, or its group and type. */
-function describe(entry: AtakPreferenceEntryDto): string {
-  const itemId = restrictedItemOf(entry);
-  if (itemId !== null) {
-    const what = entry.key.startsWith(DISABLE_PREFIX) ? "Greys out" : "Hides";
-    return `${what} in ATAK: ${lockable.value.get(itemId) ?? itemId}`;
-  }
-  return (
-    definitionOf(entry)?.description ??
-    (entry.preference === APP_PREFERENCES ? `Not in the catalog · ${entry.type}` : `${entry.preference} · ${entry.type}`)
-  );
-}
-
-function definitionOf(entry: AtakPreferenceEntryDto) {
-  return entry.preference === APP_PREFERENCES ? (known.value.get(entry.key) ?? null) : null;
-}
+const describer = computed(() => entryDescriber(props.catalog));
 
 function setValue(index: number, value: string | null): void {
   entries.value = entries.value.map((entry, position) => (position === index ? { ...entry, value: value ?? "" } : entry));
@@ -99,7 +104,7 @@ function onFileChosen(event: Event): void {
         </template>
         <v-btn
           v-if="editable"
-          variant="outlined"
+          variant="tonal"
           :prepend-icon="mdiFileImportOutline"
           :loading="importing"
           :disabled="dirty"
@@ -115,16 +120,24 @@ function onFileChosen(event: Event): void {
     <v-card class="mb-4" data-setting-id="tak:add">
       <div class="d-flex align-center pa-4 pb-2">
         <div class="flex-grow-1">
-          <div class="text-title-medium">All settings</div>
-          <div class="text-body-small text-medium-emphasis">{{ entries.length }} {{ entries.length === 1 ? "setting" : "settings" }} for this event</div>
+          <div class="text-title-medium">Targeted & custom settings</div>
+          <div class="text-body-small text-medium-emphasis">
+            For single groups, roles or members, and plugin or other settings without an ATAK settings page.
+            <template v-if="elsewhere.topics > 0">
+              {{ elsewhere.topics }} whole-event {{ elsewhere.topics === 1 ? "setting is" : "settings are" }} on the ATAK settings pages.
+            </template>
+            <template v-if="elsewhere.locks > 0">
+              {{ elsewhere.locks }} lock {{ elsewhere.locks === 1 ? "key is" : "keys are" }} under Lock ATAK settings.
+            </template>
+          </div>
         </div>
-        <v-btn v-if="editable" variant="outlined" :prepend-icon="mdiPlus" @click="adding = true">Add setting</v-btn>
+        <v-btn v-if="editable" variant="tonal" :prepend-icon="mdiPlus" @click="adding = true">Add setting</v-btn>
       </div>
       <EmptyState
-        v-if="entries.length === 0"
+        v-if="rows.length === 0"
         :icon="mdiPlus"
-        title="No ATAK settings yet"
-        text="Choose values in the topics on the left, add any setting here, including plugin settings, or import a .pref file."
+        title="No targeted or custom settings"
+        text="Add a setting for a group, role or member, or a plugin setting. Whole-event settings are chosen on the ATAK settings pages on the left."
       />
       <v-table v-else density="comfortable">
         <thead>
@@ -143,14 +156,14 @@ function onFileChosen(event: Event): void {
             <td class="py-2">
               <div><code>{{ entry.key }}</code></div>
               <div class="text-body-small text-medium-emphasis">
-                {{ describe(entry) }}
+                {{ describer.describe(entry) }}
               </div>
             </td>
             <td class="py-2 value-cell">
               <AtakPreferenceValueField
                 :model-value="entry.value"
                 :label="entry.key"
-                :definition="definitionOf(entry)"
+                :definition="describer.definitionOf(entry)"
                 :type="entry.type"
                 :clearable="false"
                 :disabled="!editable"

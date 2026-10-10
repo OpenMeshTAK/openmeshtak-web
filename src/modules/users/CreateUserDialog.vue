@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import InfoHint from "@/shared/components/InfoHint.vue";
+import SegmentedControl from "@/shared/components/SegmentedControl.vue";
 import { computed, ref, watch } from "vue";
 import OneTimeLinkReveal from "@/shared/components/OneTimeLinkReveal.vue";
 import { describeError, isApiProblem } from "@/shared/errors/api-problem";
@@ -28,6 +29,10 @@ const canPermanent = session.can("users.create");
 const canEvent = session.can("member-accounts.create");
 const defaultKind = (): "permanent" | "event" => (canPermanent ? "permanent" : "event");
 const kind = ref<"permanent" | "event">(defaultKind());
+const KIND_OPTIONS = [
+  { title: "Permanent user", value: "permanent" as const },
+  { title: "Event account", value: "event" as const },
+];
 const displayName = ref("");
 const username = ref("");
 const saving = ref(false);
@@ -150,10 +155,7 @@ watch(open, (isOpen) => {
           privately. It is shown only now; you can create a new one from the user's actions.
         </OneTimeLinkReveal>
         <v-form v-else @submit.prevent="submit">
-          <v-btn-toggle v-if="canPermanent && canEvent" v-model="kind" mandatory density="compact" variant="outlined" divided class="mb-4">
-            <v-btn value="permanent">Permanent user</v-btn>
-            <v-btn value="event">Event account</v-btn>
-          </v-btn-toggle>
+          <SegmentedControl v-if="canPermanent && canEvent" v-model="kind" :options="KIND_OPTIONS" label="Account kind" size="default" class="mb-4" />
           <p class="text-body-medium text-medium-emphasis mt-0 mb-4">
             <template v-if="kind === 'permanent'">
               Stays until you remove it. Add them to user groups or events to give them access.

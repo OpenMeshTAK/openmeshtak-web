@@ -4,7 +4,9 @@ import InfoHint from "@/shared/components/InfoHint.vue";
 import { useSubmission } from "@/shared/composables/useSubmission";
 import { listGroups, type EventGroupDto } from "@/modules/event-groups/event-groups.api";
 import { listRoles, type EventRoleDto } from "@/modules/event-roles/event-roles.api";
-import PresetPreviewList from "./PresetPreviewList.vue";
+import AtakTargetLabel from "@/modules/tak-configuration/AtakTargetLabel.vue";
+import { getAtakPreferenceCatalog, type AtakPreferenceCatalogDto } from "@/modules/tak-configuration/tak-configuration.api";
+import { entryDescriber, type TargetOption } from "@/modules/tak-configuration/tak-settings";
 import {
   importTakPreset,
   previewTakPreset,
@@ -25,6 +27,7 @@ const emit = defineEmits<{ imported: [] }>();
 /** `skip` leaves a preset target's entries out; `undefined` means not mapped yet. */
 const SKIP = "skip";
 const preview = ref<TakPresetPreviewDto | null>(null);
+const catalog = ref<AtakPreferenceCatalogDto | null>(null);
 const groups = ref<EventGroupDto[]>([]);
 const roles = ref<EventRoleDto[]>([]);
 const choices = ref<Record<string, string | undefined>>({});
@@ -49,32 +52,40 @@ function optionsFor(type: "group" | "role") {
   return [...items.map(({ id, name }) => ({ title: name, value: id })), { title: "Leave out", value: SKIP }];
 }
 
-const targetNames = computed(
-  () => new Map([...groups.value.map(({ id, name }) => [id, `Group ${name}`] as const), ...roles.value.map(({ id, name }) => [id, `Role ${name}`] as const)]),
-);
+const describer = computed(() => (catalog.value === null ? null : entryDescriber(catalog.value)));
 
-function targetLabel(target: { type: string; id?: string | null }): string {
-  return target.type === "event" ? "Whole event" : (targetNames.value.get(target.id ?? "") ?? target.type);
+function targetOption(target: { type: string; id?: string | null }): Pick<TargetOption, "kind" | "name"> {
+  if (target.type === "group") {
+    return { kind: "Group", name: groups.value.find(({ id }) => id === target.id)?.name ?? "Unknown group" };
+  }
+  if (target.type === "role") {
+    return { kind: "Role", name: roles.value.find(({ id }) => id === target.id)?.name ?? "Unknown role" };
+  }
+  return { kind: "Event", name: "Whole event" };
 }
 
-const added = computed(() =>
-  (preview.value?.added ?? []).map((entry) => ({ key: `${refOf({ type: entry.target.type, slug: entry.target.id ?? "" })}:${entry.key}`, title: entry.key, detail: `${targetLabel(entry.target)}: ${entry.to}` })),
+/** New and changed entries in one list, whole-event entries first, then by setting. */
+const changes = computed(() =>
+  [
+    ...(preview.value?.added ?? []).map((entry) => ({ entry, isNew: true })),
+    ...(preview.value?.changed ?? []).map((entry) => ({ entry, isNew: false })),
+  ]
+    .map(({ entry, isNew }) => ({
+      id: `${entry.target.type}:${entry.target.id ?? ""}:${entry.preference}:${entry.key}`,
+      isNew,
+      key: entry.key,
+      target: targetOption(entry.target),
+      description: describer.value?.describe(entry) ?? entry.key,
+      from: entry.from === null ? null : (describer.value?.valueLabel(entry, entry.from) ?? entry.from),
+      to: describer.value?.valueLabel(entry, entry.to) ?? entry.to,
+    }))
+    .sort((a, b) => Number(a.target.kind !== "Event") - Number(b.target.kind !== "Event") || a.description.localeCompare(b.description)),
 );
-const changed = computed(() =>
-  (preview.value?.changed ?? []).map((entry) => ({
-    key: `${refOf({ type: entry.target.type, slug: entry.target.id ?? "" })}:${entry.key}`,
-    title: entry.key,
-    detail: `${targetLabel(entry.target)}: ${entry.from ?? "—"} → ${entry.to}`,
-  })),
-);
-const invalid = computed(() =>
-  (preview.value?.invalid ?? []).map((entry, index) => ({
-    key: `${String(index)}:${entry.key}`,
-    title: entry.key,
-    detail: `${entry.target.type === "event" ? "Whole event" : `${entry.target.type} ${entry.target.name ?? entry.target.slug ?? ""}`}: ${entry.message}`,
-  })),
-);
-const changeCount = computed(() => added.value.length + changed.value.length);
+const addedCount = computed(() => preview.value?.added.length ?? 0);
+const changedCount = computed(() => preview.value?.changed.length ?? 0);
+const changeCount = computed(() => addedCount.value + changedCount.value);
+const wholeEventCount = computed(() => changes.value.filter(({ target }) => target.kind === "Event").length);
+const leftOut = computed(() => (preview.value?.invalid.length ?? 0) + (preview.value?.skipped ?? 0));
 
 async function refresh(): Promise<void> {
   if (props.document === null) {
@@ -92,9 +103,9 @@ watch(open, async (isOpen) => {
   preview.value = null;
   choices.value = {};
   importing.reset();
-  const loaded = await loading.run(() => Promise.all([listGroups(props.eventId), listRoles(props.eventId)]));
+  const loaded = await loading.run(() => Promise.all([listGroups(props.eventId), listRoles(props.eventId), getAtakPreferenceCatalog()]));
   if (loaded !== null) {
-    [groups.value, roles.value] = loaded.value;
+    [groups.value, roles.value, catalog.value] = loaded.value;
     await refresh();
   }
 });
@@ -134,72 +145,131 @@ async function confirm(): Promise<void> {
 </script>
 
 <template>
-  <v-dialog v-model="open" max-width="820" scrollable>
+  <v-dialog v-model="open" max-width="900" scrollable>
     <v-card>
-      <v-card-title class="text-title-large font-weight-medium text-wrap pt-4 px-6">Import “{{ document?.name }}”</v-card-title>
-      <v-card-text class="px-6">
+      <v-card-title class="text-title-large font-weight-medium text-wrap pt-5 px-6 pb-1">Import “{{ document?.name }}”</v-card-title>
+      <div v-if="preview !== null" class="text-body-medium text-medium-emphasis px-6 d-flex align-center ga-1 flex-wrap">
+        Checked against the ATAK {{ preview.catalogAtakVersion }} catalog. Importing changes the draft only.
+        <InfoHint
+          v-if="preview.presetAtakVersion !== null && preview.presetAtakVersion !== preview.catalogAtakVersion"
+          tone="warning"
+          label="Different ATAK version"
+          :text="`The preset was made for ATAK ${preview.presetAtakVersion}. Keys or values this catalog rejects are left out.`"
+        />
+      </div>
+
+      <v-card-text class="px-6 pt-4">
         <v-skeleton-loader v-if="loading.submitting.value && preview === null" type="list-item@4" />
         <v-alert v-if="loading.error.value" type="error" variant="tonal" class="mb-4">
           {{ loading.error.value }}
           <div v-for="(message, field) in loading.fields.value" :key="field" class="text-body-small">{{ field }}: {{ message }}</div>
         </v-alert>
-        <template v-if="preview !== null">
-          <p class="text-body-medium mt-0 mb-4">
-            Checked against the ATAK {{ preview.catalogAtakVersion }} catalog.
-            <InfoHint
-              v-if="preview.presetAtakVersion !== null && preview.presetAtakVersion !== preview.catalogAtakVersion"
-              tone="warning"
-              label="Different ATAK version"
-              :text="`The preset was made for ATAK ${preview.presetAtakVersion}. Keys or values this catalog rejects are left out.`"
-            />
-            Entries replace this event's entry for the same target and key; other entries stay.
-          </p>
 
-          <section v-if="preview.targets.length > 0" class="mb-4">
-            <h3 class="text-title-small font-weight-medium d-flex align-center ga-1 mb-2">
-              Groups and roles
-              <InfoHint text="The preset comes from another event. Choose which group or role of this event receives each one's settings, or leave them out." />
-              <v-spacer />
-              <v-btn v-if="suggestions.length > 0" size="small" variant="text" @click="useSuggestions">Use matching names</v-btn>
-            </h3>
-            <div v-for="target in preview.targets" :key="refOf(target)" class="d-flex align-center ga-4 mb-2 flex-wrap">
-              <div class="mapping-source">
-                <div>{{ target.type === "group" ? "Group" : "Role" }} {{ target.name }}</div>
-                <div class="text-body-small text-medium-emphasis">{{ target.entryCount }} {{ target.entryCount === 1 ? "setting" : "settings" }}</div>
-              </div>
-              <v-select
-                :model-value="choices[refOf(target)]"
-                :items="optionsFor(target.type)"
-                :label="`This event's ${target.type}`"
-                density="compact"
-                hide-details
-                class="mapping-select"
-                @update:model-value="choose(target, $event)"
-              />
+        <template v-if="preview !== null">
+          <div class="summary mb-5">
+            <div class="summary__item">
+              <div class="text-headline-small">{{ addedCount }}</div>
+              <div class="text-body-small text-medium-emphasis">New</div>
             </div>
+            <div class="summary__item">
+              <div class="text-headline-small">{{ changedCount }}</div>
+              <div class="text-body-small text-medium-emphasis">Changed</div>
+            </div>
+            <div class="summary__item">
+              <div class="text-headline-small">{{ preview.unchanged }}</div>
+              <div class="text-body-small text-medium-emphasis">Already the same</div>
+            </div>
+            <div class="summary__item">
+              <div class="text-headline-small" :class="{ 'text-warning': leftOut > 0 }">{{ leftOut }}</div>
+              <div class="text-body-small text-medium-emphasis">Left out</div>
+            </div>
+          </div>
+
+          <section v-if="preview.targets.length > 0" class="mb-5">
+            <div class="d-flex align-center ga-2 mb-1">
+              <h3 class="text-title-small font-weight-medium flex-grow-1 my-0">Groups and roles of the preset</h3>
+              <v-btn v-if="suggestions.length > 0" size="small" variant="tonal" @click="useSuggestions">Use matching names</v-btn>
+            </div>
+            <p class="text-body-small text-medium-emphasis mt-0 mb-2">
+              The preset comes from another event. Choose which group or role of this event gets each one's settings, or leave them out.
+            </p>
+            <v-card class="mapping">
+              <div v-for="target in preview.targets" :key="refOf(target)" class="mapping__row">
+                <div class="mapping__source">
+                  <AtakTargetLabel :target="{ kind: target.type === 'group' ? 'Group' : 'Role', name: target.name }" />
+                  <div class="text-body-small text-medium-emphasis">{{ target.entryCount }} {{ target.entryCount === 1 ? "setting" : "settings" }}</div>
+                </div>
+                <v-select
+                  :model-value="choices[refOf(target)]"
+                  :items="optionsFor(target.type)"
+                  :label="target.type === 'group' ? 'Group in this event' : 'Role in this event'"
+                  density="compact"
+                  hide-details
+                  class="mapping__select"
+                  @update:model-value="choose(target, $event)"
+                />
+              </div>
+            </v-card>
+            <p v-if="unmapped.length > 0" class="text-body-small text-medium-emphasis mt-2 mb-0">
+              Map or leave out every group and role to import.
+            </p>
           </section>
 
-          <v-alert v-if="unmapped.length > 0" type="info" variant="tonal" density="compact" class="mb-4">
-            Map or leave out every group and role to import.
-          </v-alert>
+          <section class="mb-4">
+            <h3 class="text-title-small font-weight-medium mt-0 mb-1">Changes</h3>
+            <p v-if="changes.length === 0" class="text-body-medium text-medium-emphasis my-0">
+              <template v-if="unmapped.length === 0">Nothing would change; the event already has these settings.</template>
+              <template v-else>Changes show once every group and role is mapped or left out.</template>
+            </p>
+            <template v-else>
+              <p class="text-body-small text-medium-emphasis mt-0 mb-2">
+                <template v-if="wholeEventCount > 0">Whole-event settings appear on the ATAK settings pages. </template>
+                <template v-if="wholeEventCount < changes.length">Group and role settings appear under Targeted & custom. </template>
+                Each one replaces this event's value for the same target and setting; other settings stay.
+              </p>
+              <v-card>
+                <v-table density="compact" class="changes">
+                  <thead>
+                    <tr>
+                      <th>For</th>
+                      <th>Setting</th>
+                      <th>Value</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="change in changes" :key="change.id">
+                      <td class="text-no-wrap"><AtakTargetLabel :target="change.target" /></td>
+                      <td>
+                        <div>{{ change.description }}</div>
+                        <code class="text-body-small text-medium-emphasis">{{ change.key }}</code>
+                      </td>
+                      <td class="changes__value">
+                        <v-chip v-if="change.isNew" size="x-small" label variant="tonal" color="success" class="mr-2">New</v-chip>
+                        <template v-else><span class="text-medium-emphasis">{{ change.from ?? "—" }}</span> → </template>
+                        <span class="font-weight-medium">{{ change.to }}</span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </v-table>
+              </v-card>
+            </template>
+          </section>
 
-          <PresetPreviewList title="New settings" :items="added" />
-          <PresetPreviewList title="Changed settings" :items="changed" />
-          <p v-if="changeCount === 0 && unmapped.length === 0" class="text-body-medium text-medium-emphasis">Nothing would change; the event already has these settings.</p>
-          <PresetPreviewList
-            title="Left out: invalid"
-            hint="The ATAK catalog or this event rejects these entries, for example keys OpenMeshTak sets itself or values only one member may have."
-            warning
-            :items="invalid"
-          />
-          <p class="text-body-medium text-medium-emphasis mb-0">
-            {{ preview.unchanged }} already the same<template v-if="preview.skipped > 0"> · {{ preview.skipped }} left out by mapping</template>. Importing changes
-            the draft only. Publish the configuration so members get it.
+          <v-alert v-if="preview.invalid.length > 0" type="warning" variant="tonal" density="compact" class="mb-2">
+            <div class="font-weight-medium mb-1">{{ preview.invalid.length }} left out because the ATAK catalog or this event rejects them</div>
+            <div v-for="(entry, index) in preview.invalid" :key="`${index}:${entry.key}`" class="text-body-small">
+              <code>{{ entry.key }}</code>
+              ({{ entry.target.type === "event" ? "Whole event" : `${entry.target.type} ${entry.target.name ?? entry.target.slug ?? ""}` }}): {{ entry.message }}
+            </div>
+          </v-alert>
+          <p v-if="preview.skipped > 0" class="text-body-small text-medium-emphasis my-0">
+            {{ preview.skipped }} {{ preview.skipped === 1 ? "setting is" : "settings are" }} left out by the group and role choices.
           </p>
         </template>
         <v-alert v-if="importing.error.value" type="error" variant="tonal" class="mt-4">{{ importing.error.value }}</v-alert>
       </v-card-text>
       <v-card-actions class="px-6 pb-4">
+        <span class="text-body-small text-medium-emphasis">Publish the configuration afterwards so members get it.</span>
         <v-spacer />
         <v-btn variant="text" :disabled="importing.submitting.value" @click="open = false">Cancel</v-btn>
         <v-btn
@@ -216,11 +286,45 @@ async function confirm(): Promise<void> {
 </template>
 
 <style scoped>
-.mapping-source {
+.summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.summary__item {
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+}
+.mapping__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 10px 14px;
+}
+.mapping__row + .mapping__row {
+  border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+}
+.mapping__source {
   flex: 1 1 200px;
   min-width: 0;
 }
-.mapping-select {
+.mapping__select {
   flex: 1 1 260px;
+}
+.changes td {
+  vertical-align: top;
+  padding-top: 8px !important;
+  padding-bottom: 8px !important;
+  overflow-wrap: anywhere;
+}
+.changes__value {
+  min-width: 160px;
+}
+@media (max-width: 599px) {
+  .summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 </style>

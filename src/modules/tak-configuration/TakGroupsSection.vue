@@ -126,7 +126,7 @@ onMounted(load);
   <div>
     <div class="d-flex align-center mb-2">
       <div class="text-title-small flex-grow-1">Groups</div>
-      <v-btn v-if="editable" size="small" variant="outlined" @click="open(null)">New TAK group</v-btn>
+      <v-btn v-if="editable" size="small" variant="tonal" @click="open(null)">New TAK group</v-btn>
     </div>
 
     <v-skeleton-loader v-if="state === 'loading'" type="table-row@3" />

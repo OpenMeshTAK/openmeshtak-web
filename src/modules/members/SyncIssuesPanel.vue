@@ -96,7 +96,7 @@ defineExpose({ load });
               <InfoHint label="About callsign override" text="A unique callsign for this member, e.g. Peter M. [Bravo]" />
             </template>
           </v-text-field>
-          <v-btn color="primary" variant="outlined" :loading="retrying === issue.id" @click="retry(issue)">Retry</v-btn>
+          <v-btn color="primary" variant="tonal" :loading="retrying === issue.id" @click="retry(issue)">Retry</v-btn>
         </div>
       </v-card>
     </div>

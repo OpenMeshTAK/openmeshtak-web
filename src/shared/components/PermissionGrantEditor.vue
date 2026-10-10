@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { mdiClose, mdiPencil, mdiPlus } from "@mdi/js";
+import { mdiCalendarOutline, mdiClose, mdiEarth, mdiPencil, mdiPlus } from "@mdi/js";
 import { computed, ref } from "vue";
 import type { Permission, Schemas } from "@/shared/api/types";
 import PermissionScopeDialog from "./PermissionScopeDialog.vue";
@@ -25,7 +25,6 @@ const grants = defineModel<Grant[]>({ required: true });
 
 /** Event rows the user added that have no grants yet. */
 const addedEventIds = ref<string[]>([]);
-const eventToAdd = ref<string | null>(null);
 const editing = ref<Scope | null>(null);
 const dialogOpen = ref(false);
 
@@ -74,11 +73,8 @@ function edit(scope: Scope): void {
   dialogOpen.value = true;
 }
 
-function addEvent(): void {
-  if (eventToAdd.value === null) return;
-  const eventId = eventToAdd.value;
+function addEvent(eventId: string): void {
   addedEventIds.value.push(eventId);
-  eventToAdd.value = null;
   const scope = eventScopes.value.find((candidate) => candidate.eventId === eventId);
   if (scope) edit(scope);
 }
@@ -91,42 +87,40 @@ function removeEvent(eventId: string): void {
 
 <template>
   <div>
-    <div v-for="scope in scopes" :key="scope.eventId ?? 'all'" class="scope-row">
-      <div class="flex-grow-1">
-        <div class="text-title-small">{{ scope.name }}</div>
-        <div class="text-body-small text-medium-emphasis">
-          {{ scope.description }}
+    <div class="scope-list">
+      <div v-for="scope in scopes" :key="scope.eventId ?? 'all'" class="scope-row">
+        <v-avatar :color="scope.eventId === null ? 'primary' : undefined" variant="tonal" rounded="lg" size="36">
+          <v-icon :icon="scope.eventId === null ? mdiEarth : mdiCalendarOutline" size="20" />
+        </v-avatar>
+        <div class="scope-row__text">
+          <div class="text-body-large">{{ scope.name }}</div>
+          <div class="text-body-small text-medium-emphasis">{{ scope.description }}</div>
         </div>
+        <v-chip size="small" label variant="tonal" :color="permissionsFor(scope.eventId).length > 0 ? 'primary' : undefined">
+          {{ countLabel(scope.eventId) }}
+        </v-chip>
+        <v-btn variant="tonal" size="small" :prepend-icon="mdiPencil" @click="edit(scope)">
+          {{ disabled ? "View" : "Edit" }}
+        </v-btn>
+        <v-btn
+          v-if="!disabled && scope.eventId !== null"
+          :icon="mdiClose"
+          variant="text"
+          size="small"
+          :aria-label="`Remove permissions for ${scope.name}`"
+          @click="removeEvent(scope.eventId)"
+        />
       </div>
-      <span class="text-body-medium text-medium-emphasis">{{ countLabel(scope.eventId) }}</span>
-      <v-btn variant="tonal" size="small" :prepend-icon="mdiPencil" @click="edit(scope)">
-        {{ disabled ? "View" : "Edit" }}
-      </v-btn>
-      <v-btn
-        v-if="!disabled && scope.eventId !== null"
-        :icon="mdiClose"
-        variant="text"
-        size="small"
-        :aria-label="`Remove permissions for ${scope.name}`"
-        @click="removeEvent(scope.eventId)"
-      />
     </div>
 
-    <div v-if="!disabled && addableEvents.length > 0" class="d-flex ga-2 align-center mt-3">
-      <v-select
-        v-model="eventToAdd"
-        :items="addableEvents"
-        item-title="name"
-        item-value="id"
-        label="Limit permissions to an event"
-        density="compact"
-        hide-details
-        style="max-width: 320px"
-      />
-      <v-btn variant="tonal" :prepend-icon="mdiPlus" :disabled="eventToAdd === null" @click="addEvent">
-        Add event permissions
-      </v-btn>
-    </div>
+    <v-menu v-if="!disabled && addableEvents.length > 0" max-height="320">
+      <template #activator="{ props: menu }">
+        <v-btn v-bind="menu" variant="text" color="primary" :prepend-icon="mdiPlus" class="mt-2">Add permissions for one event</v-btn>
+      </template>
+      <v-list density="compact">
+        <v-list-item v-for="event in addableEvents" :key="event.id" :title="event.name" :prepend-icon="mdiCalendarOutline" @click="addEvent(event.id)" />
+      </v-list>
+    </v-menu>
 
     <PermissionScopeDialog
       v-if="editing"
@@ -142,11 +136,21 @@ function removeEvent(eventId: string): void {
 </template>
 
 <style scoped>
+.scope-list {
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 12px;
+}
 .scope-row {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px 0;
-  border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  padding: 10px 12px 10px 14px;
+}
+.scope-row + .scope-row {
+  border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+}
+.scope-row__text {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 </style>

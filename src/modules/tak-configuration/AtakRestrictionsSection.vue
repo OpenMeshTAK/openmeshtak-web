@@ -114,7 +114,7 @@ async function download(): Promise<void> {
             themselves show normally on their screens.
           </p>
         </template>
-        <v-btn variant="outlined" :prepend-icon="mdiDownload" :loading="downloading" @click="download">Download</v-btn>
+        <v-btn variant="tonal" :prepend-icon="mdiDownload" :loading="downloading" @click="download">Download</v-btn>
         <DownloadQrButton :request="{ kind: 'atak-unlock-package', eventId }" file-label="the ATAK unlock package" />
       </SettingsRow>
     </v-card>
@@ -147,7 +147,7 @@ async function download(): Promise<void> {
           </div>
           <div class="text-body-small text-medium-emphasis">Members get changes once the configuration is published.</div>
         </div>
-        <v-btn v-if="editable" variant="outlined" :prepend-icon="mdiPlus" @click="adding = true">Lock settings</v-btn>
+        <v-btn v-if="editable" variant="tonal" :prepend-icon="mdiPlus" @click="adding = true">Lock settings</v-btn>
       </div>
       <EmptyState
         v-if="rows.length === 0"

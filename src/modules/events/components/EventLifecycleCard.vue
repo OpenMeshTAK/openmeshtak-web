@@ -153,7 +153,7 @@ async function run(): Promise<void> {
         <v-btn v-if="canManage" color="primary" :disabled="changes.length === 0" @click="openPublish">
           Publish configuration…
         </v-btn>
-        <v-btn v-if="canManage" color="error" variant="outlined" @click="pending = 'archive'">Archive event…</v-btn>
+        <v-btn v-if="canManage" color="error" variant="tonal" @click="pending = 'archive'">Archive event…</v-btn>
       </div>
       <p class="text-body-small text-medium-emphasis mt-2 mb-0">
         {{
@@ -169,7 +169,7 @@ async function run(): Promise<void> {
         This event is archived and read-only. It is hidden from participants and cannot provision
         devices.
       </p>
-      <v-btn v-if="canReactivate" color="primary" variant="outlined" @click="pending = 'reactivate'">
+      <v-btn v-if="canReactivate" color="primary" variant="tonal" @click="pending = 'reactivate'">
         Reactivate event…
       </v-btn>
     </template>

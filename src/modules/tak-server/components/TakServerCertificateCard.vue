@@ -3,6 +3,7 @@ import { mdiCertificate } from "@mdi/js";
 import { computed, ref, watch } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import InfoHint from "@/shared/components/InfoHint.vue";
+import SegmentedControl from "@/shared/components/SegmentedControl.vue";
 import { describeError } from "@/shared/errors/api-problem";
 import { fieldErrors, messagesFor } from "@/shared/errors/field-errors";
 import { useToast } from "@/shared/feedback/toast";
@@ -148,20 +149,7 @@ async function useCa(): Promise<void> {
     <p v-else class="text-body-medium text-medium-emphasis my-0">Issued by the OpenMeshTak CA when the TAK server starts.</p>
 
     <div class="d-flex align-center flex-wrap ga-1 mt-4 mb-3">
-      <div role="radiogroup" aria-label="Certificate source" class="d-flex flex-wrap ga-1">
-        <v-btn
-          v-for="item in sourceItems"
-          :key="item.value"
-          :variant="source === item.value ? 'tonal' : 'text'"
-          :color="source === item.value ? 'primary' : undefined"
-          role="radio"
-          :aria-checked="source === item.value"
-          class="text-none"
-          @click="source = item.value"
-        >
-          {{ item.title }}
-        </v-btn>
-      </div>
+      <SegmentedControl v-model="source" :options="sourceItems" label="Certificate source" size="default" inline />
       <InfoHint label="About the certificate sources">
         <p v-for="item in sourceItems" :key="item.value" class="mb-2">
           <strong>{{ item.title }}:</strong> {{ item.subtitle }}

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { mdiClose } from "@mdi/js";
+import { mdiAccountGroup, mdiClose } from "@mdi/js";
 import { computed, ref, watch } from "vue";
 import type { Schemas } from "@/shared/api/types";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
@@ -84,35 +84,45 @@ watch(
 </script>
 
 <template>
-  <v-dialog v-model="open" max-width="1200" scrollable>
+  <v-dialog v-model="open" max-width="1100" scrollable>
     <v-card>
-      <v-card-title class="d-flex align-center ga-2 pt-4 px-6">
-        <span class="text-wrap">{{ page.data.value?.group.name ?? "User group" }}</span>
-        <v-chip v-if="page.data.value?.group.system" size="x-small" label>System</v-chip>
-        <v-spacer />
+      <v-card-title class="d-flex align-center ga-3 pt-5 px-6 pb-1">
+        <v-avatar color="primary" variant="tonal" rounded="lg" size="40"><v-icon :icon="mdiAccountGroup" /></v-avatar>
+        <div class="flex-grow-1 editor-title">
+          <div class="d-flex align-center ga-2">
+            <span class="text-title-large font-weight-medium text-truncate">{{ page.data.value?.group.name ?? "User group" }}</span>
+            <v-chip v-if="page.data.value?.group.system" size="x-small" label variant="tonal">System</v-chip>
+          </div>
+          <div class="text-body-small text-medium-emphasis">User group · grants its members access to OpenMeshTak</div>
+        </div>
         <v-btn :icon="mdiClose" variant="text" size="small" aria-label="Close" @click="open = false" />
       </v-card-title>
 
-      <v-card-text class="px-6">
+      <v-card-text class="px-6 pt-4">
         <v-skeleton-loader v-if="page.state.value === 'loading'" type="article" />
         <v-alert v-else-if="page.state.value === 'error'" type="error">{{ page.error.value }}</v-alert>
-        <v-row v-else-if="page.data.value">
-          <v-col cols="12" lg="7">
-            <div class="text-title-medium font-weight-medium mb-4">Permissions</div>
-            <v-alert v-if="page.data.value.group.system" type="info" class="mb-4">
-              The Admin group always holds every permission instance-wide. Only its name can change.
-            </v-alert>
-            <v-text-field v-model="name" label="Name" :disabled="!canManage" />
-            <PermissionGrantEditor
-              v-model="grants"
-              :events="page.data.value.events"
-              :disabled="!canManage || page.data.value.group.system"
-            />
-          </v-col>
-          <v-col cols="12" lg="5">
-            <UserGroupMembersCard :user-group-id="userGroupId" variant="outlined" @changed="emit('changed')" />
-          </v-col>
-        </v-row>
+        <template v-else-if="page.data.value">
+          <v-text-field v-model="name" label="Name" :disabled="!canManage" class="name-field mb-2" />
+          <div class="editor-columns">
+            <section>
+              <div class="text-title-small mb-1">Permissions</div>
+              <p class="text-body-small text-medium-emphasis mt-0 mb-3">
+                What members may do, everywhere or only in single events. Saved with “Save changes”.
+              </p>
+              <v-alert v-if="page.data.value.group.system" type="info" density="compact" class="mb-3">
+                The Admin group always holds every permission instance-wide. Only its name can change.
+              </v-alert>
+              <PermissionGrantEditor
+                v-model="grants"
+                :events="page.data.value.events"
+                :disabled="!canManage || page.data.value.group.system"
+              />
+            </section>
+            <section>
+              <UserGroupMembersCard :user-group-id="userGroupId" @changed="emit('changed')" />
+            </section>
+          </div>
+        </template>
       </v-card-text>
 
       <v-card-actions v-if="canManage && page.data.value" class="px-6 pb-4">
@@ -130,3 +140,23 @@ watch(
     </ConfirmDialog>
   </v-dialog>
 </template>
+
+<style scoped>
+.editor-title {
+  min-width: 0;
+}
+.name-field {
+  max-width: 480px;
+}
+.editor-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 32px;
+}
+@media (max-width: 959px) {
+  .editor-columns {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+}
+</style>
