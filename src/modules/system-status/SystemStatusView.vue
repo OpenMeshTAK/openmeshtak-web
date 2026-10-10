@@ -2,7 +2,9 @@
 import { mdiAlertCircleOutline, mdiCheckCircleOutline, mdiCloseCircleOutline, mdiMinusCircleOutline, mdiRefresh } from "@mdi/js";
 import { computed, onMounted, onUnmounted } from "vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
+import InfoHint from "@/shared/components/InfoHint.vue";
 import ViewHeader from "@/shared/components/layout/ViewHeader.vue";
+import MetricChart from "./MetricChart.vue";
 import { useAsyncData } from "@/shared/composables/useAsyncData";
 import { getSystemStatus, type SystemCheckDto, type SystemCheckState, type SystemStatusDto } from "./system-status.api";
 
@@ -27,10 +29,8 @@ const icons: Record<SystemCheckState, string> = {
 };
 const colors: Record<SystemCheckState, string> = { ok: "success", warning: "warning", error: "error", off: "medium-emphasis" };
 
-const dateTime = new Intl.DateTimeFormat(undefined, { dateStyle: "short", timeStyle: "short" });
-
-function bytes(value: number | null): string {
-  if (value === null) return "Unknown";
+function bytes(value: number | null | undefined): string {
+  if (value === null || value === undefined) return "Unknown";
   if (value >= 1024 ** 3) return `${(value / 1024 ** 3).toFixed(1)} GB`;
   if (value >= 1024 ** 2) return `${(value / 1024 ** 2).toFixed(1)} MB`;
   return `${String(Math.round(value / 1024))} KB`;
@@ -48,7 +48,7 @@ const numbers = computed(() => {
   if (value === null) return [];
   return [
     { label: "Version", text: value.version },
-    { label: "Running since", text: `${dateTime.format(new Date(value.startedAt))} (${uptime(value.startedAt)})` },
+    { label: "Running for", text: uptime(value.startedAt) },
     { label: "Active events", text: String(value.activeEvents) },
     { label: "Connected TAK apps", text: String(value.takConnections) },
     { label: "Database", text: bytes(value.databaseBytes) },
@@ -58,6 +58,43 @@ const numbers = computed(() => {
       text: value.diskFreeBytes === null ? "Unknown" : `${bytes(value.diskFreeBytes)} free of ${bytes(value.diskTotalBytes)}`,
     },
     { label: "Memory in use", text: bytes(value.memoryBytes) },
+  ];
+});
+
+function percent(value: number): string {
+  return `${String(Math.round(value))} %`;
+}
+
+function count(value: number): string {
+  return String(Math.round(value));
+}
+
+/** A scale top in whole megabytes: 1, 2 or 5 times a power of ten. */
+function roundMegabytes(values: number[]): number {
+  const megabytes = Math.max(...values, 1) / 1024 ** 2;
+  const power = 10 ** Math.floor(Math.log10(megabytes));
+  return ([1, 2, 5, 10].find((step) => step * power >= megabytes) ?? 10) * power * 1024 ** 2;
+}
+
+/** One chart per measure; memory charts share neither scale nor axis with the CPU charts. */
+const charts = computed(() => {
+  const history = status.data.value?.history ?? [];
+  const series = (pick: (sample: (typeof history)[number]) => number) => history.map((sample) => ({ time: sample.time, value: pick(sample) }));
+  const totalMemory = history.at(-1)?.systemMemoryTotalBytes;
+  // In Docker the system values are the container's, measured against its limits.
+  const machine = status.data.value?.metricScope === "container" ? "Container" : "Server";
+  return [
+    { title: "OpenMeshTak CPU", points: series((sample) => sample.coreCpuPercent), format: percent, max: 100, suffix: undefined },
+    { title: `${machine} CPU`, points: series((sample) => sample.systemCpuPercent), format: percent, max: 100, suffix: undefined },
+    { title: "Connected TAK apps", points: series((sample) => sample.takConnections), format: count, max: undefined, suffix: undefined },
+    { title: "OpenMeshTak memory", points: series((sample) => sample.coreMemoryBytes), format: bytes, max: roundMegabytes(history.map((sample) => sample.coreMemoryBytes)), suffix: undefined },
+    {
+      title: `${machine} memory`,
+      points: series((sample) => sample.systemMemoryUsedBytes),
+      format: bytes,
+      max: totalMemory,
+      suffix: totalMemory === undefined ? undefined : `of ${bytes(totalMemory)}`,
+    },
   ];
 });
 
@@ -92,32 +129,45 @@ onUnmounted(() => {
     <ErrorState v-else-if="status.state.value === 'error'" :message="status.error.value" @retry="status.load" />
 
     <template v-else-if="status.data.value !== null">
-      <v-card class="mb-4">
-        <v-list density="compact" class="py-1">
-          <v-list-item v-for="check in status.data.value.checks" :key="check.id" :title="LABELS[check.id]" lines="two">
-            <template #prepend>
-              <v-icon :icon="icons[check.state]" :color="colors[check.state]" />
-            </template>
-            <v-list-item-subtitle>{{ check.detail }}</v-list-item-subtitle>
-            <v-list-item-subtitle v-if="check.id === 'errors' && status.data.value.lastError" class="mt-1">
-              Newest<span v-if="status.data.value.lastError.time"> ({{ dateTime.format(new Date(status.data.value.lastError.time)) }})</span>:
-              {{ status.data.value.lastError.message }} ·
-              <router-link :to="{ name: 'server-log' }">Server log</router-link>
-            </v-list-item-subtitle>
-          </v-list-item>
-        </v-list>
+      <v-card class="mb-3 px-4 py-3">
+        <v-row dense>
+          <v-col v-for="check in status.data.value.checks" :key="check.id" cols="12" sm="6" xl="4" class="d-flex ga-3 align-start">
+            <v-icon :icon="icons[check.state]" :color="colors[check.state]" size="20" class="mt-1" />
+            <div class="min-width-0">
+              <div class="text-title-small">{{ LABELS[check.id] }}</div>
+              <div class="text-body-small text-medium-emphasis">{{ check.detail }}</div>
+              <div v-if="check.id === 'errors' && status.data.value.lastError" class="text-body-small text-truncate">
+                {{ status.data.value.lastError.message }} ·
+                <router-link :to="{ name: 'server-log' }">Server log</router-link>
+              </div>
+            </div>
+          </v-col>
+        </v-row>
       </v-card>
 
-      <v-card>
-        <v-table density="compact">
-          <tbody>
-            <tr v-for="row in numbers" :key="row.label">
-              <td class="text-medium-emphasis">{{ row.label }}</td>
-              <td>{{ row.text }}</td>
-            </tr>
-          </tbody>
-        </v-table>
+      <v-card class="mb-3 px-4 py-3">
+        <v-row dense>
+          <v-col v-for="row in numbers" :key="row.label" cols="6" sm="4" lg="3">
+            <div class="text-body-small text-medium-emphasis">{{ row.label }}</div>
+            <div class="text-body-medium">{{ row.text }}</div>
+          </v-col>
+        </v-row>
       </v-card>
+
+      <div class="d-flex align-center mb-2">
+        <div class="text-title-small">Last six hours</div>
+        <InfoHint
+          label="About the graphs"
+          :text="`One value every ${status.data.value.sampleIntervalSeconds} seconds since the server started; a restart starts the graphs again. In a Docker container, CPU and memory are the container's, measured against its limits.`"
+        />
+      </div>
+      <v-row dense>
+        <v-col v-for="chart in charts" :key="chart.title" cols="12" sm="6" lg="4" xl>
+          <v-card class="px-4 pt-3 pb-2 h-100">
+            <MetricChart :title="chart.title" :points="chart.points" :format="chart.format" :max="chart.max" :suffix="chart.suffix" />
+          </v-card>
+        </v-col>
+      </v-row>
     </template>
   </div>
 </template>

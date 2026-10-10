@@ -3708,6 +3708,41 @@ export interface components {
             /** @description One plain sentence for operators; never contains secrets. */
             detail: string;
         };
+        /**
+         * @description Whether system CPU and memory are the container's (cgroup) or the whole machine's.
+         * @enum {string}
+         */
+        MetricScope: "container" | "host";
+        MetricSampleDto: {
+            time: string;
+            /**
+             * Format: double
+             * @description CPU used by the Core process, as a share of the CPUs it may use (0–100).
+             */
+            coreCpuPercent: number;
+            /**
+             * Format: double
+             * @description CPU used by the container (against its CPU limit) or the machine, 0–100; see `scope`.
+             */
+            systemCpuPercent: number;
+            /**
+             * Format: double
+             * @description Resident memory of the Core process.
+             */
+            coreMemoryBytes: number;
+            /**
+             * Format: double
+             * @description Memory in use by the container or the machine; see `scope`.
+             */
+            systemMemoryUsedBytes: number;
+            /**
+             * Format: double
+             * @description The container's memory limit (at most the machine's memory) or the machine's memory.
+             */
+            systemMemoryTotalBytes: number;
+            /** Format: double */
+            takConnections: number;
+        };
         SystemStatusDto: {
             /** @description Core release version. */
             version: string;
@@ -3757,6 +3792,14 @@ export interface components {
                 message: string;
                 time: string | null;
             } | null;
+            /**
+             * Format: double
+             * @description Seconds between two samples of `history`.
+             */
+            sampleIntervalSeconds: number;
+            metricScope: components["schemas"]["MetricScope"];
+            /** @description CPU, memory and TAK connections of the last six hours since Core started, oldest first. */
+            history: components["schemas"]["MetricSampleDto"][];
         };
         SetupStatusResponse: {
             /** @description `false` until the first administrator exists; the Web app then opens the setup flow. */
