@@ -3,6 +3,7 @@ import { mdiBookshelf, mdiDeleteOutline, mdiDownload, mdiFileImportOutline, mdiP
 import { computed, onMounted, ref } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import EmptyState from "@/shared/components/EmptyState.vue";
+import SegmentedControl from "@/shared/components/SegmentedControl.vue";
 import ViewHeader from "@/shared/components/layout/ViewHeader.vue";
 import { useAsyncData } from "@/shared/composables/useAsyncData";
 import { useSubmission } from "@/shared/composables/useSubmission";
@@ -28,6 +29,11 @@ import {
 const session = useSession();
 const toast = useToast();
 const kind = ref<PresetKind | "all">("all");
+const KIND_FILTERS = [
+  { title: "All", value: "all" as const },
+  { title: KIND_LABELS.tak, value: "tak" as const },
+  { title: KIND_LABELS.meshtastic, value: "meshtastic" as const },
+];
 const page = useAsyncData(() => listPresets(), [] as SettingsPresetSummaryDto[]);
 const shown = computed(() => page.data.value.filter((preset) => kind.value === "all" || preset.kind === kind.value));
 /** The library belongs to every event, so Core lets only instance-wide event managers change it. */
@@ -143,11 +149,7 @@ onMounted(page.load);
 
     <v-alert v-if="fileError" type="error" variant="tonal" class="mb-4">{{ fileError }}</v-alert>
 
-    <v-btn-toggle v-model="kind" mandatory density="comfortable" variant="outlined" divided class="mb-4">
-      <v-btn value="all">All</v-btn>
-      <v-btn value="tak">TAK</v-btn>
-      <v-btn value="meshtastic">Meshtastic</v-btn>
-    </v-btn-toggle>
+    <SegmentedControl v-model="kind" :options="KIND_FILTERS" label="Kind" size="default" inline class="mb-4" />
 
     <v-skeleton-loader v-if="page.state.value === 'loading'" type="table" />
     <v-alert v-else-if="page.state.value === 'error'" type="error">{{ page.error.value }}</v-alert>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
+import SegmentedControl from "@/shared/components/SegmentedControl.vue";
 import AtakTargetLabel from "./AtakTargetLabel.vue";
 import type { AtakPreferenceCatalogDto } from "./tak-configuration.api";
 import { lockableItems, RESTRICTION_MODES, targetOf, type PreferenceTarget, type RestrictionMode, type TargetOption } from "./tak-settings";
@@ -74,9 +75,7 @@ function add(): void {
           </template>
         </v-autocomplete>
         <v-autocomplete v-model="selectedItems" :items="items" label="Settings" multiple chips closable-chips class="mb-2" />
-        <v-btn-toggle v-model="mode" mandatory divided variant="outlined" density="comfortable" aria-label="Lock">
-          <v-btn v-for="option in RESTRICTION_MODES" :key="option.value" :value="option.value">{{ option.title }}</v-btn>
-        </v-btn-toggle>
+        <SegmentedControl v-model="mode" :options="RESTRICTION_MODES" label="Lock" size="default" />
       </v-card-text>
       <v-card-actions>
         <v-spacer />

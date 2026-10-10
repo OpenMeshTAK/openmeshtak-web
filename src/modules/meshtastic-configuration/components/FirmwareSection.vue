@@ -166,7 +166,7 @@ async function apply(confirmed: FirmwareChangePreviewDto): Promise<void> {
           :href="profile.flasherUrl"
           target="_blank"
           rel="noopener noreferrer"
-          variant="outlined"
+          variant="tonal"
           :append-icon="mdiOpenInNew"
         >
           Meshtastic flasher

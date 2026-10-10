@@ -149,7 +149,7 @@ onMounted(load);
           <v-btn
             v-if="session.can('tak-traffic.view', event.id)"
             :to="{ name: 'event-history', params: { eventId: event.id } }"
-            variant="text"
+            variant="tonal"
             size="small"
             :prepend-icon="mdiMapClock"
           >
@@ -195,7 +195,7 @@ onMounted(load);
               <v-card class="pa-5 h-100">
                 <v-alert v-if="conflict" type="warning" class="mb-4">
                   Someone else changed this event. Reload to see their changes before saving again.
-                  <v-btn size="small" variant="outlined" class="ml-2" @click="load">Reload</v-btn>
+                  <v-btn size="small" variant="tonal" class="ml-2" @click="load">Reload</v-btn>
                 </v-alert>
                 <EventSettingsForm v-model="settings" :errors="saveFields" :disabled="!editable" />
                 <v-btn v-if="editable" color="primary" class="mt-2" :loading="saving" @click="save">

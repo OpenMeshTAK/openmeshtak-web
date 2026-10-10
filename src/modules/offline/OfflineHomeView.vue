@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { mdiDeleteOutline, mdiMapMarkerRadiusOutline, mdiWifiOff } from "@mdi/js";
+import { mdiArrowLeft, mdiDeleteOutline, mdiMapMarkerRadiusOutline, mdiWifiOff } from "@mdi/js";
 import { onMounted, ref } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import EmptyState from "@/shared/components/EmptyState.vue";
@@ -53,7 +53,7 @@ onMounted(load);
       <ViewHeader title="Offline HQ" subtitle="Events stored in this browser for use without a network">
         <template #actions>
           <v-chip v-if="!online" :prepend-icon="mdiWifiOff" size="small" variant="tonal">No network</v-chip>
-          <v-btn v-else variant="text" size="small" to="/">Back to OpenMeshTak</v-btn>
+          <v-btn v-else variant="tonal" size="small" :prepend-icon="mdiArrowLeft" to="/">Back to OpenMeshTak</v-btn>
         </template>
       </ViewHeader>
 

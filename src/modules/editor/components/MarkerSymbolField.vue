@@ -81,7 +81,7 @@ function removeIconset(): void {
   <div>
     <v-menu v-model="pickerOpen" :close-on-content-click="false" location="start top" :disabled="disabled">
       <template #activator="{ props: menu }">
-        <v-btn v-bind="menu" variant="outlined" block class="justify-start symbol-button" :disabled="disabled">
+        <v-btn v-bind="menu" variant="tonal" block class="justify-start symbol-button" :disabled="disabled">
           <img v-if="preview" :src="preview" alt="" class="symbol-preview mr-3">
           <v-icon v-else :icon="pointIcon" :color="color" class="mr-3" />
           <span class="flex-grow-1 text-left text-truncate text-none">{{ label }}</span>

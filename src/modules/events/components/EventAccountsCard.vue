@@ -52,7 +52,7 @@ onMounted(() => void accounts.load());
       </div>
       <v-btn
         v-if="canManageAccounts && accounts.data.value.length > 0"
-        variant="outlined"
+        variant="tonal"
         @click="confirming = true"
       >
         Make all permanent users…

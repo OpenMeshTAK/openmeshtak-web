@@ -59,7 +59,7 @@ const meshtasticName = computed(() => {
               v-for="channel in profile.meshtastic.channels"
               :key="channel.id"
               size="x-small"
-              variant="outlined"
+              variant="tonal"
               label
               :prepend-icon="channel.delivery === 'on-site' ? mdiTimerSand : undefined"
             >
