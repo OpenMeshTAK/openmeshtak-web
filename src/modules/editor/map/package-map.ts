@@ -400,7 +400,7 @@ export class PackageMap {
     }
     this.select.setActive(tool === "select");
     this.modify.setActive(tool === "select");
-    this.translate.setActive(tool === "select");
+    this.translate.setActive(this.canTranslate(tool));
     this.ellipseEditor.setActive(tool === "select");
     this.sectorEditor.setActive(tool === "select" && this.callbacks.onStyled !== undefined);
     this.highlightMany(this.selectedIds);
@@ -513,7 +513,16 @@ export class PackageMap {
 
   setEditable(editable: boolean): void {
     this.canEdit = editable;
+    this.translate.setActive(this.canTranslate(this.select.getActive() ? "select" : "draw"));
     this.highlightMany(this.selectedIds);
+  }
+
+  /**
+   * Moving objects needs an editable map. Translate hit-tests every layer, including overlays that
+   * cannot be hit-tested, such as the WebGL paths of the history map, so read-only maps keep it off.
+   */
+  private canTranslate(tool: string): boolean {
+    return this.canEdit && tool === "select";
   }
 
   /** Zooms to one offline map or rubber sheet. */
