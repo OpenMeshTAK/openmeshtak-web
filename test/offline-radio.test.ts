@@ -106,6 +106,15 @@ describe("mesh node state", () => {
     expect(meshLiveItems(state.nodes.values(), now, 60 * 60_000)[0]?.outdated).toBe(true);
   });
 
+  it("labels map markers with the long name and falls back to the short name", () => {
+    const state = emptyMeshState();
+    const position = { lat: 1, lon: 2, altitude: null, time: null };
+    const nodeInfo = { type: "node-info", position, lastHeard: null, batteryLevel: null, snr: null } as const;
+    applyRadioEvent(state, { ...nodeInfo, nodeNum: 1, user: { id: "!00000001", longName: "Wolf Alpha", shortName: "Wolf" } }, now);
+    applyRadioEvent(state, { ...nodeInfo, nodeNum: 2, user: { id: "!00000002", longName: "", shortName: "TNG" } }, now);
+    expect(meshLiveItems(state.nodes.values(), now, 60_000).map(({ callsign }) => callsign)).toEqual(["Wolf Alpha", "TNG"]);
+  });
+
   it("does not let the node database override live data", () => {
     const state = emptyMeshState();
     applyRadioEvent(state, decodeFromRadio(positionPacket(9, 1, 100_000_000, 100_000_000)) as RadioEvent, now);

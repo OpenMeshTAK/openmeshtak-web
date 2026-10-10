@@ -166,7 +166,7 @@ export function meshLiveItems(nodes: Iterable<MeshNode>, now: Date, staleAfterMs
           {
             uid: `mesh:${node.id}`,
             type: "mesh",
-            callsign: node.shortName ?? node.longName ?? node.id,
+            callsign: nodeLabel(node),
             lat: node.position.lat,
             lon: node.position.lon,
             source: "mesh" as const,
