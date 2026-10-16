@@ -7,7 +7,7 @@ import type { TakTrackDto, TakTrackPointDto } from "@/modules/tak-server/tak-ser
 const START = Date.parse("2026-10-01T10:00:00.000Z");
 
 function point(seconds: number, lon: number, approximate = false): TakTrackPointDto {
-  return { time: new Date(START + seconds * 1000).toISOString(), lat: 50, lon, ce: approximate ? 1500 : 5, delayed: false, approximate, estimated: false };
+  return { time: new Date(START + seconds * 1000).toISOString(), lat: 50, lon, ce: approximate ? 1500 : 5, delayed: false, approximate, estimated: false, source: "tak" };
 }
 
 function track(segments: TakTrackPointDto[][]): TakTrackDto {
@@ -33,6 +33,16 @@ describe("recorded track timeline", () => {
     expect(lastKnownAt(alpha, START + 300_000)?.lon).toBe(8.001);
     expect(lastKnownAt(alpha, START + 700_000)?.approximate).toBe(true);
     expect(alpha.approximateCount).toBe(1);
+  });
+
+  it("keeps unbound mesh tracks without a sender and summarises where mesh positions came from", () => {
+    const hqId = "00000000-0000-4000-8000-0000000000a1";
+    const meshPoint = (seconds: number, hqName: string | null): TakTrackPointDto => ({ ...point(seconds, 8.0), source: "mesh", mesh: { nodeId: "!a1b2c3d4", hqId, hqName } });
+    const [node] = toTimelineTracks([{ ...track([[point(0, 8.0), meshPoint(60, "HQ North"), meshPoint(120, null)]]), sender: null }]);
+    expect(node?.senderName).toBeNull();
+    expect(node?.groupId).toBeNull();
+    expect(node?.mesh).toEqual({ pointCount: 2, nodeIds: ["!a1b2c3d4"], hqNames: ["HQ North", "HQ 00000000"] });
+    expect(alpha?.mesh).toBeNull();
   });
 
   it("formats position ages", () => {

@@ -41,6 +41,13 @@ export interface ContactGroup {
 }
 
 export const NO_GROUP = "No group";
+/** Meshtastic nodes no member is bound to; listed after everyone else. */
+export const UNKNOWN_MESH_GROUP = "Unknown mesh nodes";
+
+/** Event groups by name, then "No group", then unknown mesh nodes. */
+function groupRank(name: string): number {
+  return name === UNKNOWN_MESH_GROUP ? 2 : name === NO_GROUP ? 1 : 0;
+}
 
 export const DEFAULT_FILTER: ContactFilter = { search: "", status: "all", kind: "all", sort: "name" };
 
@@ -72,7 +79,7 @@ function compare(sort: ContactSort): (a: ContactRow, b: ContactRow) => number {
   };
 }
 
-/** The rows that pass the filter, in groups sorted by name with "No group" last. */
+/** The rows that pass the filter, in groups sorted by name with "No group" and unknown mesh nodes last. */
 export function groupContacts(rows: readonly ContactRow[], filter: ContactFilter): ContactGroup[] {
   const term = filter.search.trim().toLowerCase();
   const groups = new Map<string, ContactRow[]>();
@@ -86,7 +93,7 @@ export function groupContacts(rows: readonly ContactRow[], filter: ContactFilter
   }
   const order = compare(filter.sort);
   return [...groups]
-    .sort(([a], [b]) => (a === NO_GROUP ? 1 : b === NO_GROUP ? -1 : a.localeCompare(b, undefined, { numeric: true })))
+    .sort(([a], [b]) => groupRank(a) - groupRank(b) || a.localeCompare(b, undefined, { numeric: true }))
     .map(([name, list]) => ({ name, rows: list.sort(order) }));
 }
 

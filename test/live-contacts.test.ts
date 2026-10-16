@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { itemsByContact, newestItem, visibleItems } from "@/modules/tak-server/contacts/live-contacts";
+import { itemsByContact, meshProvenance, newestItem, visibleItems } from "@/modules/tak-server/contacts/live-contacts";
 import type { Schemas } from "@/shared/api/types";
 
 type Connection = Schemas["LiveTakConnectionDto"];
@@ -13,8 +13,22 @@ function connection(id: string, userId: string): Connection {
 
 function item(uid: string, connectionId: string, userId: string, time = "2026-10-16T10:00:00.000Z"): Item {
   return {
-    uid, type: "a-h-G", callsign: uid, lat: 52, lon: 11, course: null, speed: null, time, stale: "2026-10-16T10:05:00.000Z",
+    uid, type: "a-h-G", callsign: uid, lat: 52, lon: 11, course: null, speed: null, time, stale: "2026-10-16T10:05:00.000Z", source: "tak",
     placedBy: { connectionId, userId, userDisplayName: userId, eventGroup: bravo },
+  };
+}
+
+const hq = { id: "00000000-0000-4000-8000-0000000000a1", name: "HQ North" };
+
+function meshItem(uid: string, nodeId: string, userId: string | null): Item {
+  return {
+    uid, type: userId === null ? "a-u-G" : "a-f-G-U-C", callsign: uid, lat: 52, lon: 11, course: null, speed: null,
+    time: "2026-10-16T10:00:00.000Z", stale: "2026-10-16T10:10:00.000Z", source: "mesh",
+    placedBy: userId === null ? null : { connectionId: null, userId, userDisplayName: userId, eventGroup: bravo },
+    mesh: {
+      nodeNum: 1, nodeId, shortName: "B1", longName: uid, memberId: null, hq, receivedAt: "2026-10-16T10:00:00.000Z",
+      batteryLevel: 101, snr: 6.5, rssi: -90, hopsAway: 0, channel: { index: 0, name: "Event" },
+    },
   };
 }
 
@@ -39,6 +53,21 @@ describe("live contacts", () => {
   it("hides markers together with their sender's row, also for disconnected senders", () => {
     const byContact = itemsByContact(connections, items);
     expect(visibleItems(byContact, new Set(["c-alpha", "user:gamma"])).map(({ uid }) => uid)).toEqual(["BETA-OLD-MARKER"]);
+  });
+
+  it("joins a bound node's mesh position to its member and lists unbound nodes apart", () => {
+    const byContact = itemsByContact(connections, [meshItem("ALPHA", "!00000001", "alpha"), meshItem("DELTA", "!00000002", "delta"), meshItem("STRAY", "!00000003", null)]);
+    expect([...byContact].map(([key, list]) => [key, list.map(({ uid }) => uid)])).toEqual([
+      ["c-alpha", ["ALPHA"]],
+      ["user:delta", ["DELTA"]],
+      ["mesh:!00000003", ["STRAY"]],
+    ]);
+    expect(visibleItems(byContact, new Set(["mesh:!00000003"])).map(({ uid }) => uid)).toEqual(["ALPHA", "DELTA"]);
+  });
+
+  it("describes the node, HQ and signal of a mesh position", () => {
+    const { mesh } = meshItem("STRAY", "!00000003", null);
+    expect(mesh === undefined ? [] : meshProvenance(mesh)).toEqual(["Meshtastic !00000003 (B1)", "Heard by HQ North on channel Event", "Powered · SNR 6.5 dB · RSSI -90 dBm · Direct"]);
   });
 
   it("finds the newest item by its own time", () => {

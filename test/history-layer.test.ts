@@ -12,7 +12,7 @@ function track(): TimelineTrack {
   const points = [0, 10, 20].map((seconds, index) => ({ time: START + seconds * 1000, lat: 52, lon: 11 + index * 0.001, ce: 5, delayed: false, approximate: false, estimated: index === 2 }));
   return {
     uid: "A", label: "Alpha", type: "a-f-G", selfReported: true, senderName: "Alpha", groupId: null, groupName: null,
-    pointCount: 3, duplicatesDropped: 0, delayedCount: 0, approximateCount: 0, firstTime: points[0]!.time, lastTime: points[2]!.time, segments: [points],
+    pointCount: 3, duplicatesDropped: 0, delayedCount: 0, approximateCount: 0, firstTime: points[0]!.time, lastTime: points[2]!.time, segments: [points], mesh: null,
   };
 }
 

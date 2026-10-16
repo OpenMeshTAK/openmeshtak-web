@@ -13,8 +13,8 @@ import { useSession } from "@/modules/auth/session";
 import EditorToolbar from "@/modules/editor/components/EditorToolbar.vue";
 import PackageMapView from "@/modules/editor/components/PackageMapView.vue";
 import ContactList from "./contacts/ContactList.vue";
-import { DEFAULT_FILTER, type ContactFilter, type ContactRow } from "./contacts/contact-list";
-import { itemsByContact, newestItem, visibleItems } from "./contacts/live-contacts";
+import { DEFAULT_FILTER, UNKNOWN_MESH_GROUP, type ContactFilter, type ContactRow } from "./contacts/contact-list";
+import { itemsByContact, meshProvenance, newestItem, UNBOUND_MESH_PREFIX, visibleItems } from "./contacts/live-contacts";
 import type { LiveTakConnectionDto, LiveTakItemDto, LiveTakTrafficDto } from "./tak-server.api";
 import { applyTrafficChanges, type LiveTakTrafficChanges } from "./live-traffic-changes";
 import { useEventMapContent } from "./useEventMapContent";
@@ -98,7 +98,10 @@ const connectionRows = computed<ContactRow[]>(() =>
   }),
 );
 
-/** Members whose app disconnected but whose positions or markers are still current. */
+/**
+ * Members without a connected app whose positions or markers are still current: their app
+ * disconnected, or their bound Meshtastic node reaches Core through an HQ uplink.
+ */
 const disconnectedRows = computed<ContactRow[]>(() =>
   [...byContact.value]
     .filter(([key]) => key.startsWith("user:"))
@@ -106,6 +109,7 @@ const disconnectedRows = computed<ContactRow[]>(() =>
       const newest = newestItem(items);
       const sender = newest?.placedBy;
       const ageMs = ageOf(newest);
+      const mesh = newest?.mesh;
       return {
         key,
         label: sender?.userDisplayName ?? "Unknown user",
@@ -113,14 +117,39 @@ const disconnectedRows = computed<ContactRow[]>(() =>
         color: null,
         ageMs,
         stale: ageMs !== null && ageMs > STALE_AFTER_MS,
-        device: false,
-        details: ["Not connected", countText(items.length)],
-        searchText: "",
+        device: mesh !== undefined,
+        details: ["No TAK app connected", ...(mesh === undefined ? [] : meshProvenance(mesh)), countText(items.length)],
+        searchText: mesh === undefined ? "" : `${mesh.nodeId} ${mesh.shortName ?? ""} ${mesh.longName ?? ""}`,
       };
     }),
 );
 
-const contactRows = computed(() => [...connectionRows.value, ...disconnectedRows.value]);
+/** Meshtastic nodes no member is bound to: listed apart and named by what the node announced. */
+const unboundMeshRows = computed<ContactRow[]>(() =>
+  [...byContact.value]
+    .filter(([key]) => key.startsWith(UNBOUND_MESH_PREFIX))
+    .map(([key, items]) => {
+      const newest = newestItem(items);
+      const mesh = newest?.mesh;
+      const ageMs = ageOf(newest);
+      return {
+        key,
+        label: mesh?.longName ?? mesh?.shortName ?? mesh?.nodeId ?? key.slice(UNBOUND_MESH_PREFIX.length),
+        group: UNKNOWN_MESH_GROUP,
+        color: null,
+        ageMs,
+        stale: ageMs !== null && ageMs > STALE_AFTER_MS,
+        device: true,
+        details: ["Unknown node, not bound to a member", ...(mesh === undefined ? [] : meshProvenance(mesh))],
+        searchText: mesh === undefined ? "" : `${mesh.nodeId} ${mesh.shortName ?? ""}`,
+      };
+    }),
+);
+
+/** Positions an HQ uplinked from its Meshtastic radio. */
+const meshCount = computed(() => traffic.value.items.filter(({ source }) => source === "mesh").length);
+
+const contactRows = computed(() => [...connectionRows.value, ...disconnectedRows.value, ...unboundMeshRows.value]);
 
 function focus(key: string): void {
   const connection = traffic.value.connections.find(({ id }) => id === key);
@@ -181,7 +210,7 @@ onBeforeUnmount(() => {
       <div class="flex-grow-1">
         <div class="text-title-medium font-weight-medium">Live TAK traffic</div>
         <div class="text-body-small text-medium-emphasis">
-          {{ traffic.connections.length }} connected · {{ traffic.items.length }} items · {{ connected ? "live" : "reconnecting…" }}
+          {{ traffic.connections.length }} connected · {{ traffic.items.length }} items<template v-if="meshCount > 0"> ({{ meshCount }} via Meshtastic)</template> · {{ connected ? "live" : "reconnecting…" }}
         </div>
       </div>
       <v-btn v-if="session.can('tak-traffic.history', eventId)" :to="{ name: 'event-history', params: { eventId } }" variant="text" size="small" :prepend-icon="mdiMapClock">History</v-btn>

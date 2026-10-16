@@ -96,6 +96,14 @@ export const permissionAreas: PermissionArea[] = [
     ],
   },
   {
+    label: "Mesh uplink",
+    prefix: "mesh-*",
+    permissions: [
+      { permission: "mesh-uplink.send", label: "Forward what an HQ radio hears to OpenMeshTak" },
+      { permission: "mesh-bindings.manage", label: "Bind Meshtastic nodes to members" },
+    ],
+  },
+  {
     label: "Settings presets",
     prefix: "presets.*",
     permissions: [

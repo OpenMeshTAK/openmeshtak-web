@@ -18,7 +18,7 @@ import { createHistoryLayers } from "./history/history-layer";
 import { coverageCells } from "./history/track-analysis";
 import { formatAge, lastKnownAt, timeSpan, toTimelineTracks, type TimelineTrack } from "./history/track-timeline";
 import ContactList from "./contacts/ContactList.vue";
-import { DEFAULT_FILTER, type ContactFilter, type ContactRow } from "./contacts/contact-list";
+import { DEFAULT_FILTER, UNKNOWN_MESH_GROUP, type ContactFilter, type ContactRow } from "./contacts/contact-list";
 import {
   deleteRecordedTakTraffic,
   getTakTrafficHistory,
@@ -176,21 +176,26 @@ const contactRows = computed<ContactRow[]>(() =>
     return {
       key: track.uid,
       label: track.label,
-      group: track.groupName,
+      group: track.senderName === null ? UNKNOWN_MESH_GROUP : track.groupName,
       color,
       ageMs,
       stale: ageMs !== null && ageMs > staleAfterMs.value,
       device: track.selfReported,
       details: [
-        track.groupName === null ? track.senderName : `${track.senderName} · ${track.groupName}`,
+        track.senderName === null
+          ? "Unknown Meshtastic node, not bound to a member"
+          : track.groupName === null ? track.senderName : `${track.senderName} · ${track.groupName}`,
         [
           `${String(track.pointCount)} positions`,
           track.delayedCount > 0 ? `${String(track.delayedCount)} late` : null,
           track.approximateCount > 0 ? `${String(track.approximateCount)} approximate` : null,
           track.duplicatesDropped > 0 ? `${String(track.duplicatesDropped)} duplicates dropped` : null,
         ].filter((part) => part !== null).join(" · "),
+        ...(track.mesh === null
+          ? []
+          : [`${String(track.mesh.pointCount)} via Meshtastic ${track.mesh.nodeIds.join(", ")}, heard by ${track.mesh.hqNames.join(", ")}`]),
       ],
-      searchText: track.senderName,
+      searchText: `${track.senderName ?? ""} ${track.mesh?.nodeIds.join(" ") ?? ""}`,
     };
   }),
 );

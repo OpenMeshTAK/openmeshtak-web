@@ -1,4 +1,4 @@
-import type { TakTrackDto } from "../tak-server.api";
+import type { TakTrackDto, TakTrackPointDto } from "../tak-server.api";
 
 /**
  * Client-side read model of recorded tracks for the timeline and replay. Core already split the
@@ -16,12 +16,20 @@ export interface TimelinePoint {
   estimated: boolean;
 }
 
+/** Where a track's mesh positions came from: the nodes and the HQs that heard them. */
+export interface TrackMeshSummary {
+  pointCount: number;
+  nodeIds: string[];
+  hqNames: string[];
+}
+
 export interface TimelineTrack {
   uid: string;
   label: string;
   type: string;
   selfReported: boolean;
-  senderName: string;
+  /** Null for a Meshtastic node no member is bound to. */
+  senderName: string | null;
   groupId: string | null;
   groupName: string | null;
   pointCount: number;
@@ -31,6 +39,18 @@ export interface TimelineTrack {
   firstTime: number;
   lastTime: number;
   segments: TimelinePoint[][];
+  /** Null when every position came from TAK apps. */
+  mesh: TrackMeshSummary | null;
+}
+
+function meshSummary(points: readonly TakTrackPointDto[]): TrackMeshSummary | null {
+  const meshPoints = points.flatMap((point) => (point.mesh === undefined ? [] : [point.mesh]));
+  if (meshPoints.length === 0) return null;
+  return {
+    pointCount: meshPoints.length,
+    nodeIds: [...new Set(meshPoints.map(({ nodeId }) => nodeId))],
+    hqNames: [...new Set(meshPoints.map(({ hqId, hqName }) => hqName ?? `HQ ${hqId.slice(0, 8)}`))],
+  };
 }
 
 export function toTimelineTracks(tracks: readonly TakTrackDto[]): TimelineTrack[] {
@@ -44,9 +64,9 @@ export function toTimelineTracks(tracks: readonly TakTrackDto[]): TimelineTrack[
       label: track.callsign ?? track.uid,
       type: track.type,
       selfReported: track.selfReported,
-      senderName: track.sender.displayName,
-      groupId: track.sender.eventGroupId,
-      groupName: track.sender.eventGroupName,
+      senderName: track.sender?.displayName ?? null,
+      groupId: track.sender?.eventGroupId ?? null,
+      groupName: track.sender?.eventGroupName ?? null,
       pointCount: track.pointCount,
       duplicatesDropped: track.duplicatesDropped,
       delayedCount: points.filter(({ delayed }) => delayed).length,
@@ -54,6 +74,7 @@ export function toTimelineTracks(tracks: readonly TakTrackDto[]): TimelineTrack[
       firstTime: points[0]?.time ?? 0,
       lastTime: points.at(-1)?.time ?? 0,
       segments,
+      mesh: meshSummary(track.segments.flat()),
     };
   });
 }
