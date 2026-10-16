@@ -3301,6 +3301,18 @@ export interface components {
             /** Format: date-time */
             lastSeenAt: string;
         };
+        /**
+         * @description The TAK app that sent an item: for a position the app itself, for a marker the app that placed
+         *     it. The connection may have ended since; Core keeps current items after their app disconnects.
+         */
+        LiveTakSenderDto: {
+            /** @description The sending connection; matches a `LiveTakConnectionDto.id` while that app is connected. */
+            connectionId: components["schemas"]["Uuid"];
+            userId: components["schemas"]["Uuid"];
+            userDisplayName: string;
+            /** @description The sender's group in this event, or null when they are not a member, e.g. an administrator. */
+            eventGroup: components["schemas"]["LiveTakAssignmentDto"] | null;
+        };
         /** @description The newest state of one CoT item, such as a member's position or a marker they placed. */
         LiveTakItemDto: {
             uid: string;
@@ -3325,6 +3337,7 @@ export interface components {
             time: string;
             /** Format: date-time */
             stale: string;
+            placedBy: components["schemas"]["LiveTakSenderDto"];
         };
         /** @description Current TAK traffic of one event, held in memory only; nothing of it is stored. */
         LiveTakTrafficDto: {

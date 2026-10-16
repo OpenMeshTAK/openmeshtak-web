@@ -5,7 +5,8 @@ import type { Schemas } from "@/shared/api/types";
 type Item = Schemas["LiveTakItemDto"];
 
 function item(uid: string, lat = 52): Item {
-  return { uid, type: "a-f-G", callsign: uid, lat, lon: 11, course: null, speed: null, time: "2026-10-10T10:00:00.000Z", stale: "2026-10-10T10:02:00.000Z" };
+  return { uid, type: "a-f-G", callsign: uid, lat, lon: 11, course: null, speed: null, time: "2026-10-10T10:00:00.000Z", stale: "2026-10-10T10:02:00.000Z",
+    placedBy: { connectionId: "00000000-0000-4000-8000-000000000001", userId: "00000000-0000-4000-8000-000000000002", userDisplayName: "Alpha", eventGroup: null } };
 }
 
 describe("live traffic changes", () => {
