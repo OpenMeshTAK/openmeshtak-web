@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { readLiveLabels, storeLiveLabels } from "@/modules/editor/editor-preferences";
+import type { LiveLabelMode } from "@/modules/editor/map/live-layer";
 import { DEFAULT_GRID_SETTINGS } from "@/modules/editor/map/mgrs-grid";
 import { mdiArrowLeft, mdiMapClock } from "@mdi/js";
 import type { Socket } from "socket.io-client";
@@ -43,6 +45,14 @@ const STALE_AFTER_MS = 2 * 60_000;
 const timeFormat = new Intl.DateTimeFormat(undefined, { timeStyle: "short" });
 
 const hidden = ref(new Set<string>());
+/** With many contacts, labels by default only appear once zoomed in; the selected item keeps its label. */
+const liveLabels = ref<LiveLabelMode>(readLiveLabels());
+const selectedUid = ref<string | null>(null);
+
+function setLiveLabels(mode: LiveLabelMode): void {
+  liveLabels.value = mode;
+  storeLiveLabels(mode);
+}
 const contactFilter = ref<ContactFilter>({ ...DEFAULT_FILTER });
 
 /** Items by callsign, built once per snapshot instead of searched for every list row. */
@@ -92,7 +102,9 @@ const contactRows = computed<ContactRow[]>(() =>
 function focus(connectionId: string): void {
   const callsign = traffic.value.connections.find(({ id }) => id === connectionId)?.callsign;
   const uid = callsign === null || callsign === undefined ? undefined : itemsByCallsign.value.get(callsign)?.uid;
-  if (uid !== undefined) mapView.value?.zoomToLive(uid);
+  if (uid === undefined) return;
+  selectedUid.value = uid;
+  mapView.value?.zoomToLive(uid);
 }
 
 /** Core sends a full snapshot on connect and afterwards only what changed. */
@@ -155,7 +167,19 @@ onBeforeUnmount(() => {
     <ErrorState v-if="state === 'error'" :message="error" class="ma-6" />
     <v-skeleton-loader v-else-if="state === 'loading'" type="image" class="ma-6" />
     <main v-else class="live-body">
-      <PackageMapView ref="mapView" :layers="mapLayers" :objects="objects" :contents="contents" :live="liveItems" :selected-id="null" tool="select" />
+      <PackageMapView
+        ref="mapView"
+        :layers="mapLayers"
+        :objects="objects"
+        :contents="contents"
+        :live="liveItems"
+        :live-labels="liveLabels"
+        live-selectable
+        :live-selected-id="selectedUid"
+        :selected-id="null"
+        tool="select"
+        @select-live="selectedUid = $event"
+      />
 
       <EditorToolbar
         tool="select"
@@ -170,6 +194,8 @@ onBeforeUnmount(() => {
         class="live-toolbar"
         :grid-visible="mapView?.gridVisible ?? false"
         :grid-settings="mapView?.gridSettings ?? DEFAULT_GRID_SETTINGS"
+        :live-labels="liveLabels"
+        @change-live-labels="setLiveLabels"
         @toggle-layers="connectionsOpen = !connectionsOpen"
         @change-base-map="mapView?.selectBaseMap($event)"
         @fit="mapView?.fitToContent()"

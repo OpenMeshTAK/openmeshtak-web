@@ -2,6 +2,7 @@
  * Per-browser editor conveniences. Storage may be unavailable (private windows, blocked site
  * data), so every access is guarded and the editor works without it.
  */
+import type { LiveLabelMode } from "./map/live-layer";
 import { DEFAULT_GRID_SETTINGS, GRID_SPACINGS, type GridSettings } from "./map/mgrs-grid";
 
 const LAYERS_OPEN_KEY = "openmeshtak.editor.layersOpen";
@@ -76,6 +77,25 @@ export function readGridSettings(): GridSettings {
 export function storeGridSettings(settings: GridSettings): void {
   try {
     window.localStorage.setItem(GRID_SETTINGS_KEY, JSON.stringify(settings));
+  } catch {
+    // Without storage the choice simply lasts for this page view.
+  }
+}
+
+const LIVE_LABELS_KEY = "openmeshtak.live.labels";
+
+export function readLiveLabels(): LiveLabelMode {
+  try {
+    const stored = window.localStorage.getItem(LIVE_LABELS_KEY);
+    return stored === "always" || stored === "off" ? stored : "auto";
+  } catch {
+    return "auto";
+  }
+}
+
+export function storeLiveLabels(mode: LiveLabelMode): void {
+  try {
+    window.localStorage.setItem(LIVE_LABELS_KEY, mode);
   } catch {
     // Without storage the choice simply lasts for this page view.
   }

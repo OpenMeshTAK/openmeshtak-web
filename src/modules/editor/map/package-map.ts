@@ -19,7 +19,7 @@ import VectorSource from "ol/source/Vector";
 import { Circle as CircleStyle, Fill, Stroke, Style } from "ol/style";
 import type { PackageGeometry, PackageLayerDto, PackageObjectDto } from "@/modules/data-packages/data-packages.api";
 import { fromMapGeometry, toMapGeometry } from "./geometry-codec";
-import { createLiveLayer, type LiveMapItem } from "./live-layer";
+import { createLiveLayer, type LiveLabelMode, type LiveMapItem } from "./live-layer";
 import { mapContentExtent, mapContentLayer, type MapContentItem } from "./map-content";
 import { objectPriority, objectStyle, remoteSelectionStyle } from "./object-style";
 import { EllipseEditor } from "./ellipse-editor";
@@ -57,6 +57,8 @@ export interface PackageMapCallbacks {
   onStyled?: (objectId: string, style: PackageObjectStyle) => void;
   /** Right click: the object under the cursor (if any), screen position and WGS84 position. */
   onContextMenu: (target: { objectId: string | null; clientX: number; clientY: number; position: number[] }) => void;
+  /** A click on the live layer: the live item under the cursor, or `null` for empty map. */
+  onLiveSelected?: (uid: string | null) => void;
 }
 
 const DRAW_TYPES = { point: "Point", sector: "Point", "range-bearing": "LineString", line: "LineString", arrow: "LineString", freehand: "LineString", polygon: "Polygon", circle: "Circle", "range-circle": "Circle", bullseye: "Circle", rectangle: "Circle", ellipse: "Circle", route: "LineString" } as const;
@@ -213,6 +215,14 @@ export class PackageMap {
     this.grid = new MgrsGridLayer(this.map);
     this.map.getLayers().insertAt(2, this.grid.layer);
 
+    if (this.callbacks.onLiveSelected !== undefined) {
+      const onLiveSelected = this.callbacks.onLiveSelected;
+      this.map.on("singleclick", (event) => {
+        const hit = this.map.forEachFeatureAtPixel(event.pixel, (feature) => feature, { layerFilter: (layer) => layer === this.live.layer, hitTolerance: 4 });
+        const uid: unknown = hit?.get("liveUid");
+        onLiveSelected(typeof uid === "string" ? uid : null);
+      });
+    }
     this.map.on("pointermove", (event) => {
       this.pointer = toLonLat(event.coordinate);
     });
@@ -556,6 +566,16 @@ export class PackageMap {
   /** Live TAK positions and markers, drawn above all package content. */
   setLiveItems(items: readonly LiveMapItem[]): void {
     this.live.update(items);
+  }
+
+  /** When live callsign labels are drawn; see `LiveLabelMode`. */
+  setLiveLabels(mode: LiveLabelMode): void {
+    this.live.setLabels(mode);
+  }
+
+  /** Highlights one live item and always shows its label. */
+  selectLive(uid: string | null): void {
+    this.live.select(uid);
   }
 
   /** Centres the map on one live item without changing the zoom more than needed. */

@@ -96,15 +96,47 @@ function arrowFor(color: string, course: number): Style {
   });
 }
 
-function labelFor(callsign: string): Text {
+/**
+ * When callsign labels are drawn: `auto` only once the map is zoomed in far enough that labels of
+ * a few hundred contacts no longer cover each other, `always` at every zoom, `off` never. The
+ * selected item always shows its label.
+ */
+export type LiveLabelMode = "auto" | "always" | "off";
+
+/** `auto` draws labels from this zoom level on, roughly where a company area fills the screen. */
+export const LABEL_MIN_ZOOM = 14;
+/** Web Mercator resolution in metres per pixel at zoom 0 for 256-pixel tiles. */
+const ZOOM_0_RESOLUTION = 156_543.033_928_041;
+
+export function showsLabel(mode: LiveLabelMode, resolution: number, selected: boolean): boolean {
+  if (selected) return true;
+  if (mode === "auto") return resolution <= ZOOM_0_RESOLUTION / 2 ** LABEL_MIN_ZOOM;
+  return mode === "always";
+}
+
+function labelFor(callsign: string, selected: boolean): Text {
   return new Text({
     text: callsign,
     offsetY: -16,
     font: "600 12px Roboto, sans-serif",
     fill: new Fill({ color: "#ffffff" }),
     stroke: new Stroke({ color: "rgba(0, 0, 0, 0.75)", width: 3 }),
+    // The selected item's label is never hidden behind an overlapping one.
+    declutterMode: selected ? "none" : "declutter",
   });
 }
+
+/** A ring around the selected item, readable on light and dark base maps. */
+const selectionStyle = new Style({
+  image: new Circle({
+    radius: 12,
+    stroke: new Stroke({ color: "rgba(0, 0, 0, 0.75)", width: 4 }),
+    declutterMode: "none",
+  }),
+});
+const selectionInnerStyle = new Style({
+  image: new Circle({ radius: 12, stroke: new Stroke({ color: "#ffffff", width: 2 }), declutterMode: "none" }),
+});
 
 /**
  * Styles are cached, because every new style makes OpenLayers prepare the marker, decode the
@@ -132,14 +164,25 @@ function styleKey(item: LiveMapItem): string {
   return `${colorOf(item)}|${item.source ?? "tak"}|${String(item.outdated === true)}|${step}|${item.callsign ?? ""}`;
 }
 
-function styleFor(item: LiveMapItem): Style[] {
+/** The marker with or without its label; `label` is `selected` when the selection forces it. */
+function markerStyleFor(item: LiveMapItem, label: "none" | "normal" | "selected"): Style {
   const color = colorOf(item);
-  const markerKey = `${color}|${item.source ?? "tak"}|${String(item.outdated === true)}|${item.callsign ?? ""}`;
-  const marker = cached(markerStyles, markerKey, () => new Style({ image: markerFor(item), text: item.callsign === null ? undefined : labelFor(item.callsign) }));
+  const callsign = label === "none" ? null : item.callsign;
+  const markerKey = `${color}|${item.source ?? "tak"}|${String(item.outdated === true)}|${label}|${callsign ?? ""}`;
+  return cached(markerStyles, markerKey, () => new Style({ image: markerFor(item), text: callsign === null ? undefined : labelFor(callsign, label === "selected") }));
+}
+
+function styleFor(item: LiveMapItem, labelled: boolean, selected: boolean): Style[] {
+  const marker = markerStyleFor(item, !labelled ? "none" : selected ? "selected" : "normal");
+  const styles = selected ? [selectionStyle, selectionInnerStyle] : [];
   const heading = headingOf(item);
-  if (heading === null) return [marker];
-  const step = Math.round(heading / ARROW_STEP_DEGREES) * ARROW_STEP_DEGREES % 360;
-  return [cached(arrowStyles, `${color}|${String(step)}`, () => arrowFor(color, step)), marker];
+  if (heading !== null) {
+    const color = colorOf(item);
+    const step = Math.round(heading / ARROW_STEP_DEGREES) * ARROW_STEP_DEGREES % 360;
+    styles.push(cached(arrowStyles, `${color}|${String(step)}`, () => arrowFor(color, step)));
+  }
+  styles.push(marker);
+  return styles;
 }
 
 interface Drawn {
@@ -147,15 +190,30 @@ interface Drawn {
   key: string;
 }
 
+export interface LiveLayer {
+  layer: VectorLayer;
+  update(items: readonly LiveMapItem[]): void;
+  positionOf(uid: string): number[] | null;
+  setLabels(mode: LiveLabelMode): void;
+  select(uid: string | null): void;
+}
+
 /**
  * A read-only layer on top of the package content. Each refresh moves the existing features and
  * swaps styles only where something changed, instead of rebuilding the whole layer. Overlapping
  * labels are hidden; the markers themselves always stay visible.
  */
-export function createLiveLayer(): { layer: VectorLayer; update(items: readonly LiveMapItem[]): void; positionOf(uid: string): number[] | null } {
+export function createLiveLayer(): LiveLayer {
   const source = new VectorSource();
   const layer = new VectorLayer({ source, zIndex: 1000, declutter: true });
   const drawn = new Map<string, Drawn>();
+  let labels: LiveLabelMode = "always";
+  let selectedUid: string | null = null;
+  /** Labels depend on the zoom, so the style is resolved per render instead of fixed per item. */
+  const styleOf = (item: LiveMapItem) => (_feature: unknown, resolution: number): Style[] => {
+    const selected = item.uid === selectedUid;
+    return styleFor(item, item.callsign !== null && showsLabel(labels, resolution, selected), selected);
+  };
   return {
     layer,
     update(items) {
@@ -168,7 +226,8 @@ export function createLiveLayer(): { layer: VectorLayer; update(items: readonly 
         const existing = drawn.get(item.uid);
         if (existing === undefined) {
           const feature = new Feature({ geometry: new Point(coordinate) });
-          feature.setStyle(styleFor(item));
+          feature.set("liveUid", item.uid);
+          feature.setStyle(styleOf(item));
           drawn.set(item.uid, { feature, key });
           added.push(feature);
           continue;
@@ -178,7 +237,7 @@ export function createLiveLayer(): { layer: VectorLayer; update(items: readonly 
         if (x !== coordinate[0] || y !== coordinate[1]) geometry?.setCoordinates(coordinate);
         if (existing.key !== key) {
           existing.key = key;
-          existing.feature.setStyle(styleFor(item));
+          existing.feature.setStyle(styleOf(item));
         }
       }
       for (const [uid, entry] of drawn) {
@@ -191,6 +250,18 @@ export function createLiveLayer(): { layer: VectorLayer; update(items: readonly 
     },
     positionOf(uid) {
       return drawn.get(uid)?.feature.getGeometry()?.getCoordinates() ?? null;
+    },
+    setLabels(mode) {
+      if (mode === labels) return;
+      labels = mode;
+      layer.changed();
+    },
+    select(uid) {
+      if (uid === selectedUid) return;
+      const previous = selectedUid === null ? undefined : drawn.get(selectedUid);
+      selectedUid = uid;
+      previous?.feature.changed();
+      if (uid !== null) drawn.get(uid)?.feature.changed();
     },
   };
 }

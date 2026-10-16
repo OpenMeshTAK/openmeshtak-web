@@ -3,7 +3,7 @@ import {
   mdiBroom, mdiCheck, mdiChevronDown, mdiCircleOutline, mdiCursorDefault, mdiDraw,
   mdiEllipseOutline, mdiFitToScreenOutline, mdiGrid, mdiLayersOutline, mdiMapMarkerPlusOutline, mdiMapOutline,
   mdiRectangleOutline, mdiRedo, mdiRoutes, mdiRuler, mdiShapePolygonPlus, mdiUndo,
-  mdiVectorPolyline, mdiVectorSquare, mdiArrowTopRight, mdiAngleAcute, mdiCompassOutline,
+  mdiVectorPolyline, mdiVectorSquare, mdiArrowTopRight, mdiAngleAcute, mdiCompassOutline, mdiLabelOutline, mdiLabelOffOutline,
 } from "@mdi/js";
 import { computed, ref } from "vue";
 import type { EditorTool } from "../map/package-map";
@@ -11,6 +11,8 @@ import type { BaseMapLayer } from "@/modules/map-settings/map-settings.api";
 import { DISTANCE_UNITS, type DistanceUnit } from "../map/range-bearing";
 import { DEFAULT_GRID_SETTINGS, type GridSettings } from "../map/mgrs-grid";
 import SegmentedControl from "@/shared/components/SegmentedControl.vue";
+import InfoHint from "@/shared/components/InfoHint.vue";
+import type { LiveLabelMode } from "../map/live-layer";
 import InspectorToggle from "./InspectorToggle.vue";
 
 const props = withDefaults(defineProps<{
@@ -27,9 +29,12 @@ const props = withDefaults(defineProps<{
   distanceUnit?: DistanceUnit;
   gridVisible?: boolean;
   gridSettings?: GridSettings;
-}>(), { gridVisible: false, gridSettings: () => DEFAULT_GRID_SETTINGS, distanceUnit: "m", undoLabel: null, redoLabel: null, baseMaps: () => [], baseMapId: "", viewOnly: false, layersLabel: "layers" });
+  /** Offers the live label setting when set; the editor has no live layer and leaves it out. */
+  liveLabels?: LiveLabelMode | null;
+}>(), { liveLabels: null, gridVisible: false, gridSettings: () => DEFAULT_GRID_SETTINGS, distanceUnit: "m", undoLabel: null, redoLabel: null, baseMaps: () => [], baseMapId: "", viewOnly: false, layersLabel: "layers" });
 const tool = defineModel<EditorTool>("tool", { required: true });
-defineEmits<{ fit: []; toggleLayers: []; undo: []; redo: []; clearMeasurements: []; changeBaseMap: [id: string]; changeDistanceUnit: [unit: DistanceUnit]; toggleGrid: []; changeGridSettings: [settings: GridSettings] }>();
+defineEmits<{ fit: []; toggleLayers: []; undo: []; redo: []; clearMeasurements: []; changeBaseMap: [id: string]; changeDistanceUnit: [unit: DistanceUnit]; toggleGrid: []; changeGridSettings: [settings: GridSettings]; changeLiveLabels: [mode: LiveLabelMode] }>();
+const liveLabelModes: Array<{ title: string; value: LiveLabelMode }> = [{ title: "Zoomed in", value: "auto" }, { title: "Always", value: "always" }, { title: "Off", value: "off" }];
 const gridSpacings: Array<{ title: string; value: GridSettings["spacing"] }> = [
   { title: "Auto", value: "auto" }, { title: "100 km", value: 100_000 }, { title: "10 km", value: 10_000 }, { title: "1 km", value: 1_000 }, { title: "100 m", value: 100 },
 ];
@@ -131,6 +136,25 @@ function choose(value: EditorTool): void {
           <div class="grid-popout__label">Line width</div>
           <SegmentedControl :model-value="gridSettings.width" :options="gridWidths" label="Grid line width" @update:model-value="$emit('changeGridSettings', { ...gridSettings, width: $event })" />
           <InspectorToggle label="Grid labels" class="mt-2" :model-value="gridSettings.labels" @update:model-value="$emit('changeGridSettings', { ...gridSettings, labels: $event })" />
+        </v-card>
+      </v-menu>
+      <v-menu v-if="liveLabels !== null" :model-value="openGroup === 'labels'" location="end top" offset="8" :close-on-content-click="false" @update:model-value="openGroup = $event ? 'labels' : null">
+        <template #activator="{ props: menu }">
+          <v-tooltip text="Callsign labels" location="end">
+            <template #activator="{ props: tooltip }">
+              <v-btn v-bind="{ ...tooltip, ...menu }" icon variant="text" size="small" rounded="lg" aria-label="Callsign labels">
+                <v-icon :icon="liveLabels === 'off' ? mdiLabelOffOutline : mdiLabelOutline" />
+                <v-icon :icon="mdiChevronDown" size="12" class="tool-chevron" />
+              </v-btn>
+            </template>
+          </v-tooltip>
+        </template>
+        <v-card min-width="260" rounded="lg" elevation="2" class="grid-popout" aria-label="Callsign labels">
+          <div class="d-flex align-center ga-1">
+            <span class="text-label-large">Callsign labels</span>
+            <InfoHint label="About callsign labels" text="Zoomed in shows labels from zoom level 14 on. Overlapping labels are hidden; markers always stay visible. A selected contact always shows its label." />
+          </div>
+          <SegmentedControl :model-value="liveLabels" :options="liveLabelModes" label="When to show callsign labels" @update:model-value="$emit('changeLiveLabels', $event)" />
         </v-card>
       </v-menu>
       <v-tooltip text="Zoom to content" location="end">

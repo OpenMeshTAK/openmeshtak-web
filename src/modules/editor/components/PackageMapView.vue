@@ -3,7 +3,7 @@ import "ol/ol.css";
 import type BaseLayer from "ol/layer/Base";
 import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type { PackageGeometry, PackageLayerDto, PackageObjectDto, PackageObjectStyle } from "@/modules/data-packages/data-packages.api";
-import type { LiveMapItem } from "../map/live-layer";
+import type { LiveLabelMode, LiveMapItem } from "../map/live-layer";
 import type { MapContentItem } from "../map/map-content";
 import { PackageMap, type EditorTool, type RemoteSelection } from "../map/package-map";
 import { loadBaseMap, type BaseMapLayer } from "@/modules/map-settings/map-settings.api";
@@ -20,6 +20,11 @@ const props = withDefaults(defineProps<{
   contents?: MapContentItem[];
   /** Live TAK positions and markers drawn above everything else. */
   live?: LiveMapItem[];
+  /** When live callsign labels are drawn. */
+  liveLabels?: LiveLabelMode;
+  /** Clicking a live item selects it (`selectLive`); the selected one is ringed and always labelled. */
+  liveSelectable?: boolean;
+  liveSelectedId?: string | null;
   selectedId: string | null;
   selectedIds?: string[] | null;
   /** Objects other editors have selected, outlined in their color. */
@@ -32,7 +37,7 @@ const props = withDefaults(defineProps<{
    * icons stay off; markers use the built-in symbols and only stored map content is drawn.
    */
   offline?: boolean;
-}>(), { selectedIds: null, contents: () => [], live: () => [], remoteSelections: () => [], editable: false, iconLibraries: () => [], offline: false });
+}>(), { selectedIds: null, contents: () => [], live: () => [], liveLabels: "always", liveSelectable: false, liveSelectedId: null, remoteSelections: () => [], editable: false, iconLibraries: () => [], offline: false });
 const emit = defineEmits<{
   drawn: [geometry: PackageGeometry];
   modified: [objectId: string, geometry: PackageGeometry];
@@ -41,6 +46,7 @@ const emit = defineEmits<{
   selectMany: [objectIds: string[]];
   modifiedMany: [changes: Array<{ id: string; geometry: PackageGeometry }>];
   contextmenu: [target: { objectId: string | null; clientX: number; clientY: number; position: number[] }];
+  selectLive: [uid: string | null];
 }>();
 
 const container = ref<HTMLElement | null>(null);
@@ -108,6 +114,7 @@ onMounted(() => {
     ...(props.selectedIds === null ? {} : { onSelectedMany: (ids: string[]) => emit("selectMany", ids),
       onModifiedMany: (changes: Array<{ id: string; geometry: PackageGeometry }>) => emit("modifiedMany", changes) }),
     onContextMenu: (target) => emit("contextmenu", target),
+    ...(props.liveSelectable ? { onLiveSelected: (uid: string | null) => emit("selectLive", uid) } : {}),
   });
   map.setEditable(props.editable);
   map.setGridSettings(gridSettings.value);
@@ -116,6 +123,8 @@ onMounted(() => {
   if (!props.offline) void loadIcons();
   map.setMapContent(props.contents, props.layers);
   map.setLiveItems(props.live);
+  map.setLiveLabels(props.liveLabels);
+  map.selectLive(props.liveSelectedId);
   map.addOverlayLayers(pendingOverlays.splice(0));
   map.setRemoteSelections(props.remoteSelections);
   if (!props.offline) void loadBaseMap().then((settings) => {
@@ -145,6 +154,8 @@ watch(
   ([contents, layers]) => map?.setMapContent(contents, layers),
 );
 watch(() => props.live, (items) => map?.setLiveItems(items));
+watch(() => props.liveLabels, (mode) => map?.setLiveLabels(mode));
+watch(() => props.liveSelectedId, (uid) => map?.selectLive(uid));
 watch(() => props.remoteSelections, (selections) => map?.setRemoteSelections(selections));
 watch(() => props.tool, (tool) => map?.setTool(tool));
 watch(() => props.iconLibraries, () => { if (!props.offline) void loadIcons(); });
