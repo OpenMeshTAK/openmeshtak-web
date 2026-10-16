@@ -21,6 +21,7 @@
     "lint": "eslint . --max-warnings 0",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:changed": "node scripts/test-changed.ts",
     "typecheck": "pnpm api:generate && vue-tsc --noEmit"
   },
   "dependencies": {

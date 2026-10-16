@@ -76,6 +76,16 @@ export default defineConfig({
     environment: "jsdom",
     include: ["test/**/*.test.ts"],
     setupFiles: ["test/setup.ts"],
+    // A change to one of these runs every test with `pnpm test:changed`. Vitest adds the setup
+    // files; the first two entries are its defaults.
+    forceRerunTriggers: [
+      "**/package.json",
+      "**/{vitest,vite}.config.*",
+      "**/pnpm-lock.yaml",
+      "**/tsconfig*.json",
+      "**/openapi/**",
+      "**/src/generated/**",
+    ],
     server: { deps: { inline: ["vuetify"] } },
   },
 });
