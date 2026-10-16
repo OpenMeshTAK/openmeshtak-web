@@ -14,7 +14,8 @@ import EditorToolbar from "@/modules/editor/components/EditorToolbar.vue";
 import PackageMapView from "@/modules/editor/components/PackageMapView.vue";
 import ContactList from "./contacts/ContactList.vue";
 import { DEFAULT_FILTER, type ContactFilter, type ContactRow } from "./contacts/contact-list";
-import type { LiveTakItemDto, LiveTakTrafficDto } from "./tak-server.api";
+import { itemsByContact, newestItem, visibleItems } from "./contacts/live-contacts";
+import type { LiveTakConnectionDto, LiveTakItemDto, LiveTakTrafficDto } from "./tak-server.api";
 import { applyTrafficChanges, type LiveTakTrafficChanges } from "./live-traffic-changes";
 import { useEventMapContent } from "./useEventMapContent";
 
@@ -55,36 +56,33 @@ function setLiveLabels(mode: LiveLabelMode): void {
 }
 const contactFilter = ref<ContactFilter>({ ...DEFAULT_FILTER });
 
-/** Items by callsign, built once per snapshot instead of searched for every list row. */
-const itemsByCallsign = computed(() => {
-  const index = new Map<string, LiveTakItemDto>();
-  for (const item of traffic.value.items) {
-    if (item.callsign !== null) index.set(item.callsign, item);
-  }
-  return index;
-});
+/** Items by their contact row, built once per update instead of searched for every list row. */
+const byContact = computed(() => itemsByContact(traffic.value.connections, traffic.value.items));
 
-/**
- * Apps hidden in the list disappear from the map with their own position. Markers they placed
- * stay, because the live data does not say who placed a marker.
- */
-const liveItems = computed(() => {
-  if (hidden.value.size === 0) return traffic.value.items;
-  const hiddenCallsigns = new Set(
-    traffic.value.connections.filter(({ id, callsign }) => callsign !== null && hidden.value.has(id)).map(({ callsign }) => callsign),
-  );
-  return traffic.value.items.filter((item) => item.callsign === null || !hiddenCallsigns.has(item.callsign));
-});
+/** Contacts hidden in the list leave the map with their own position and the markers they placed. */
+const liveItems = computed(() => (hidden.value.size === 0 ? traffic.value.items : visibleItems(byContact.value, hidden.value)));
 
-const contactRows = computed<ContactRow[]>(() =>
+function ageOf(item: LiveTakItemDto | undefined): number | null {
+  // How long ago the position was taken, from the item's own time.
+  return item === undefined ? null : Math.max(0, now.value - Date.parse(item.time));
+}
+
+function countText(count: number): string {
+  return count === 1 ? "1 item on the map" : `${String(count)} items on the map`;
+}
+
+/** The app's own position: the item it sent under its own callsign. */
+function ownPosition(connection: LiveTakConnectionDto): LiveTakItemDto | undefined {
+  if (connection.callsign === null) return undefined;
+  return byContact.value.get(connection.id)?.find((item) => item.callsign === connection.callsign);
+}
+
+const connectionRows = computed<ContactRow[]>(() =>
   traffic.value.connections.map((connection) => {
-    const label = connection.callsign ?? connection.userDisplayName;
-    const item = connection.callsign === null ? undefined : itemsByCallsign.value.get(connection.callsign);
-    // How long ago the app's own position was taken, from the position's own time.
-    const ageMs = item === undefined ? null : Math.max(0, now.value - Date.parse(item.time));
+    const ageMs = ageOf(ownPosition(connection));
     return {
       key: connection.id,
-      label,
+      label: connection.callsign ?? connection.userDisplayName,
       group: connection.eventGroup?.name ?? null,
       color: null,
       ageMs,
@@ -93,18 +91,43 @@ const contactRows = computed<ContactRow[]>(() =>
       details: [
         [connection.userDisplayName, connection.eventRole?.name].filter(Boolean).join(" · "),
         `Connected since ${timeFormat.format(new Date(connection.connectedAt))}`,
+        countText(byContact.value.get(connection.id)?.length ?? 0),
       ],
       searchText: `${connection.userDisplayName} ${connection.eventRole?.name ?? ""}`,
     };
   }),
 );
 
-function focus(connectionId: string): void {
-  const callsign = traffic.value.connections.find(({ id }) => id === connectionId)?.callsign;
-  const uid = callsign === null || callsign === undefined ? undefined : itemsByCallsign.value.get(callsign)?.uid;
-  if (uid === undefined) return;
-  selectedUid.value = uid;
-  mapView.value?.zoomToLive(uid);
+/** Members whose app disconnected but whose positions or markers are still current. */
+const disconnectedRows = computed<ContactRow[]>(() =>
+  [...byContact.value]
+    .filter(([key]) => key.startsWith("user:"))
+    .map(([key, items]) => {
+      const newest = newestItem(items);
+      const sender = newest?.placedBy;
+      const ageMs = ageOf(newest);
+      return {
+        key,
+        label: sender?.userDisplayName ?? "Unknown user",
+        group: sender?.eventGroup?.name ?? null,
+        color: null,
+        ageMs,
+        stale: ageMs !== null && ageMs > STALE_AFTER_MS,
+        device: false,
+        details: ["Not connected", countText(items.length)],
+        searchText: "",
+      };
+    }),
+);
+
+const contactRows = computed(() => [...connectionRows.value, ...disconnectedRows.value]);
+
+function focus(key: string): void {
+  const connection = traffic.value.connections.find(({ id }) => id === key);
+  const item = connection === undefined ? newestItem(byContact.value.get(key) ?? []) : ownPosition(connection);
+  if (item === undefined) return;
+  selectedUid.value = item.uid;
+  mapView.value?.zoomToLive(item.uid);
 }
 
 /** Core sends a full snapshot on connect and afterwards only what changed. */
@@ -188,7 +211,7 @@ onBeforeUnmount(() => {
         :can-undo="false"
         :can-redo="false"
         :layers-open="connectionsOpen"
-        layers-label="connected apps"
+        layers-label="contacts"
         :base-maps="mapView?.baseMaps ?? []"
         :base-map-id="mapView?.activeBaseMapId ?? ''"
         class="live-toolbar"
@@ -205,8 +228,8 @@ onBeforeUnmount(() => {
 
       <v-sheet v-if="connectionsOpen" elevation="4" rounded="lg" class="live-panel">
         <div class="d-flex align-center px-4 pt-3">
-          <div class="text-title-small flex-grow-1">Connected apps</div>
-          <span class="text-body-small text-medium-emphasis">{{ traffic.connections.length }}</span>
+          <div class="text-title-small flex-grow-1">Contacts</div>
+          <span class="text-body-small text-medium-emphasis">{{ traffic.connections.length }} connected</span>
         </div>
         <ContactList
           v-model:hidden="hidden"
@@ -214,7 +237,7 @@ onBeforeUnmount(() => {
           class="live-panel-content"
           :rows="contactRows"
           without-position
-          empty-text="No TAK app of this event is connected."
+          empty-text="No TAK app of this event is connected and nothing is on the map."
           @focus="focus"
         />
       </v-sheet>
