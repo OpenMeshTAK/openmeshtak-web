@@ -3,7 +3,6 @@ import {
   mdiAccountGroup,
   mdiCellphoneArrowDown,
   mdiCircleOutline,
-  mdiClockOutline,
   mdiDelete,
   mdiDragVertical,
   mdiExport,
@@ -326,108 +325,116 @@ onMounted(() => {
     <EmptyState v-else-if="dataPackages.data.value.length === 0" title="No data packages yet" text="Create a data package to draw the event's map content." />
 
     <v-card v-else>
-      <VueDraggable
-        v-model="rows"
-        :animation="180"
-        handle=".drag-handle"
-        ghost-class="drag-ghost"
-        chosen-class="drag-chosen"
-        :disabled="!canEdit"
-        @end="packagesDropped"
-      >
-        <div
-          v-for="dataPackage in rows"
-          :key="dataPackage.id"
-          class="package-row d-flex align-start flex-wrap flex-md-nowrap ga-4 pa-4"
+      <!-- Looks like the shared data table; a plain table because the order is the map's layer order and rows are draggable. -->
+      <v-table class="app-table" density="comfortable">
+        <thead>
+          <tr>
+            <th v-if="canEdit && orderedPackages.length > 1" class="handle-column"><span class="d-sr-only">Drag to reorder</span></th>
+            <th>Data package</th>
+            <th>Delivery</th>
+            <th>Content</th>
+            <th>Updated</th>
+            <th class="text-right">Actions</th>
+          </tr>
+        </thead>
+        <!-- Only rows may be children here: Sortable counts every child element. -->
+        <VueDraggable
+          v-model="rows"
+          tag="tbody"
+          :animation="180"
+          handle=".drag-handle"
+          ghost-class="drag-ghost"
+          chosen-class="drag-chosen"
+          :disabled="!canEdit"
+          @end="packagesDropped"
         >
-          <v-icon
-            v-if="canEdit && orderedPackages.length > 1"
-            :icon="mdiDragVertical"
-            class="drag-handle mt-2"
-            aria-hidden="true"
-          />
-          <v-avatar color="primary" variant="tonal" size="40" rounded="lg" class="flex-shrink-0">
-            <v-icon :icon="packageIcon(dataPackage)" />
-          </v-avatar>
-          <div class="package-info">
-            <div class="d-flex align-center flex-wrap ga-2 mb-1">
-              <span class="text-title-medium font-weight-medium text-break">{{ dataPackage.name }}</span>
-              <v-chip
-                v-if="dataPackage.latestRevision"
-                size="small"
-                color="success"
-                variant="tonal"
-                label
-                :title="`Revision ${String(dataPackage.latestRevision)} is published`"
-              >
-                Rev. {{ dataPackage.latestRevision }}
-              </v-chip>
-              <v-chip v-else size="small" variant="tonal" label>Draft</v-chip>
-              <v-chip
-                v-if="dataPackage.latestRevision && dataPackage.hasUnpublishedChanges"
-                size="small"
-                color="warning"
-                variant="tonal"
-                label
-                title="The draft has changes that members do not receive yet"
-              >
-                Unpublished
-              </v-chip>
-            </div>
-            <div class="facts text-body-medium">
-              <span class="fact" :title="audienceTitle(dataPackage)">
+          <tr v-for="dataPackage in rows" :key="dataPackage.id">
+            <td v-if="canEdit && orderedPackages.length > 1" class="handle-column">
+              <v-icon :icon="mdiDragVertical" class="drag-handle" aria-hidden="true" />
+            </td>
+            <td>
+              <div class="d-flex align-center flex-wrap ga-2 py-2">
+                <v-icon :icon="packageIcon(dataPackage)" size="18" class="text-medium-emphasis" />
+                <span class="font-weight-medium text-break">{{ dataPackage.name }}</span>
+                <v-chip
+                  v-if="dataPackage.latestRevision"
+                  size="small"
+                  color="success"
+                  variant="tonal"
+                  label
+                  :title="`Revision ${String(dataPackage.latestRevision)} is published`"
+                >
+                  Rev. {{ dataPackage.latestRevision }}
+                </v-chip>
+                <v-chip v-else size="small" variant="tonal" label>Draft</v-chip>
+                <v-chip
+                  v-if="dataPackage.latestRevision && dataPackage.hasUnpublishedChanges"
+                  size="small"
+                  color="warning"
+                  variant="tonal"
+                  label
+                  title="The draft has changes that members do not receive yet"
+                >
+                  Unpublished
+                </v-chip>
+              </div>
+            </td>
+            <td>
+              <div class="fact" :title="audienceTitle(dataPackage)">
                 <v-icon :icon="mdiAccountGroup" size="16" />
                 <span class="text-truncate">{{ audienceLabel(dataPackage) }}</span>
                 <span v-if="audienceReach(dataPackage)" class="text-medium-emphasis">{{ audienceReach(dataPackage) }}</span>
-              </span>
-              <span class="fact" :title="takDeliverySummary(dataPackage).title">
-                <v-icon :icon="mdiCellphoneArrowDown" size="16" />
+              </div>
+              <div class="fact text-body-small text-medium-emphasis" :title="takDeliverySummary(dataPackage).title">
+                <v-icon :icon="mdiCellphoneArrowDown" size="14" />
                 {{ takDeliverySummary(dataPackage).label }}
-              </span>
-              <span v-if="dataPackage.latestRevisionSize !== null" class="fact" title="Approximate download size of the published revision">
-                <v-icon :icon="mdiPackageVariantClosed" size="16" />
-                {{ formatSize(dataPackage.latestRevisionSize) }}
-              </span>
-              <span v-for="content in contentCounts(dataPackage)" :key="content.kind" class="fact" :title="content.title">
-                <v-icon :icon="content.icon" size="16" />
-                {{ content.count }}
-              </span>
-              <span class="fact text-medium-emphasis" title="Last changed">
-                <v-icon :icon="mdiClockOutline" size="16" />
-                {{ dateFormat.format(new Date(dataPackage.updatedAt)) }}
-              </span>
-            </div>
-          </div>
-          <div class="row-actions d-flex align-center flex-wrap ga-1">
-            <v-btn
-              v-if="canPublish"
-              color="primary"
-              variant="tonal"
-              size="small"
-              :prepend-icon="mdiPublish"
-              :loading="publishingId === dataPackage.id"
-              :disabled="!dataPackage.hasUnpublishedChanges"
-              :title="dataPackage.hasUnpublishedChanges ? undefined : 'The draft matches the published revision.'"
-              @click="publish(dataPackage)"
-            >
-              Publish
-            </v-btn>
-            <v-btn v-if="canPublish" variant="tonal" size="small" :prepend-icon="mdiAccountGroup" @click="editAudience(dataPackage)">
-              Delivery
-            </v-btn>
-            <v-btn variant="tonal" size="small" @click="openEditor(dataPackage)">{{ canEdit ? "Open editor" : "View" }}</v-btn>
-            <v-btn
-              v-if="canEdit"
-              :icon="mdiDelete"
-              variant="text"
-              size="small"
-              color="error"
-              :aria-label="`Delete ${dataPackage.name}`"
-              @click="removing = dataPackage"
-            />
-          </div>
-        </div>
-      </VueDraggable>
+              </div>
+            </td>
+            <td>
+              <div class="facts">
+                <span v-for="content in contentCounts(dataPackage)" :key="content.kind" class="fact" :title="content.title">
+                  <v-icon :icon="content.icon" size="16" />
+                  {{ content.count }}
+                </span>
+                <span v-if="dataPackage.latestRevisionSize !== null" class="fact text-medium-emphasis" title="Approximate download size of the published revision">
+                  <v-icon :icon="mdiPackageVariantClosed" size="16" />
+                  {{ formatSize(dataPackage.latestRevisionSize) }}
+                </span>
+              </div>
+            </td>
+            <td class="text-medium-emphasis text-no-wrap">{{ dateFormat.format(new Date(dataPackage.updatedAt)) }}</td>
+            <td class="text-right text-no-wrap">
+              <v-btn
+                v-if="canPublish"
+                color="primary"
+                variant="tonal"
+                size="small"
+                :prepend-icon="mdiPublish"
+                :loading="publishingId === dataPackage.id"
+                :disabled="!dataPackage.hasUnpublishedChanges"
+                :title="dataPackage.hasUnpublishedChanges ? undefined : 'The draft matches the published revision.'"
+                class="mr-1"
+                @click="publish(dataPackage)"
+              >
+                Publish
+              </v-btn>
+              <v-btn v-if="canPublish" variant="tonal" size="small" :prepend-icon="mdiAccountGroup" class="mr-1" @click="editAudience(dataPackage)">
+                Delivery
+              </v-btn>
+              <v-btn variant="tonal" size="small" @click="openEditor(dataPackage)">{{ canEdit ? "Open editor" : "View" }}</v-btn>
+              <v-btn
+                v-if="canEdit"
+                :icon="mdiDelete"
+                variant="text"
+                size="small"
+                color="error"
+                :aria-label="`Delete ${dataPackage.name}`"
+                @click="removing = dataPackage"
+              />
+            </td>
+          </tr>
+        </VueDraggable>
+      </v-table>
     </v-card>
 
     <ImportReportDialog v-model="reportOpen" :report="importReport" />
@@ -486,30 +493,28 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.package-row + .package-row {
-  border-top: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+.handle-column {
+  width: 44px;
+  padding-right: 0 !important;
 }
-.package-info {
-  flex: 1 1 260px;
-  min-width: 0;
-}
-.row-actions {
-  margin-inline-start: auto;
-}
+
 .drag-handle {
   cursor: grab;
   opacity: 0.6;
 }
+
 .facts {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 20px;
+  gap: 4px 16px;
 }
+
 .fact {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 6px;
   min-width: 0;
-  max-width: 100%;
+  max-width: 280px;
+  white-space: nowrap;
 }
 </style>

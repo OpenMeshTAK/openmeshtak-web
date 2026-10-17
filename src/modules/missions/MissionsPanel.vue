@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { mdiAccountEdit, mdiAccountGroup, mdiClockOutline, mdiDelete, mdiFlagOutline, mdiMapOutline, mdiMapPlus, mdiSync } from "@mdi/js";
+import { mdiAccountGroup, mdiDelete, mdiMapOutline, mdiMapPlus, mdiSync } from "@mdi/js";
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
+import DataTable from "@/shared/components/DataTable.vue";
 import EmptyState from "@/shared/components/EmptyState.vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
 import SectionHeader from "@/shared/components/layout/SectionHeader.vue";
@@ -46,6 +47,14 @@ const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "short", time
 
 const canEdit = computed(() => props.event.status !== "archived" && session.can("missions.edit", props.event.id));
 const canSync = computed(() => props.event.status !== "archived" && session.can("missions.publish", props.event.id));
+
+const headers = [
+  { title: "Mission", key: "name" },
+  { title: "Who sees it", key: "audience", value: (mission: DataPackageDto) => whoSees(mission) },
+  { title: "Who changes it", key: "writers", value: (mission: DataPackageDto) => whoWrites(mission) },
+  { title: "Updated", key: "updatedAt", searchable: false },
+  { title: "Actions", key: "actions", sortable: false, align: "end" as const },
+];
 
 function openEditor(): void {
   void router.push({ name: "mission-editor", params: { eventId: props.event.id } });
@@ -135,17 +144,14 @@ onMounted(async () => {
     <EmptyState v-else-if="missions.data.value.length === 0" title="No missions yet" text="Create a mission to plan together with the TAK apps that subscribe to it." />
 
     <v-card v-else>
-      <div v-for="mission in ordered" :key="mission.id" class="mission-row d-flex align-start flex-wrap flex-md-nowrap ga-4 pa-4">
-        <v-avatar color="primary" variant="tonal" size="40" rounded="lg" class="flex-shrink-0">
-          <v-icon :icon="mdiFlagOutline" />
-        </v-avatar>
-        <div class="mission-info">
-          <div class="d-flex align-center flex-wrap ga-2 mb-1">
-            <span class="text-title-medium font-weight-medium text-break">{{ mission.name }}</span>
-            <v-chip v-if="mission.latestRevision" size="small" color="success" variant="tonal" label>Rev. {{ mission.latestRevision }}</v-chip>
+      <DataTable :headers="headers" :items="ordered" search-label="Search missions" storage-key="missions">
+        <template #[`item.name`]="{ item }">
+          <div class="d-flex align-center flex-wrap ga-2 py-2">
+            <span class="font-weight-medium text-break">{{ item.name }}</span>
+            <v-chip v-if="item.latestRevision" size="small" color="success" variant="tonal" label>Rev. {{ item.latestRevision }}</v-chip>
             <v-chip v-else size="small" variant="tonal" label>Not synced</v-chip>
             <v-chip
-              v-if="mission.latestRevision && mission.hasUnpublishedChanges"
+              v-if="item.latestRevision && item.hasUnpublishedChanges"
               size="small"
               color="warning"
               variant="tonal"
@@ -155,47 +161,39 @@ onMounted(async () => {
               Unsynced
             </v-chip>
           </div>
-          <div class="facts text-body-medium">
-            <span class="fact" title="Who sees the mission">
-              <v-icon :icon="mdiAccountGroup" size="16" />
-              <span class="text-truncate">{{ whoSees(mission) }}</span>
-            </span>
-            <span class="fact" title="Who may change it from a TAK app">
-              <v-icon :icon="mdiAccountEdit" size="16" />
-              <span class="text-truncate">{{ whoWrites(mission) }}</span>
-            </span>
-            <span class="fact text-medium-emphasis" title="Last changed">
-              <v-icon :icon="mdiClockOutline" size="16" />
-              {{ dateFormat.format(new Date(mission.updatedAt)) }}
-            </span>
-          </div>
-        </div>
-        <div class="row-actions d-flex align-center flex-wrap ga-1">
-          <v-btn
-            v-if="canSync"
-            color="primary"
-            variant="tonal"
-            size="small"
-            :prepend-icon="mdiSync"
-            :loading="syncingId === mission.id"
-            :disabled="!mission.hasUnpublishedChanges"
-            @click="sync(mission)"
-          >
-            Sync
-          </v-btn>
-          <v-btn v-if="canSync" variant="tonal" size="small" :prepend-icon="mdiAccountGroup" @click="editAccess(mission)">Access</v-btn>
-          <v-btn variant="tonal" size="small" @click="openEditor">{{ canEdit ? "Open editor" : "View" }}</v-btn>
-          <v-btn
-            v-if="canEdit"
-            :icon="mdiDelete"
-            variant="text"
-            size="small"
-            color="error"
-            :aria-label="`Delete ${mission.name}`"
-            @click="removing = mission"
-          />
-        </div>
-      </div>
+        </template>
+        <template #[`item.updatedAt`]="{ item }">
+          <span class="text-medium-emphasis text-no-wrap">{{ dateFormat.format(new Date(item.updatedAt)) }}</span>
+        </template>
+        <template #[`item.actions`]="{ item }">
+          <span class="text-no-wrap">
+            <v-btn
+              v-if="canSync"
+              color="primary"
+              variant="tonal"
+              size="small"
+              :prepend-icon="mdiSync"
+              :loading="syncingId === item.id"
+              :disabled="!item.hasUnpublishedChanges"
+              class="mr-1"
+              @click="sync(item)"
+            >
+              Sync
+            </v-btn>
+            <v-btn v-if="canSync" variant="tonal" size="small" :prepend-icon="mdiAccountGroup" class="mr-1" @click="editAccess(item)">Access</v-btn>
+            <v-btn variant="tonal" size="small" @click="openEditor">{{ canEdit ? "Open editor" : "View" }}</v-btn>
+            <v-btn
+              v-if="canEdit"
+              :icon="mdiDelete"
+              variant="text"
+              size="small"
+              color="error"
+              :aria-label="`Delete ${item.name}`"
+              @click="removing = item"
+            />
+          </span>
+        </template>
+      </DataTable>
     </v-card>
 
     <MissionAccessDialog
@@ -241,28 +239,3 @@ onMounted(async () => {
     </ConfirmDialog>
   </div>
 </template>
-
-<style scoped>
-.mission-row + .mission-row {
-  border-top: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
-}
-.mission-info {
-  flex: 1 1 260px;
-  min-width: 0;
-}
-.row-actions {
-  margin-inline-start: auto;
-}
-.facts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 20px;
-}
-.fact {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  max-width: 100%;
-}
-</style>
