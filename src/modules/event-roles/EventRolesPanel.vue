@@ -5,6 +5,7 @@ import { computed, onMounted, ref } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import EmptyState from "@/shared/components/EmptyState.vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
+import SectionHeader from "@/shared/components/layout/SectionHeader.vue";
 import DataTable from "@/shared/components/DataTable.vue";
 import { describeError, isApiProblem } from "@/shared/errors/api-problem";
 import { fieldErrors, messagesFor } from "@/shared/errors/field-errors";
@@ -127,12 +128,14 @@ onMounted(load);
 
 <template>
   <div>
-    <div class="d-flex align-center mb-4">
-      <p class="text-body-medium text-medium-emphasis flex-grow-1 my-0">
-        Every member has exactly one event role. Integrations refer to roles by their slug.
-      </p>
-      <v-btn v-if="editable" color="primary" :prepend-icon="mdiPlus" @click="open(null)">New role</v-btn>
-    </div>
+    <SectionHeader
+      title="Roles"
+      description="Every member has exactly one event role. Integrations refer to roles by their slug."
+    >
+      <template #actions>
+        <v-btn v-if="editable" color="primary" :prepend-icon="mdiPlus" @click="open(null)">New role</v-btn>
+      </template>
+    </SectionHeader>
 
     <v-skeleton-loader v-if="state === 'loading'" type="table" />
     <ErrorState v-else-if="state === 'error'" :message="loadError" @retry="load" />

@@ -5,6 +5,7 @@ import { computed, onMounted, ref } from "vue";
 import type { Schemas } from "@/shared/api/types";
 import EmptyState from "@/shared/components/EmptyState.vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
+import SectionHeader from "@/shared/components/layout/SectionHeader.vue";
 import { describeError } from "@/shared/errors/api-problem";
 import { useToast } from "@/shared/feedback/toast";
 import { useSession } from "@/modules/auth/session";
@@ -63,11 +64,10 @@ defineExpose({ load });
 
 <template>
   <div>
-    <p class="text-body-medium text-medium-emphasis mt-0 mb-4">
-      Synchronizations that could not be resolved create no membership. Fix the role, group or
-      callsign, then retry. A retry uses the event's current configuration.
-    </p>
-
+    <SectionHeader
+      title="Sync issues"
+      description="Synchronizations that could not be resolved create no membership. Fix the role, group or callsign, then retry. A retry uses the event's current configuration."
+    />
 
     <v-skeleton-loader v-if="state === 'loading'" type="list-item-three-line" />
     <ErrorState v-else-if="state === 'error'" :message="loadError" @retry="load" />

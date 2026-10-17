@@ -6,6 +6,7 @@ import type { Schemas } from "@/shared/api/types";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import EmptyState from "@/shared/components/EmptyState.vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
+import SectionHeader from "@/shared/components/layout/SectionHeader.vue";
 import ProfileSummary from "@/shared/components/ProfileSummary.vue";
 import DataTable from "@/shared/components/DataTable.vue";
 import { describeError } from "@/shared/errors/api-problem";
@@ -240,21 +241,22 @@ onMounted(load);
 
 <template>
   <div>
-    <div class="d-flex align-center mb-4 ga-4 flex-wrap">
-      <p class="text-body-medium text-medium-emphasis flex-grow-1 my-0">
-        Each member has exactly one role and one group. Integrations add members automatically;
-        you can also add them here.
-      </p>
-      <v-btn
-        v-if="canAdd"
-        color="primary"
-        :prepend-icon="mdiAccountPlus"
-        :disabled="roles.length === 0 || groups.length === 0"
-        @click="addOpen = true"
-      >
-        Add member
-      </v-btn>
-    </div>
+    <SectionHeader
+      title="Members"
+      description="Each member has exactly one role and one group. Integrations add members automatically; you can also add them here."
+    >
+      <template #actions>
+        <v-btn
+          v-if="canAdd"
+          color="primary"
+          :prepend-icon="mdiAccountPlus"
+          :disabled="roles.length === 0 || groups.length === 0"
+          @click="addOpen = true"
+        >
+          Add member
+        </v-btn>
+      </template>
+    </SectionHeader>
 
     <v-alert v-if="event.status === 'draft' && canClaim === false && members.length > 0" type="info" class="mb-4">
       Access links can be created once the event is active.
