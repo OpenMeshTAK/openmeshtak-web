@@ -153,7 +153,7 @@ watch(search, () => {
       :density="props.density"
       :no-data-text="props.noDataText"
       mobile-breakpoint="sm"
-      class="app-table"
+      :class="['app-table', { 'app-table--toolbar': showSearch || slots.toolbar || slots.actions }]"
     >
       <template v-for="name in cellSlots" #[name]="scope" :key="name">
         <slot :name="name" v-bind="scope" />
@@ -168,7 +168,7 @@ watch(search, () => {
   flex-wrap: wrap;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px;
+  padding: 12px 20px 4px;
 }
 
 .data-table__search {

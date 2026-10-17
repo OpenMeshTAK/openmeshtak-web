@@ -118,7 +118,7 @@ function shift(index: number, direction: -1 | 1): void {
 
 <style scoped>
 .handle-column {
-  width: 40px;
+  width: 44px;
   padding-right: 0 !important;
 }
 

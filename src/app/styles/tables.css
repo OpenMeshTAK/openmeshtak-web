@@ -3,7 +3,7 @@
  * it, such as the drag-sortable member list. Quiet titles let the rows carry the visual weight.
  */
 .app-table thead th {
-  height: 40px !important;
+  height: 36px !important;
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -31,4 +31,30 @@
 .app-table .row-link:focus-visible {
   outline: 2px solid rgb(var(--v-theme-primary));
   outline-offset: 2px;
+}
+
+/*
+ * Tables sit in rounded cards: the outer columns get the card's 20px inset, and the last row
+ * leaves space before the rounded bottom edge instead of drawing a border into it.
+ */
+.app-table th:first-child,
+.app-table td:first-child {
+  padding-left: 20px !important;
+}
+
+.app-table th:last-child,
+.app-table td:last-child {
+  padding-right: 20px !important;
+}
+
+.app-table > .v-table__wrapper > table > tbody > tr:last-child > td {
+  border-bottom: none !important;
+}
+
+.app-table > .v-table__wrapper {
+  padding-bottom: 8px;
+}
+
+.app-table:not(.app-table--toolbar) > .v-table__wrapper {
+  padding-top: 8px;
 }
