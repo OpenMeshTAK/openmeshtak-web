@@ -148,7 +148,7 @@ async function download(): Promise<void> {
       >
         <template #toolbar>
           <div>
-            <div class="d-flex align-center ga-1 text-title-medium">
+            <div class="d-flex align-center ga-1 text-title-medium font-weight-medium">
               Locked settings
               <InfoHint label="About locked settings">
                 <p class="mb-2">

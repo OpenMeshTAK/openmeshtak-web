@@ -145,7 +145,7 @@ function onFileChosen(event: Event): void {
       >
         <template #toolbar>
           <div>
-            <div class="text-title-medium">Targeted & custom settings</div>
+            <div class="text-title-medium font-weight-medium">Targeted & custom settings</div>
             <div class="text-body-small text-medium-emphasis">
               For single groups, roles or members, and plugin or other settings without an ATAK settings page.
               <template v-if="elsewhere.topics > 0">

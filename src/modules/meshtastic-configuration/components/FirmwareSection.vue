@@ -144,7 +144,7 @@ async function apply(confirmed: FirmwareChangePreviewDto): Promise<void> {
           <v-icon :icon="mdiChip" />
         </v-avatar>
         <div class="flex-grow-1">
-          <div class="text-title-large font-weight-medium">Meshtastic {{ configuration.firmwareVersion }}</div>
+          <div class="text-title-medium font-weight-medium">Meshtastic {{ configuration.firmwareVersion }}</div>
           <div class="d-flex align-center ga-2 mt-1 flex-wrap">
             <v-chip
               v-if="configuration.verified"
