@@ -51,8 +51,8 @@ describe("published Meshtastic firmware releases", () => {
     expect(wrapper.find('a[aria-label="Release notes for 2.8.1"]').attributes("href")).toContain("v2.8.1.tested1");
   });
 
-  it("shows stale-cache context and initially limits long lists", async () => {
-    const releases = Array.from({ length: 8 }, (_, index) => ({
+  it("shows stale-cache context and pages long lists", () => {
+    const releases = Array.from({ length: 30 }, (_, index) => ({
       version: `2.8.${String(index + 1)}`,
       build: `build${String(index + 1)}`,
       channel: "stable" as const,
@@ -66,11 +66,7 @@ describe("published Meshtastic firmware releases", () => {
     });
 
     expect(wrapper.text()).toContain("the Meshtastic flasher could not be reached");
-    expect(wrapper.findAll("tbody tr")).toHaveLength(6);
-
-    const showAll = wrapper.findAll("button").find((button) => button.text() === "Show all 8");
-    expect(showAll).toBeDefined();
-    await showAll!.trigger("click");
-    expect(wrapper.findAll("tbody tr")).toHaveLength(8);
+    expect(wrapper.findAll("tbody tr")).toHaveLength(25);
+    expect(wrapper.find(".v-data-table-footer").text()).toContain("1-25 of 30");
   });
 });

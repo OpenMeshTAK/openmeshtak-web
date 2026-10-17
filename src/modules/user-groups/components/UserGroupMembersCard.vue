@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { mdiAccountMultipleOutline, mdiAccountRemoveOutline } from "@mdi/js";
+import { mdiAccountRemoveOutline } from "@mdi/js";
 import { computed, nextTick, onMounted, ref } from "vue";
+import DataTable from "@/shared/components/DataTable.vue";
 import { useAsyncData } from "@/shared/composables/useAsyncData";
 import { useToast } from "@/shared/feedback/toast";
 import { useSession } from "@/modules/auth/session";
@@ -28,6 +29,12 @@ const candidates = computed(() =>
   users.data.value.filter(({ id }) => !members.data.value.some((member) => member.id === id)),
 );
 
+const headers = computed(() => [
+  { title: "Name", key: "displayName" },
+  { title: "Email", key: "email", value: (member: UserDto) => member.email ?? "No local login" },
+  ...(canManage.value ? [{ title: "Actions", key: "actions", sortable: false, align: "end" as const }] : []),
+]);
+
 async function change(action: () => Promise<void>, done: string): Promise<void> {
   try {
     await action();
@@ -50,7 +57,7 @@ function add(userId: string | null): void {
 
 function initials(name: string): string {
   return name
-    .split(/s+/)
+    .split(/\s+/)
     .slice(0, 2)
     .map((part) => part.charAt(0).toUpperCase())
     .join("");
@@ -71,28 +78,34 @@ onMounted(() => Promise.all([members.load(), users.load()]));
 
     <v-skeleton-loader v-if="members.state.value === 'loading'" type="list-item-avatar-two-line@2" />
     <v-alert v-else-if="members.state.value === 'error'" type="error">{{ members.error.value }}</v-alert>
-    <div v-else class="member-list">
-      <div v-for="member in members.data.value" :key="member.id" class="member-row">
-        <v-avatar color="primary" variant="tonal" size="36" class="text-body-medium">{{ initials(member.displayName) }}</v-avatar>
-        <div class="member-row__text">
-          <div class="text-body-large text-truncate">{{ member.displayName }}</div>
-          <div class="text-body-small text-medium-emphasis text-truncate">{{ member.email ?? "No local login" }}</div>
-        </div>
-        <v-btn
-          v-if="canManage"
-          :icon="mdiAccountRemoveOutline"
-          variant="text"
-          size="small"
-          :aria-label="`Remove ${member.displayName} from this group`"
-          :title="`Remove ${member.displayName}`"
-          @click="change(() => removeGroupMember(userGroupId, member.id), `${member.displayName} was removed from this group.`)"
-        />
-      </div>
-      <div v-if="members.data.value.length === 0" class="member-row text-medium-emphasis">
-        <v-icon :icon="mdiAccountMultipleOutline" />
-        <span class="text-body-medium">No members yet.</span>
-      </div>
-    </div>
+    <v-card v-else variant="outlined">
+      <DataTable
+        :headers="headers"
+        :items="members.data.value"
+        search-label="Search members"
+        storage-key="user-group-members"
+        no-data-text="No members yet."
+        :sort-by="[{ key: 'displayName', order: 'asc' }]"
+      >
+        <template #[`item.displayName`]="{ item }">
+          <div class="d-flex align-center ga-3 py-1">
+            <v-avatar color="primary" variant="tonal" size="32" class="text-body-small">{{ initials(item.displayName) }}</v-avatar>
+            <span class="text-truncate">{{ item.displayName }}</span>
+          </div>
+        </template>
+        <template #[`item.email`]="{ item }"><span class="text-medium-emphasis">{{ item.email ?? "No local login" }}</span></template>
+        <template #[`item.actions`]="{ item }">
+          <v-btn
+            :icon="mdiAccountRemoveOutline"
+            variant="text"
+            size="small"
+            :aria-label="`Remove ${item.displayName} from this group`"
+            :title="`Remove ${item.displayName}`"
+            @click="change(() => removeGroupMember(userGroupId, item.id), `${item.displayName} was removed from this group.`)"
+          />
+        </template>
+      </DataTable>
+    </v-card>
 
     <template v-if="canManage && users.data.value.length > 0">
       <v-autocomplete
@@ -110,23 +123,3 @@ onMounted(() => Promise.all([members.load(), users.load()]));
     </template>
   </div>
 </template>
-
-<style scoped>
-.member-list {
-  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-  border-radius: 12px;
-}
-.member-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 8px 10px 14px;
-}
-.member-row + .member-row {
-  border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-}
-.member-row__text {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-</style>

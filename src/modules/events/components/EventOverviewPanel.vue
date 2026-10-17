@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import DataTable from "@/shared/components/DataTable.vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
 import { describeError } from "@/shared/errors/api-problem";
 import { useSession } from "@/modules/auth/session";
@@ -26,6 +27,11 @@ const loadError = ref("");
 const members = ref<EventMemberDto[]>([]);
 const groups = ref<GroupRow[]>([]);
 const roleCount = ref(0);
+const groupHeaders = computed(() => [
+  { title: "Group", key: "name" },
+  { title: "Slug", key: "slug" },
+  ...(canReadMembers.value ? [{ title: "Members", key: "members", align: "end" as const }] : []),
+]);
 const openSyncIssues = ref(0);
 const packageCount = ref<number | null>(null);
 const missionCount = ref<number | null>(null);
@@ -109,25 +115,16 @@ onMounted(load);
         </div>
 
         <v-card>
-          <v-table density="comfortable">
-            <thead>
-              <tr>
-                <th>Group</th>
-                <th>Slug</th>
-                <th v-if="canReadMembers" class="text-right">Members</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-if="groups.length === 0">
-                <td :colspan="canReadMembers ? 3 : 2" class="text-medium-emphasis">No groups yet.</td>
-              </tr>
-              <tr v-for="group in groups" :key="group.slug">
-                <td>{{ group.name }}</td>
-                <td><code>{{ group.slug }}</code></td>
-                <td v-if="canReadMembers" class="text-right">{{ group.members }}</td>
-              </tr>
-            </tbody>
-          </v-table>
+          <DataTable
+            :headers="groupHeaders"
+            :items="groups"
+            item-value="slug"
+            search-label="Search groups"
+            storage-key="event-overview-groups"
+            no-data-text="No groups yet."
+          >
+            <template #[`item.slug`]="{ item }"><code>{{ item.slug }}</code></template>
+          </DataTable>
         </v-card>
       </template>
     </v-col>
