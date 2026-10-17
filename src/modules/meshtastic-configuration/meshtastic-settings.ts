@@ -1,4 +1,4 @@
-import { mdiAccessPointNetwork, mdiBookshelf, mdiCellphoneLink, mdiChip } from "@mdi/js";
+import { mdiAccessPointNetwork, mdiBookshelf, mdiCellphoneLink, mdiChip, mdiLinkVariant } from "@mdi/js";
 import type { SettingsSearchEntry, SettingsSection } from "@/shared/settings/settings-search";
 import type { FirmwareEnumValueDto, FirmwareFieldDto, FirmwareSectionDto } from "./meshtastic-configuration.api";
 import { sectionIcon } from "./section-icons";
@@ -36,13 +36,24 @@ const SETUP: Array<Omit<SettingsSection, "group">> = [
   },
 ];
 
+/** Operation, not configuration: bindings apply at once and are never published. */
+const NODES_SECTION: SettingsSection = {
+  id: "nodes",
+  title: "Mesh nodes",
+  description: "Nodes the event's HQs heard and the member each belongs to. Bindings apply at once and are not part of the published configuration.",
+  icon: mdiLinkVariant,
+  group: "Operation",
+};
+
 export function meshtasticSections(
   profileSections: FirmwareSectionDto[],
   firmwareVersion: string,
   hasProblem: (sectionId: string) => boolean,
+  showNodes = false,
 ): SettingsSection[] {
   return [
     ...SETUP.map((section) => ({ ...section, group: "Setup", badge: section.id === "firmware" ? firmwareVersion : undefined })),
+    ...(showNodes ? [NODES_SECTION] : []),
     ...profileSections.map((section) => ({
       id: section.id,
       title: section.label,

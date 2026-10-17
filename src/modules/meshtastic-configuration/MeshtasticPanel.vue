@@ -8,6 +8,8 @@ import { useToast } from "@/shared/feedback/toast";
 import MeshtasticChannelsPanel from "@/modules/meshtastic-channels/MeshtasticChannelsPanel.vue";
 import TakConnectionSection from "@/modules/tak-configuration/TakConnectionSection.vue";
 import PresetsSection from "@/modules/settings-presets/PresetsSection.vue";
+import MeshNodeBindings from "@/modules/mesh-bindings/MeshNodeBindings.vue";
+import type { Permission } from "@/shared/api/types";
 import { useSession } from "@/modules/auth/session";
 import { canFindPresetAction } from "@/modules/settings-presets/preset-search";
 import FirmwareSection from "./components/FirmwareSection.vue";
@@ -36,6 +38,9 @@ const settingsEditable = computed(() => props.editable && session.can("meshtasti
 const channelsEditable = computed(() => props.editable && session.can("meshtastic-channels.manage", props.eventId));
 const takEditable = computed(() => props.editable && session.can("tak-settings.manage", props.eventId));
 // Core's firmware catalog needs an event-editor grant even when this panel is read-only.
+/** Core lists nodes for binding managers, uplink senders and member readers. */
+const NODE_LIST_PERMISSIONS: Permission[] = ["mesh-bindings.manage", "mesh-uplink.send", "members.read"];
+const canListNodes = computed(() => NODE_LIST_PERMISSIONS.some((permission) => session.can(permission, props.eventId)));
 const canReadFirmware = computed(() => session.can("events.manage") || session.can("meshtastic-settings.manage"));
 
 const configuration = ref<MeshtasticConfigurationDto | null>(null);
@@ -63,7 +68,7 @@ const sections = computed(() =>
   ),
 );
 const currentSection = computed(() => sections.value.find(({ id }) => id === selected.value));
-const menuSections = computed(() => meshtasticSections(sections.value, configuration.value?.firmwareVersion ?? "", sectionHasProblem));
+const menuSections = computed(() => meshtasticSections(sections.value, configuration.value?.firmwareVersion ?? "", sectionHasProblem, canListNodes.value));
 /** Rebuilt from the profile, so a firmware change never offers settings it does not support. */
 const searchIndex = computed(() => meshtasticSearchIndex(sections.value, visibleFields.value, profile.value?.enums ?? {}).filter((entry) =>
   canFindPresetAction(entry.id, settingsEditable.value, session.can) &&
@@ -167,6 +172,7 @@ onMounted(load);
       />
       <MeshtasticChannelsPanel v-else-if="selected === 'channels'" :event-id="eventId" :editable="channelsEditable" :active="false" />
       <TakConnectionSection v-else-if="selected === 'tak-connection'" :event-id="eventId" :editable="takEditable" />
+      <MeshNodeBindings v-else-if="selected === 'nodes'" :event-id="eventId" :editable="editable" />
       <PresetsSection
         v-else-if="selected === 'presets'"
         kind="meshtastic"
