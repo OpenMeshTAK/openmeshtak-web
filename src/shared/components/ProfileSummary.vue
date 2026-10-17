@@ -28,14 +28,14 @@ const meshtasticName = computed(() => {
         <div class="text-label-medium text-uppercase text-medium-emphasis text-truncate">{{ eventName }}</div>
         <div class="text-headline-medium font-weight-bold text-break callsign">{{ profile.callsign }}</div>
         <div class="d-flex flex-wrap ga-2 mt-3">
-          <v-chip size="small" label :prepend-icon="mdiAccountGroup">{{ profile.group.name }}</v-chip>
-          <v-chip size="small" label>
+          <v-chip size="small" :prepend-icon="mdiAccountGroup">{{ profile.group.name }}</v-chip>
+          <v-chip size="small">
             <template #prepend>
               <span class="team-dot mr-2" :style="{ background: teamSwatch }" aria-hidden="true" />
             </template>
             {{ profile.tak.team }} team
           </v-chip>
-          <v-chip size="small" label :prepend-icon="mdiMapMarkerAccount">{{ profile.tak.role }}</v-chip>
+          <v-chip size="small" :prepend-icon="mdiMapMarkerAccount">{{ profile.tak.role }}</v-chip>
         </div>
       </div>
 
@@ -60,7 +60,6 @@ const meshtasticName = computed(() => {
               :key="channel.id"
               size="x-small"
               variant="tonal"
-              label
               :prepend-icon="channel.delivery === 'on-site' ? mdiTimerSand : undefined"
             >
               {{ channel.name }}<template v-if="channel.delivery === 'on-site'">&nbsp;· handed out on site</template>

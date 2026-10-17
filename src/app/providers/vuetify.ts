@@ -49,6 +49,8 @@ export const vuetify = createVuetify({
     VAutocomplete: { variant: "outlined", density: "comfortable", color: "primary" },
     VCombobox: { variant: "outlined", density: "comfortable", color: "primary" },
     VAlert: { variant: "tonal", rounded: "lg" },
+    // Status chips are small square tags everywhere, so a round chip never means something else.
+    VChip: { label: true },
     // Short slide-and-fade tab panels, see src/app/styles/transitions.css.
     VWindowItem: { transition: "tab-panel-forward", reverseTransition: "tab-panel-back" },
   },

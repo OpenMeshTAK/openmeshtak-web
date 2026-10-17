@@ -43,11 +43,11 @@ const description = computed(() => {
     <template #hint>
       <p class="mb-3">{{ definition.description }}.</p>
       <div class="d-flex align-center ga-2 mb-2">
-        <v-chip size="small" label variant="tonal" color="primary" class="hint-badge">Default</v-chip>
+        <v-chip size="small" variant="tonal" color="primary" class="hint-badge">Default</v-chip>
         <span>{{ defaultLabel ?? "ATAK sets none" }}</span>
       </div>
       <div class="d-flex align-center ga-2">
-        <v-chip size="small" label variant="tonal" class="hint-badge">Key</v-chip>
+        <v-chip size="small" variant="tonal" class="hint-badge">Key</v-chip>
         <code>{{ definition.key }}</code>
       </div>
     </template>

@@ -147,7 +147,7 @@ onMounted(load);
         <template #[`item.slug`]="{ item }"><code>{{ item.slug }}</code></template>
         <template #[`item.shortNames`]="{ item }">
           <span v-if="item.provisioning.shortNamePrefix">{{ item.provisioning.shortNamePrefix }}1, {{ item.provisioning.shortNamePrefix }}2, …</span>
-          <v-chip v-else color="warning" size="small" variant="tonal" label>Prefix missing</v-chip>
+          <v-chip v-else color="warning" size="small" variant="tonal">Prefix missing</v-chip>
         </template>
         <template #[`item.actions`]="{ item }">
           <span class="text-no-wrap">

@@ -76,7 +76,7 @@ async function download(): Promise<void> {
     <template v-else>
       <div class="d-flex align-center flex-wrap ga-2 mb-1">
         <span class="text-body-large">Flash firmware</span>
-        <v-chip size="small" color="primary" variant="tonal" label class="font-weight-bold">
+        <v-chip size="small" color="primary" variant="tonal" class="font-weight-bold">
           {{ firmware.recommendedVersion }}
         </v-chip>
         <span class="text-body-medium text-medium-emphasis">at least {{ firmware.minimumVersion }} · {{ firmware.channel }}</span>

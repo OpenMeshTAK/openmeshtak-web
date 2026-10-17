@@ -361,18 +361,16 @@ onMounted(() => {
                   size="small"
                   color="success"
                   variant="tonal"
-                  label
                   :title="`Revision ${String(dataPackage.latestRevision)} is published`"
                 >
                   Rev. {{ dataPackage.latestRevision }}
                 </v-chip>
-                <v-chip v-else size="small" variant="tonal" label>Draft</v-chip>
+                <v-chip v-else size="small" variant="tonal">Draft</v-chip>
                 <v-chip
                   v-if="dataPackage.latestRevision && dataPackage.hasUnpublishedChanges"
                   size="small"
                   color="warning"
                   variant="tonal"
-                  label
                   title="The draft has changes that members do not receive yet"
                 >
                   Unpublished

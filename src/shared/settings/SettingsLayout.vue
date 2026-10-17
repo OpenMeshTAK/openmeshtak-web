@@ -143,7 +143,7 @@ async function open(entry: SettingsSearchEntry): Promise<void> {
               @click="open(entry)"
             >
               <template v-if="entry.advanced" #append>
-                <v-chip size="small" variant="tonal" label>Advanced</v-chip>
+                <v-chip size="small" variant="tonal">Advanced</v-chip>
               </template>
             </v-list-item>
           </v-list>

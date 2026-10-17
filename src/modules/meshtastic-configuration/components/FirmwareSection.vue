@@ -150,13 +150,12 @@ async function apply(confirmed: FirmwareChangePreviewDto): Promise<void> {
               v-if="configuration.verified"
               size="small"
               variant="tonal"
-              label
               color="success"
               :prepend-icon="mdiCheckDecagram"
             >
               Tested on a device
             </v-chip>
-            <v-chip v-if="profile && profile.channel !== 'stable'" size="small" variant="tonal" label color="warning">
+            <v-chip v-if="profile && profile.channel !== 'stable'" size="small" variant="tonal" color="warning">
               {{ capitalize(profile.channel) }} firmware
             </v-chip>
           </div>
@@ -221,7 +220,7 @@ async function apply(confirmed: FirmwareChangePreviewDto): Promise<void> {
             <div v-for="row in reportRows" :key="row.title" class="mb-4">
               <div class="text-title-small mb-2">{{ row.title }} · {{ row.keys.length }}</div>
               <div class="d-flex flex-wrap ga-1">
-                <v-chip v-for="key in row.keys" :key="key" :color="row.color" size="small" variant="tonal" label>
+                <v-chip v-for="key in row.keys" :key="key" :color="row.color" size="small" variant="tonal">
                   {{ label(key) }}
                 </v-chip>
               </div>

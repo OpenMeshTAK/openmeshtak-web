@@ -136,7 +136,7 @@ function errorFor(field: FirmwareFieldDto): string | undefined {
               :data-setting-id="settingId(field.key)"
             >
               <template #append>
-                <v-chip size="small" variant="tonal" label :prepend-icon="mdiLock">Managed</v-chip>
+                <v-chip size="small" variant="tonal" :prepend-icon="mdiLock">Managed</v-chip>
               </template>
             </v-list-item>
           </template>

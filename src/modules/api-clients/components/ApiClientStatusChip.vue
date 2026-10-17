@@ -5,7 +5,7 @@ defineProps<{ status: Schemas["ApiClientStatus"] }>();
 </script>
 
 <template>
-  <v-chip :color="status === 'active' ? 'success' : 'secondary'" size="small" variant="tonal" label>
+  <v-chip :color="status === 'active' ? 'success' : 'secondary'" size="small" variant="tonal">
     {{ status === "active" ? "Active" : "Disabled" }}
   </v-chip>
 </template>

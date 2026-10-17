@@ -96,7 +96,7 @@ function removeEvent(eventId: string): void {
           <div class="text-body-large">{{ scope.name }}</div>
           <div class="text-body-small text-medium-emphasis">{{ scope.description }}</div>
         </div>
-        <v-chip size="small" label variant="tonal" :color="permissionsFor(scope.eventId).length > 0 ? 'primary' : undefined">
+        <v-chip size="small" variant="tonal" :color="permissionsFor(scope.eventId).length > 0 ? 'primary' : undefined">
           {{ countLabel(scope.eventId) }}
         </v-chip>
         <v-btn variant="tonal" size="small" :prepend-icon="mdiPencil" @click="edit(scope)">

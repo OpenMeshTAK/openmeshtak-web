@@ -61,13 +61,13 @@ const fieldLabel = computed(() => props.label ?? (props.members === null ? "Grou
     <template #item="{ props: itemProps, item }">
       <v-list-item v-bind="itemProps" title="">
         <span class="d-inline-flex align-center ga-2">
-          <v-chip size="x-small" label variant="tonal" :color="COLORS[item.kind]" class="audience-kind">{{ item.kind }}</v-chip>
+          <v-chip size="x-small" variant="tonal" :color="COLORS[item.kind]" class="audience-kind">{{ item.kind }}</v-chip>
           {{ item.title }}
         </span>
       </v-list-item>
     </template>
     <template #chip="{ props: chipProps, item }">
-      <v-chip v-bind="chipProps" size="small" :color="COLORS[item.kind]" variant="tonal" label>
+      <v-chip v-bind="chipProps" size="small" :color="COLORS[item.kind]" variant="tonal">
         {{ item.kind }} · {{ item.title }}
       </v-chip>
     </template>

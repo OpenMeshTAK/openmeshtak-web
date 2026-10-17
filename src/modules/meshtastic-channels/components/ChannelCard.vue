@@ -73,7 +73,7 @@ const withheld = computed(() => props.channel.secret && props.channel.releasedAt
     <div class="flex-grow-1" style="min-width: 0">
       <div class="d-flex align-center flex-wrap ga-2 mb-1">
         <span class="text-title-medium font-weight-medium text-break">{{ channel.name }}</span>
-        <v-chip v-if="channel.primary" size="small" color="primary" variant="tonal" label :prepend-icon="mdiStar">
+        <v-chip v-if="channel.primary" size="small" color="primary" variant="tonal" :prepend-icon="mdiStar">
           Primary
         </v-chip>
         <v-chip
@@ -81,7 +81,6 @@ const withheld = computed(() => props.channel.secret && props.channel.releasedAt
           size="small"
           :color="withheld ? 'warning' : 'success'"
           variant="tonal"
-          label
           :prepend-icon="withheld ? mdiLock : mdiLockOpenVariant"
         >
           {{ withheld ? "Secret · handed out on site" : "Secret · released" }}

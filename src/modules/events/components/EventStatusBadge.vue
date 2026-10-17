@@ -16,5 +16,5 @@ const appearance = computed(
 </script>
 
 <template>
-  <v-chip :color="appearance.color" size="small" variant="tonal" label>{{ appearance.label }}</v-chip>
+  <v-chip :color="appearance.color" size="small" variant="tonal">{{ appearance.label }}</v-chip>
 </template>

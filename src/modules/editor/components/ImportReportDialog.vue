@@ -28,7 +28,7 @@ const sections = computed(() =>
         </p>
         <div v-for="section in sections" :key="section.title" class="mb-4">
           <div class="text-title-small mb-1">
-            <v-chip :color="section.color" size="small" label class="mr-2">{{ section.entries.length }}</v-chip>
+            <v-chip :color="section.color" size="small" class="mr-2">{{ section.entries.length }}</v-chip>
             {{ section.title }}
           </div>
           <v-list density="compact" class="py-0">

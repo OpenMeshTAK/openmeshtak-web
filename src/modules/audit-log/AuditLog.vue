@@ -161,7 +161,7 @@ function download(): void {
       <div class="d-flex flex-wrap align-center ga-3 mb-3">
         <slot name="scope" />
         <v-chip-group v-model="shownResults" multiple selected-class="result-filter--on" class="py-0">
-          <v-chip v-for="filter in RESULTS" :key="filter.value" :value="filter.value" :color="filter.color" class="result-filter" variant="tonal" label>
+          <v-chip v-for="filter in RESULTS" :key="filter.value" :value="filter.value" :color="filter.color" class="result-filter" variant="tonal">
             {{ filter.label }}
           </v-chip>
         </v-chip-group>

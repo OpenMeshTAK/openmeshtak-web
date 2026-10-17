@@ -51,7 +51,7 @@ function capitalize(value: string): string {
         <span :class="{ 'text-warning': item.channel === 'alpha' }">{{ capitalize(item.channel) }}</span>
       </template>
       <template #[`item.support`]="{ item }">
-        <v-chip v-if="item.support === 'tested'" size="small" variant="tonal" label color="success" :prepend-icon="mdiCheckDecagram">
+        <v-chip v-if="item.support === 'tested'" size="small" variant="tonal" color="success" :prepend-icon="mdiCheckDecagram">
           Tested on a device
         </v-chip>
         <span v-else-if="item.support === 'supported'">Supported</span>

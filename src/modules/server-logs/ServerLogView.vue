@@ -186,7 +186,6 @@ function download(): void {
             :color="filter.color"
             class="level-filter"
             variant="tonal"
-            label
           >
             {{ filter.label }}
             <span class="level-filter__count">{{ counts[filter.value] }}</span>

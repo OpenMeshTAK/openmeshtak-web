@@ -148,14 +148,13 @@ onMounted(async () => {
         <template #[`item.name`]="{ item }">
           <div class="d-flex align-center flex-wrap ga-2 py-2">
             <span class="font-weight-medium text-break">{{ item.name }}</span>
-            <v-chip v-if="item.latestRevision" size="small" color="success" variant="tonal" label>Rev. {{ item.latestRevision }}</v-chip>
-            <v-chip v-else size="small" variant="tonal" label>Not synced</v-chip>
+            <v-chip v-if="item.latestRevision" size="small" color="success" variant="tonal">Rev. {{ item.latestRevision }}</v-chip>
+            <v-chip v-else size="small" variant="tonal">Not synced</v-chip>
             <v-chip
               v-if="item.latestRevision && item.hasUnpublishedChanges"
               size="small"
               color="warning"
               variant="tonal"
-              label
               title="The editor has changes that subscribed TAK apps have not received yet"
             >
               Unsynced

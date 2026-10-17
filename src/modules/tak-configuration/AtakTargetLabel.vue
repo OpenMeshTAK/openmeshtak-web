@@ -14,7 +14,7 @@ const COLORS: Record<TargetOption["kind"], string | undefined> = {
 
 <template>
   <span class="d-inline-flex align-center ga-2 text-no-wrap">
-    <v-chip size="x-small" label variant="tonal" :color="COLORS[target.kind]" class="target-kind">{{ target.kind }}</v-chip>
+    <v-chip size="x-small" variant="tonal" :color="COLORS[target.kind]" class="target-kind">{{ target.kind }}</v-chip>
     <span>{{ target.name }}</span>
     <span v-if="target.detail" class="text-medium-emphasis">{{ target.detail }}</span>
   </span>

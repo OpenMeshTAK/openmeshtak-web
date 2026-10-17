@@ -244,7 +244,7 @@ async function confirm(): Promise<void> {
                         <code class="text-body-small text-medium-emphasis">{{ change.key }}</code>
                       </td>
                       <td class="changes__value">
-                        <v-chip v-if="change.isNew" size="x-small" label variant="tonal" color="success" class="mr-2">New</v-chip>
+                        <v-chip v-if="change.isNew" size="x-small" variant="tonal" color="success" class="mr-2">New</v-chip>
                         <template v-else><span class="text-medium-emphasis">{{ change.from ?? "—" }}</span> → </template>
                         <span class="font-weight-medium">{{ change.to }}</span>
                       </td>

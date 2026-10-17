@@ -91,7 +91,7 @@ watch(
         <div class="flex-grow-1 editor-title">
           <div class="d-flex align-center ga-2">
             <span class="text-title-large font-weight-medium text-truncate">{{ page.data.value?.group.name ?? "User group" }}</span>
-            <v-chip v-if="page.data.value?.group.system" size="x-small" label variant="tonal">System</v-chip>
+            <v-chip v-if="page.data.value?.group.system" size="x-small" variant="tonal">System</v-chip>
           </div>
           <div class="text-body-small text-medium-emphasis">User group · grants its members access to OpenMeshTak</div>
         </div>

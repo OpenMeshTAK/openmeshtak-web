@@ -88,7 +88,7 @@ onMounted(groups.load);
         <template #[`item.name`]="{ item }">
           <router-link :to="{ name: 'user-group-detail', params: { userGroupId: item.id } }" class="row-link" @click.stop>
             <span class="font-weight-medium">{{ item.name }}</span>
-            <v-chip v-if="item.system" size="x-small" class="ml-2" label>System</v-chip>
+            <v-chip v-if="item.system" size="x-small" class="ml-2">System</v-chip>
           </router-link>
         </template>
         <template #[`item.actions`]="{ item }">
