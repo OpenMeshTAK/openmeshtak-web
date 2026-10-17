@@ -257,7 +257,7 @@ onMounted(load);
   <ViewContent>
     <ViewHeader title="Users" subtitle="Everyone with an OpenMeshTak account. Permissions come from user groups.">
       <template #actions>
-        <v-btn v-if="canCreateUsers" color="primary" :prepend-icon="mdiAccountPlus" @click="createOpen = true">Create user</v-btn>
+        <v-btn v-if="canCreateUsers" color="primary" :prepend-icon="mdiAccountPlus" @click="createOpen = true">New user</v-btn>
       </template>
     </ViewHeader>
 

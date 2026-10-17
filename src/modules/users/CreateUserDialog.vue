@@ -148,7 +148,7 @@ watch(open, (isOpen) => {
 <template>
   <v-dialog v-model="open" max-width="560">
     <v-card class="pa-2">
-      <v-card-title class="text-wrap">{{ created ? `Setup link for ${created.user.displayName}` : "Create user" }}</v-card-title>
+      <v-card-title class="text-wrap">{{ created ? `Setup link for ${created.user.displayName}` : "New user" }}</v-card-title>
       <v-card-text>
         <OneTimeLinkReveal v-if="created" :url="created.setupLink.url" :expires-at="created.setupLink.expiresAt" label="Setup link">
           Anyone with this link can set up the account of {{ created.user.displayName }}. Share it

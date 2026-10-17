@@ -202,7 +202,7 @@ onMounted(load);
         data-setting-id="meshtastic:add-channel"
         @click="openChannel(null)"
       >
-        Add channel
+        New channel
       </v-btn>
     </SettingsHeaderActions>
 

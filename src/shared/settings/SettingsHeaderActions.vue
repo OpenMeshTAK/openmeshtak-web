@@ -3,7 +3,7 @@ import { computed, inject } from "vue";
 import { SETTINGS_HEADER_ACTIONS } from "./header-actions";
 
 /**
- * Shows a section's actions, such as "Add channel" or a module switch, in the settings header next
+ * Shows a section's actions, such as "New channel" or a module switch, in the settings header next
  * to the section title. Outside a settings layout the actions stay where they are written.
  */
 const target = inject(SETTINGS_HEADER_ACTIONS, null);

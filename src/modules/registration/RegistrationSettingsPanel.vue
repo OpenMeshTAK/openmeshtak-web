@@ -163,7 +163,7 @@ onMounted(load);
             <div class="text-title-small font-weight-medium">Invite links</div>
             <div class="text-body-medium text-medium-emphasis">Each link creates one account and expires after seven days.</div>
           </div>
-          <v-btn color="primary" variant="tonal" :prepend-icon="mdiLinkPlus" :loading="creating" @click="createInvite">Create invite link</v-btn>
+          <v-btn color="primary" variant="tonal" :prepend-icon="mdiLinkPlus" :loading="creating" @click="createInvite">New invite link</v-btn>
         </div>
         <v-divider />
         <DataTable

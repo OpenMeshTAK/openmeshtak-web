@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { mdiDeleteOutline, mdiPencil } from "@mdi/js";
+import { mdiDeleteOutline, mdiPencil, mdiPlus } from "@mdi/js";
 import { computed, onMounted, ref } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import DataTable from "@/shared/components/DataTable.vue";
@@ -142,7 +142,7 @@ onMounted(load);
   <div>
     <div class="d-flex align-center mb-2">
       <div class="text-title-small flex-grow-1">Groups</div>
-      <v-btn v-if="editable" size="small" variant="tonal" @click="open(null)">New TAK group</v-btn>
+      <v-btn v-if="editable" variant="tonal" :prepend-icon="mdiPlus" @click="open(null)">New TAK group</v-btn>
     </div>
 
     <v-skeleton-loader v-if="state === 'loading'" type="table-row@3" />

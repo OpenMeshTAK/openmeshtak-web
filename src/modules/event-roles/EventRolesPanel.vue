@@ -131,7 +131,7 @@ onMounted(load);
       <p class="text-body-medium text-medium-emphasis flex-grow-1 my-0">
         Every member has exactly one event role. Integrations refer to roles by their slug.
       </p>
-      <v-btn v-if="editable" color="primary" :prepend-icon="mdiPlus" @click="open(null)">Add role</v-btn>
+      <v-btn v-if="editable" color="primary" :prepend-icon="mdiPlus" @click="open(null)">New role</v-btn>
     </div>
 
     <v-skeleton-loader v-if="state === 'loading'" type="table" />
@@ -160,7 +160,7 @@ onMounted(load);
 
     <v-dialog v-model="dialogOpen" max-width="520">
       <v-card class="pa-2">
-        <v-card-title>{{ editing ? "Edit role" : "Add role" }}</v-card-title>
+        <v-card-title>{{ editing ? "Edit role" : "New role" }}</v-card-title>
         <v-card-text>
           <v-alert v-if="formError" type="error" class="mb-4">{{ formError }}</v-alert>
           <v-text-field

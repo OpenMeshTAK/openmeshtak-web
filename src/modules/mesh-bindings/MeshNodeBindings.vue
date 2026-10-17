@@ -160,8 +160,8 @@ onMounted(load);
 <template>
   <div>
     <SettingsHeaderActions>
-      <v-btn variant="text" size="small" :prepend-icon="mdiRefresh" :disabled="state === 'loading'" @click="load">Refresh</v-btn>
-      <v-btn v-if="canPickMember" color="primary" size="small" :prepend-icon="mdiLinkVariantPlus" @click="openBind(null)">Bind a node</v-btn>
+      <v-btn variant="text" :prepend-icon="mdiRefresh" :disabled="state === 'loading'" @click="load">Refresh</v-btn>
+      <v-btn v-if="canPickMember" color="primary" :prepend-icon="mdiLinkVariantPlus" @click="openBind(null)">Bind a node</v-btn>
     </SettingsHeaderActions>
 
     <v-skeleton-loader v-if="state === 'loading'" type="table-row@4" />

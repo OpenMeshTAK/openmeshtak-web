@@ -135,7 +135,7 @@ onMounted(load);
         Groups are tactical units such as Bravo. They define callsigns, TAK team and Meshtastic short-name
         settings for their members; they never grant administrative rights.
       </p>
-      <v-btn v-if="editable" color="primary" :prepend-icon="mdiPlus" @click="open(null)">Add group</v-btn>
+      <v-btn v-if="editable" color="primary" :prepend-icon="mdiPlus" @click="open(null)">New group</v-btn>
     </div>
 
     <v-skeleton-loader v-if="state === 'loading'" type="table" />
@@ -160,7 +160,7 @@ onMounted(load);
 
     <v-dialog v-model="dialogOpen" max-width="640" scrollable>
       <v-card class="pa-2">
-        <v-card-title>{{ editing ? "Edit group" : "Add group" }}</v-card-title>
+        <v-card-title>{{ editing ? "Edit group" : "New group" }}</v-card-title>
         <v-card-text>
           <v-alert v-if="formError" type="error" class="mb-4">{{ formError }}</v-alert>
           <v-text-field

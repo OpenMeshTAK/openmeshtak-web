@@ -87,7 +87,7 @@ async function save(): Promise<void> {
 <template>
   <v-dialog v-model="open" max-width="640" scrollable>
     <v-card class="pa-2">
-      <v-card-title>{{ channel ? `Edit channel ${channel.name}` : "Add channel" }}</v-card-title>
+      <v-card-title>{{ channel ? `Edit channel ${channel.name}` : "New channel" }}</v-card-title>
       <v-card-text>
         <v-alert v-if="formError" type="error" class="mb-4">{{ formError }}</v-alert>
         <v-text-field

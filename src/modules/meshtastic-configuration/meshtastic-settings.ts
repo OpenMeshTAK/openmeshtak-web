@@ -76,7 +76,7 @@ export function meshtasticSearchIndex(
   const titles = new Map(profileSections.map(({ id, label }) => [id, label]));
   const setup: SettingsSearchEntry[] = [
     { id: "meshtastic:firmware", sectionId: "firmware", sectionTitle: "Firmware", label: "Change firmware", description: "Firmware version and minimum patch" },
-    { id: "meshtastic:add-channel", sectionId: "channels", sectionTitle: "Channels", label: "Add channel", description: "Primary and secondary channels, audiences, secret channels" },
+    { id: "meshtastic:add-channel", sectionId: "channels", sectionTitle: "Channels", label: "New channel", description: "Primary and secondary channels, audiences, secret channels" },
     { id: "meshtastic:tak-channel", sectionId: "tak-connection", sectionTitle: "TAK connection", label: "TAK mesh channel", description: "Channel the Meshtastic app sends TAK on" },
     { id: "presets:download", sectionId: "presets", sectionTitle: "Presets", label: "Download preset", description: "Export the radio settings as a JSON preset" },
     { id: "presets:import-library", sectionId: "presets", sectionTitle: "Presets", label: "Choose from library", description: "Import radio settings from the preset library" },
