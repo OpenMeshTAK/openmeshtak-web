@@ -74,7 +74,7 @@ defineExpose({ load });
     <EmptyState v-else-if="issues.length === 0" :icon="mdiCheckCircleOutline" title="No open sync issues" />
 
     <div v-else class="d-flex flex-column ga-4">
-      <v-card v-for="issue in issues" :key="issue.id" class="pa-4">
+      <v-card v-for="issue in issues" :key="issue.id" class="pa-5">
         <div class="d-flex flex-wrap align-center ga-2 mb-2">
           <span class="text-title-medium font-weight-medium">{{ issue.username }}</span>
           <span class="text-body-small text-medium-emphasis">{{ issue.provider }} · {{ issue.externalId }}</span>

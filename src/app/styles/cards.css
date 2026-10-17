@@ -1,0 +1,8 @@
+/*
+ * Card content starts 20px from the card edge: tables, settings rows, page cards (pa-5) and lists
+ * placed directly in a card. Navigation lists keep Vuetify's own inset for their rounded items.
+ */
+.v-card > .v-list:not(.v-list--nav) > .v-list-item {
+  padding-inline-start: 20px !important;
+  padding-inline-end: 12px !important;
+}

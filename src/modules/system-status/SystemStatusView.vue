@@ -161,7 +161,7 @@ onUnmounted(() => {
     <ErrorState v-else-if="status.state.value === 'error'" :message="status.error.value" @retry="status.load" />
 
     <template v-else-if="status.data.value !== null">
-      <v-card class="mb-3 px-4 py-3">
+      <v-card class="mb-3 px-5 py-4">
         <v-row dense>
           <v-col v-for="check in status.data.value.checks" :key="check.id" cols="12" sm="6" xl="4" class="d-flex ga-3 align-start">
             <v-icon :icon="icons[check.state]" :color="colors[check.state]" size="20" class="mt-1" />
@@ -173,7 +173,7 @@ onUnmounted(() => {
         </v-row>
       </v-card>
 
-      <v-card class="mb-3 px-4 py-3">
+      <v-card class="mb-3 px-5 py-4">
         <v-row dense>
           <v-col v-for="row in numbers" :key="row.label" cols="6" sm="4" lg="3">
             <div class="text-body-small text-medium-emphasis">{{ row.label }}</div>
@@ -191,7 +191,7 @@ onUnmounted(() => {
       </div>
       <v-row dense>
         <v-col v-for="chart in charts" :key="chart.title" cols="12" sm="6" lg="4" xl>
-          <v-card class="px-4 pt-3 pb-2 h-100">
+          <v-card class="px-5 pt-4 pb-2 h-100">
             <MetricChart :title="chart.title" :points="chart.points" :format="chart.format" :max="chart.max" :suffix="chart.suffix" />
           </v-card>
         </v-col>
@@ -205,7 +205,7 @@ onUnmounted(() => {
         />
       </div>
       <v-card>
-        <div v-if="status.data.value.problems.length === 0" class="px-4 py-3 text-body-medium text-medium-emphasis">
+        <div v-if="status.data.value.problems.length === 0" class="px-5 py-4 text-body-medium text-medium-emphasis">
           No warnings or errors in the last seven days.
         </div>
         <DataTable

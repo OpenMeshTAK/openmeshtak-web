@@ -108,7 +108,7 @@ onMounted(load);
 
       <template v-else>
         <div class="overview-stats mb-4">
-          <v-card v-for="stat in stats" :key="stat.tab" class="pa-4" @click="emit('open', stat.tab)">
+          <v-card v-for="stat in stats" :key="stat.tab" class="pa-5" @click="emit('open', stat.tab)">
             <div class="text-headline-small" :class="{ 'text-error': stat.warn }">{{ stat.value }}</div>
             <div class="text-body-medium text-medium-emphasis">{{ stat.label }}</div>
           </v-card>

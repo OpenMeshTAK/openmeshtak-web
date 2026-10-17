@@ -73,9 +73,9 @@ async function remove(): Promise<void> {
         </InfoHint>
       </div>
     </template>
-    <div v-if="page.state.value === 'loading'" class="pa-4"><v-skeleton-loader type="list-item-two-line" /></div>
-    <div v-else-if="page.state.value === 'error' || page.data.value === null" class="pa-4"><ErrorState :message="page.error.value" @retry="page.load" /></div>
-    <div v-else class="d-flex align-center flex-wrap ga-3 px-4 pb-4 pt-3">
+    <div v-if="page.state.value === 'loading'" class="pa-5"><v-skeleton-loader type="list-item-two-line" /></div>
+    <div v-else-if="page.state.value === 'error' || page.data.value === null" class="pa-5"><ErrorState :message="page.error.value" @retry="page.load" /></div>
+    <div v-else class="d-flex align-center flex-wrap ga-3 px-5 pb-4 pt-3">
       <div class="flex-grow-1">
         <template v-if="page.data.value.icons > 0">
           <div class="text-body-large">{{ page.data.value.icons }} icons · {{ page.data.value.sets }} sets · {{ page.data.value.groups }} groups</div>

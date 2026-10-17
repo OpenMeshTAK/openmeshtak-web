@@ -134,8 +134,8 @@ onMounted(page.load);
       </div>
     </template>
 
-    <div v-if="page.state.value === 'loading'" class="pa-4"><v-skeleton-loader type="list-item-two-line" /></div>
-    <div v-else-if="page.state.value === 'error' || page.data.value === null" class="pa-4"><ErrorState :message="page.error.value" @retry="page.load" /></div>
+    <div v-if="page.state.value === 'loading'" class="pa-5"><v-skeleton-loader type="list-item-two-line" /></div>
+    <div v-else-if="page.state.value === 'error' || page.data.value === null" class="pa-5"><ErrorState :message="page.error.value" @retry="page.load" /></div>
     <v-list v-else lines="two" class="pt-1 pb-2">
       <v-list-item
         v-for="layer in page.data.value.layers"

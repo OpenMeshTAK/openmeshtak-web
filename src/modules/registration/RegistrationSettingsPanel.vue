@@ -133,10 +133,10 @@ onMounted(load);
         <p class="mb-0">Event participants never need to register: they arrive through their personal access links in every mode.</p>
       </InfoHint>
     </template>
-    <div v-if="state === 'loading'" class="pa-4"><v-skeleton-loader type="article" /></div>
-    <div v-else-if="state === 'error'" class="pa-4"><ErrorState :message="loadError" @retry="load" /></div>
+    <div v-if="state === 'loading'" class="pa-5"><v-skeleton-loader type="article" /></div>
+    <div v-else-if="state === 'error'" class="pa-5"><ErrorState :message="loadError" @retry="load" /></div>
     <template v-else>
-      <div class="px-4 pb-4 pt-3">
+      <div class="px-5 pb-4 pt-3">
         <v-radio-group v-model="mode" hide-details aria-label="Registration mode">
           <div class="mode-options">
             <div v-for="option in modes" :key="option.value">
@@ -158,7 +158,7 @@ onMounted(load);
 
       <template v-if="settings?.mode === 'invite'">
         <v-divider />
-        <div class="d-flex align-center flex-wrap ga-2 pa-4">
+        <div class="d-flex align-center flex-wrap ga-2 pa-5">
           <div class="flex-grow-1">
             <div class="text-title-small font-weight-medium">Invite links</div>
             <div class="text-body-medium text-medium-emphasis">Each link creates one account and expires after seven days.</div>
@@ -183,7 +183,7 @@ onMounted(load);
             <v-btn v-if="item.status === 'open'" variant="text" size="small" color="error" @click="revoke(item)">Revoke</v-btn>
           </template>
         </DataTable>
-        <p v-else class="text-body-medium text-medium-emphasis pa-4 my-0">No invite links yet.</p>
+        <p v-else class="text-body-medium text-medium-emphasis pa-5 my-0">No invite links yet.</p>
       </template>
     </template>
 

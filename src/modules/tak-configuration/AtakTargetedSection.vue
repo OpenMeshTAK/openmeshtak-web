@@ -131,7 +131,7 @@ function onFileChosen(event: Event): void {
         </v-btn>
         <input ref="fileInput" type="file" accept=".pref,.xml" hidden @change="onFileChosen">
       </SettingsRow>
-      <div v-if="editable && dirty" class="text-body-small text-medium-emphasis px-4 pb-3">Save or discard your changes before importing.</div>
+      <div v-if="editable && dirty" class="text-body-small text-medium-emphasis px-5 pb-3">Save or discard your changes before importing.</div>
     </v-card>
 
     <v-card class="mb-4" data-setting-id="tak:add">

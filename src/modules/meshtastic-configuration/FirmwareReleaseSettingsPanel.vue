@@ -33,9 +33,9 @@ onMounted(page.load);
 
 <template>
   <FormSection title="Meshtastic firmware releases" description="Which firmware builds exist, from the official Meshtastic flasher.">
-    <div v-if="page.state.value === 'loading'" class="pa-4"><v-skeleton-loader type="list-item-two-line" /></div>
-    <div v-else-if="page.state.value === 'error' || page.data.value === null" class="pa-4"><ErrorState :message="page.error.value" @retry="page.load" /></div>
-    <div v-else class="px-4 pb-4 pt-3 d-flex align-center ga-4">
+    <div v-if="page.state.value === 'loading'" class="pa-5"><v-skeleton-loader type="list-item-two-line" /></div>
+    <div v-else-if="page.state.value === 'error' || page.data.value === null" class="pa-5"><ErrorState :message="page.error.value" @retry="page.load" /></div>
+    <div v-else class="px-5 pb-4 pt-3 d-flex align-center ga-4">
       <div class="flex-grow-1">
         <div class="d-flex align-center ga-1">
           <span class="text-title-small font-weight-medium">Look up published releases</span>

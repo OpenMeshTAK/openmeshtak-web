@@ -132,10 +132,10 @@ onMounted(async () => {
 
 <template>
   <FormSection title="Email" description="SMTP delivery for password resets, address confirmations and security notices.">
-    <div v-if="page.state.value === 'loading'" class="pa-4"><v-skeleton-loader type="list-item-two-line" /></div>
-    <div v-else-if="page.state.value === 'error' || page.data.value === null" class="pa-4"><ErrorState :message="page.error.value" @retry="page.load" /></div>
+    <div v-if="page.state.value === 'loading'" class="pa-5"><v-skeleton-loader type="list-item-two-line" /></div>
+    <div v-else-if="page.state.value === 'error' || page.data.value === null" class="pa-5"><ErrorState :message="page.error.value" @retry="page.load" /></div>
     <template v-else>
-      <div class="px-4 pb-4 pt-3">
+      <div class="px-5 pb-4 pt-3">
         <div class="d-flex align-center ga-4" :class="{ 'mb-3': form.enabled }">
           <div class="flex-grow-1">
             <div class="text-title-small font-weight-medium">Send emails over SMTP</div>

@@ -45,7 +45,7 @@ defineProps<{
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 12px 8px 12px 16px;
+  padding: 12px 12px 12px 20px;
 }
 .settings-row__text {
   flex: 1 1 auto;

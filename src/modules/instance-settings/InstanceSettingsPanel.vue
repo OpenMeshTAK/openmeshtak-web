@@ -41,9 +41,9 @@ onMounted(async () => {
 
 <template>
   <FormSection title="Installation" description="The name people see in the browser tab, on the sign-in page and in account emails.">
-    <div v-if="page.state.value === 'loading'" class="pa-4"><v-skeleton-loader type="list-item-two-line" /></div>
-    <div v-else-if="page.state.value === 'error' || page.data.value === null" class="pa-4"><ErrorState :message="page.error.value" @retry="page.load" /></div>
-    <div v-else class="px-4 pb-4 pt-3 d-flex align-start ga-3">
+    <div v-if="page.state.value === 'loading'" class="pa-5"><v-skeleton-loader type="list-item-two-line" /></div>
+    <div v-else-if="page.state.value === 'error' || page.data.value === null" class="pa-5"><ErrorState :message="page.error.value" @retry="page.load" /></div>
+    <div v-else class="px-5 pb-4 pt-3 d-flex align-start ga-3">
       <v-text-field
         v-model="name"
         label="Name"

@@ -9,7 +9,7 @@ defineProps<{ title: string; description?: string }>();
 
 <template>
   <v-card tag="section">
-    <div class="d-flex align-start ga-3 px-4 pt-3">
+    <div class="d-flex align-start ga-3 px-5 pt-4">
       <div class="flex-grow-1">
         <h2 class="text-title-medium font-weight-medium ma-0">{{ title }}</h2>
         <p v-if="description" class="text-body-medium text-medium-emphasis ma-0">{{ description }}</p>

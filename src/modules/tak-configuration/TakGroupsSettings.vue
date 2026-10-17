@@ -111,7 +111,7 @@ onMounted(load);
         </template>
         <template v-if="editable && dirty">
           <v-divider />
-          <div class="d-flex justify-end ga-2 pa-3">
+          <div class="d-flex justify-end ga-2 px-5 py-3">
             <v-btn variant="text" :disabled="saving" @click="configuration && show(configuration)">Discard</v-btn>
             <v-btn color="primary" :loading="saving" @click="save">Save</v-btn>
           </div>
