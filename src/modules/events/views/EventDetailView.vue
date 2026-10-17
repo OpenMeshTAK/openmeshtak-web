@@ -1,5 +1,20 @@
 <script setup lang="ts">
-import { mdiAccessPointNetwork, mdiMapClock, mdiMapMarkerRadiusOutline } from "@mdi/js";
+import {
+  mdiAccessPointNetwork,
+  mdiAccountGroupOutline,
+  mdiAccountMultipleOutline,
+  mdiAlertCircleOutline,
+  mdiBadgeAccountOutline,
+  mdiCellphone,
+  mdiCogOutline,
+  mdiFlagOutline,
+  mdiHistory,
+  mdiMapClock,
+  mdiMapMarkerRadiusOutline,
+  mdiMapOutline,
+  mdiRadioTower,
+  mdiViewDashboardOutline,
+} from "@mdi/js";
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import ErrorState from "@/shared/components/ErrorState.vue";
@@ -183,22 +198,35 @@ onMounted(load);
         </template>
       </ViewHeader>
 
-      <v-tabs v-model="tab" class="mb-4" density="compact" show-arrows>
-        <v-tab value="overview">Overview</v-tab>
-        <v-tab value="settings">Settings</v-tab>
-        <v-tab value="roles">Roles</v-tab>
-        <v-tab value="groups">Groups</v-tab>
-        <v-tab v-if="availableTabs.includes('members')" value="members">Members</v-tab>
-        <v-tab v-if="event.meshtasticEnabled" value="meshtastic">Meshtastic</v-tab>
-        <v-tab value="tak">TAK</v-tab>
+      <!-- Pills in groups: overview, setup, devices, map content, records. -->
+      <v-tabs v-model="tab" class="event-tabs mb-4" density="compact" hide-slider show-arrows>
+        <v-tab value="overview" :prepend-icon="mdiViewDashboardOutline">Overview</v-tab>
+        <v-divider vertical class="event-tabs__divider" />
+        <v-tab value="settings" :prepend-icon="mdiCogOutline">Settings</v-tab>
+        <v-tab value="roles" :prepend-icon="mdiBadgeAccountOutline">Roles</v-tab>
+        <v-tab value="groups" :prepend-icon="mdiAccountGroupOutline">Groups</v-tab>
+        <v-tab v-if="availableTabs.includes('members')" value="members" :prepend-icon="mdiAccountMultipleOutline">Members</v-tab>
         <!-- Hidden while there is nothing to fix, but kept while it is open, e.g. after fixing the last issue. -->
-        <v-tab v-if="availableTabs.includes('sync-issues') && (openSyncIssues > 0 || tab === 'sync-issues')" value="sync-issues">
+        <v-tab
+          v-if="availableTabs.includes('sync-issues') && (openSyncIssues > 0 || tab === 'sync-issues')"
+          value="sync-issues"
+          :prepend-icon="mdiAlertCircleOutline"
+        >
           Sync issues
           <v-badge v-if="openSyncIssues > 0" :content="openSyncIssues" color="error" inline />
         </v-tab>
-        <v-tab v-if="session.can('data-packages.read', event.id)" value="data-packages">Data packages</v-tab>
-        <v-tab v-if="availableTabs.includes('missions')" value="missions">Missions</v-tab>
-        <v-tab v-if="availableTabs.includes('audit')" value="audit">Audit log</v-tab>
+        <v-divider vertical class="event-tabs__divider" />
+        <v-tab v-if="event.meshtasticEnabled" value="meshtastic" :prepend-icon="mdiRadioTower">Meshtastic</v-tab>
+        <v-tab value="tak" :prepend-icon="mdiCellphone">TAK</v-tab>
+        <template v-if="session.can('data-packages.read', event.id) || availableTabs.includes('missions')">
+          <v-divider vertical class="event-tabs__divider" />
+          <v-tab v-if="session.can('data-packages.read', event.id)" value="data-packages" :prepend-icon="mdiMapOutline">Data packages</v-tab>
+          <v-tab v-if="availableTabs.includes('missions')" value="missions" :prepend-icon="mdiFlagOutline">Missions</v-tab>
+        </template>
+        <template v-if="availableTabs.includes('audit')">
+          <v-divider vertical class="event-tabs__divider" />
+          <v-tab value="audit" :prepend-icon="mdiHistory">Audit log</v-tab>
+        </template>
       </v-tabs>
 
       <v-window v-model="tab">
@@ -259,3 +287,36 @@ onMounted(load);
     </template>
   </v-container>
 </template>
+
+<style scoped>
+.event-tabs :deep(.v-tab) {
+  min-width: 0;
+  height: 34px !important;
+  padding: 0 12px;
+  margin-right: 2px;
+  border-radius: 999px;
+  text-transform: none;
+  letter-spacing: normal;
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
+.event-tabs :deep(.v-tab .v-btn__prepend) {
+  margin-inline-end: 6px;
+}
+
+.event-tabs :deep(.v-tab--selected) {
+  color: rgb(var(--v-theme-primary));
+  background: rgba(var(--v-theme-primary), 0.14);
+}
+
+/* The selected pill already carries the tint; Vuetify's own overlay would darken it twice. */
+.event-tabs :deep(.v-tab--selected .v-btn__overlay) {
+  opacity: 0;
+}
+
+.event-tabs__divider {
+  align-self: center;
+  height: 18px;
+  margin: 0 8px;
+}
+</style>
