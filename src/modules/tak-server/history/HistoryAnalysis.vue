@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import DataTable from "@/shared/components/DataTable.vue";
 import InfoHint from "@/shared/components/InfoHint.vue";
 import type { PackageObjectDto } from "@/modules/data-packages/data-packages.api";
 import { toMapGeometry } from "@/modules/editor/map/geometry-codec";
@@ -24,6 +25,20 @@ const areas = computed(() =>
 );
 const cellChoices = [50, 100, 250, 500, 1000].map((value) => ({ title: value < 1000 ? `${String(value)} m` : "1 km", value }));
 const timeFormat = new Intl.DateTimeFormat(undefined, { timeStyle: "short" });
+
+type Visit = (typeof visits.value)[number];
+const visitHeaders = [
+  { title: "Track", key: "label" },
+  { title: "Inside", key: "insideMs" },
+  { title: "Entries", key: "entries", align: "end" as const },
+  { title: "First – last", key: "firstInside", searchable: false },
+];
+
+function visitTimes(visit: Visit): string {
+  const first = visit.firstInside === null ? "" : timeFormat.format(visit.firstInside);
+  const last = visit.lastInside === null ? "" : timeFormat.format(visit.lastInside);
+  return `${first} – ${last}`;
+}
 
 const visits = computed(() => {
   const area = props.objects.find(({ id }) => id === areaId.value);
@@ -63,27 +78,12 @@ const visits = computed(() => {
     </div>
     <template v-if="areaId !== null">
       <p v-if="visits.length === 0" class="text-body-medium text-medium-emphasis mt-2 mb-0">No shown track entered this area.</p>
-      <v-table v-else density="compact" class="mt-2">
-        <thead>
-          <tr>
-            <th>Track</th>
-            <th>Inside</th>
-            <th>Entries</th>
-            <th>First – last</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="visit in visits" :key="visit.uid">
-            <td>{{ visit.label }}</td>
-            <td>{{ formatAge(visit.insideMs) }}</td>
-            <td>{{ visit.entries }}</td>
-            <td class="text-no-wrap">
-              {{ visit.firstInside === null ? "" : timeFormat.format(visit.firstInside) }} –
-              {{ visit.lastInside === null ? "" : timeFormat.format(visit.lastInside) }}
-            </td>
-          </tr>
-        </tbody>
-      </v-table>
+      <v-card v-else variant="outlined" class="mt-2">
+        <DataTable :headers="visitHeaders" :items="visits" item-value="uid" search-label="Search tracks" storage-key="history-visits" density="compact">
+          <template #[`item.insideMs`]="{ item }">{{ formatAge(item.insideMs) }}</template>
+          <template #[`item.firstInside`]="{ item }"><span class="text-no-wrap">{{ visitTimes(item) }}</span></template>
+        </DataTable>
+      </v-card>
     </template>
   </div>
 </template>

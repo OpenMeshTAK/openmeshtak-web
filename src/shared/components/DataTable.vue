@@ -61,11 +61,17 @@ const props = withDefaults(
 const sortBy = defineModel<DataTableSort>("sortBy", { default: () => [] });
 
 defineOptions({ inheritAttrs: false });
-// Typed so that `item.<key>` slots in the views see the row type instead of `any`.
+// Typed so that `item.<key>` slots in the views see the row type instead of `any`;
+// `header.<key>` slots replace a column title, e.g. to add a hint.
 const slots = defineSlots<
-  { toolbar?: () => unknown; actions?: () => unknown } & Record<`item.${string}`, ((scope: { item: T; index: number }) => unknown) | undefined>
+  { toolbar?: () => unknown; actions?: () => unknown } & Record<
+    `item.${string}`,
+    ((scope: { item: T; index: number }) => unknown) | undefined
+  > &
+    Record<`header.${string}`, ((scope: { column: { title?: string } }) => unknown) | undefined>
 >();
-const cellSlots = computed(() => Object.keys(slots).filter((name) => name !== "toolbar" && name !== "actions") as `item.${string}`[]);
+const cellSlots = computed(() => Object.keys(slots).filter((name) => name.startsWith("item.")) as `item.${string}`[]);
+const headerSlots = computed(() => Object.keys(slots).filter((name) => name.startsWith("header.")) as `header.${string}`[]);
 
 const smallestPage = computed(() => Math.min(...props.pageSizes));
 /** Short lists need neither a search field nor pages. */
@@ -156,6 +162,9 @@ watch(search, () => {
       :class="['app-table', { 'app-table--toolbar': showSearch || slots.toolbar || slots.actions }]"
     >
       <template v-for="name in cellSlots" #[name]="scope" :key="name">
+        <slot :name="name" v-bind="scope" />
+      </template>
+      <template v-for="name in headerSlots" #[name]="scope" :key="name">
         <slot :name="name" v-bind="scope" />
       </template>
     </v-data-table>

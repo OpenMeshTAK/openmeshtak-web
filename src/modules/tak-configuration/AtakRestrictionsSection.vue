@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { mdiDeleteOutline, mdiDownload, mdiLockOutline, mdiPlus } from "@mdi/js";
+import { mdiDeleteOutline, mdiDownload, mdiPlus } from "@mdi/js";
 import { computed, ref } from "vue";
 import DownloadQrButton from "@/shared/components/DownloadQrButton.vue";
-import EmptyState from "@/shared/components/EmptyState.vue";
+import DataTable from "@/shared/components/DataTable.vue";
 import InfoHint from "@/shared/components/InfoHint.vue";
 import { useToast } from "@/shared/feedback/toast";
 import { saveFile } from "@/shared/files/save-file";
@@ -65,6 +65,24 @@ const rows = computed(() => {
     );
 });
 
+type RestrictionRow = (typeof rows.value)[number];
+
+function targetName(target: PreferenceTarget): string {
+  return options.value.get(targetKey(target))?.name ?? "Unknown target";
+}
+
+const headers = computed(() => [
+  { title: "For", key: "target", value: (row: RestrictionRow) => targetName(row.target) },
+  { title: "Setting", key: "itemId", value: (row: RestrictionRow) => items.value.get(row.itemId)?.label ?? row.itemId },
+  { title: "In ATAK", key: "mode" },
+  ...(props.editable ? [{ title: "Actions", key: "actions", sortable: false, align: "end" as const }] : []),
+]);
+
+function restrictionSearchText(row: RestrictionRow): (string | undefined)[] {
+  const item = items.value.get(row.itemId);
+  return [targetName(row.target), item?.label, item?.area, row.itemId, row.mode];
+}
+
 function setMode(target: PreferenceTarget, itemId: string, mode: RestrictionMode | null): void {
   entries.value = withRestriction(entries.value, target, itemId, mode);
 }
@@ -120,85 +138,80 @@ async function download(): Promise<void> {
     </v-card>
 
     <v-card class="mb-4" data-setting-id="tak:restrictions">
-      <div class="d-flex align-center pa-4 pb-2">
-        <div class="flex-grow-1">
-          <div class="d-flex align-center ga-1 text-title-medium">
-            Locked settings
-            <InfoHint label="About locked settings">
-              <p class="mb-2">
-                Greyed out items stay visible but cannot be changed; hidden items disappear from the settings screen together
-                with the items that depend on them.
-              </p>
-              <p class="mb-0">
-                Normal makes a locked item usable again on the next publish. Removing a row sends nothing, so devices keep the
-                lock they have.
-              </p>
-            </InfoHint>
-            <InfoHint tone="warning" label="Limits of locking">
-              <p class="mb-2">
-                Locking only greys out or hides items on ATAK's settings screens. It is not tamper-proof: toolbars, imported
-                files and other apps can still change the values.
-              </p>
-              <p class="mb-0">
-                Locks apply to the whole ATAK app, not only this event, and stay on the device after the event until the
-                unlock package is imported.
-              </p>
-            </InfoHint>
+      <DataTable
+        :headers="headers"
+        :items="rows"
+        :search-text="restrictionSearchText"
+        search-label="Search locked settings"
+        no-data-text="No locked settings. Lock settings here or with the lock next to a setting in its topic."
+        storage-key="atak-restrictions"
+      >
+        <template #toolbar>
+          <div>
+            <div class="d-flex align-center ga-1 text-title-medium">
+              Locked settings
+              <InfoHint label="About locked settings">
+                <p class="mb-2">
+                  Greyed out items stay visible but cannot be changed; hidden items disappear from the settings screen together
+                  with the items that depend on them.
+                </p>
+                <p class="mb-0">
+                  Normal makes a locked item usable again on the next publish. Removing a row sends nothing, so devices keep the
+                  lock they have.
+                </p>
+              </InfoHint>
+              <InfoHint tone="warning" label="Limits of locking">
+                <p class="mb-2">
+                  Locking only greys out or hides items on ATAK's settings screens. It is not tamper-proof: toolbars, imported
+                  files and other apps can still change the values.
+                </p>
+                <p class="mb-0">
+                  Locks apply to the whole ATAK app, not only this event, and stay on the device after the event until the
+                  unlock package is imported.
+                </p>
+              </InfoHint>
+            </div>
+            <div class="text-body-small text-medium-emphasis">Members get changes once the configuration is published.</div>
           </div>
-          <div class="text-body-small text-medium-emphasis">Members get changes once the configuration is published.</div>
-        </div>
-        <v-btn v-if="editable" variant="tonal" :prepend-icon="mdiPlus" @click="adding = true">Lock settings</v-btn>
-      </div>
-      <EmptyState
-        v-if="rows.length === 0"
-        :icon="mdiLockOutline"
-        title="No locked settings"
-        text="Lock settings here or with the lock next to a setting in its topic."
-      />
-      <v-table v-else density="comfortable">
-        <thead>
-          <tr>
-            <th>For</th>
-            <th>Setting</th>
-            <th>In ATAK</th>
-            <th v-if="editable"><span class="d-sr-only">Actions</span></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="row in rows" :key="row.id">
-            <td>
-              <AtakTargetLabel :target="options.get(targetKey(row.target)) ?? { kind: 'Event', name: 'Unknown target' }" />
-            </td>
-            <td class="py-2">
-              <div>{{ items.get(row.itemId)?.label ?? row.itemId }}</div>
-              <div class="text-body-small text-medium-emphasis">
-                {{ items.get(row.itemId)?.area ?? "Unknown item" }} · <code>{{ row.itemId }}</code>
-              </div>
-              <div v-for="message in messages(row.indexes)" :key="message" class="text-body-small text-error">{{ message }}</div>
-            </td>
-            <td class="py-2 mode-cell">
-              <v-select
-                :model-value="row.mode"
-                :items="RESTRICTION_MODES"
-                :aria-label="`Lock for ${items.get(row.itemId)?.label ?? row.itemId}`"
-                :disabled="!editable"
-                density="compact"
-                hide-details
-                @update:model-value="setMode(row.target, row.itemId, $event)"
-              />
-            </td>
-            <td v-if="editable" class="text-right">
-              <v-btn
-                :icon="mdiDeleteOutline"
-                variant="text"
-                size="small"
-                :aria-label="`Remove the lock of ${row.itemId}`"
-                @click="setMode(row.target, row.itemId, null)"
-              />
-            </td>
-          </tr>
-        </tbody>
-      </v-table>
+        </template>
+        <template v-if="editable" #actions>
+          <v-btn variant="tonal" :prepend-icon="mdiPlus" @click="adding = true">Lock settings</v-btn>
+        </template>
+        <template #[`item.target`]="{ item }">
+          <AtakTargetLabel :target="options.get(targetKey(item.target)) ?? { kind: 'Event', name: 'Unknown target' }" />
+        </template>
+        <template #[`item.itemId`]="{ item }">
+          <div class="py-2">
+            <div>{{ items.get(item.itemId)?.label ?? item.itemId }}</div>
+            <div class="text-body-small text-medium-emphasis">
+              {{ items.get(item.itemId)?.area ?? "Unknown item" }} · <code>{{ item.itemId }}</code>
+            </div>
+            <div v-for="message in messages(item.indexes)" :key="message" class="text-body-small text-error">{{ message }}</div>
+          </div>
+        </template>
+        <template #[`item.mode`]="{ item }">
+          <div class="mode-cell py-2">
+            <v-select
+              :model-value="item.mode"
+              :items="RESTRICTION_MODES"
+              :aria-label="`Lock for ${items.get(item.itemId)?.label ?? item.itemId}`"
+              :disabled="!editable"
+              density="compact"
+              hide-details
+              @update:model-value="setMode(item.target, item.itemId, $event)"
+            />
+          </div>
+        </template>
+        <template #[`item.actions`]="{ item }">
+          <v-btn
+            :icon="mdiDeleteOutline"
+            variant="text"
+            size="small"
+            :aria-label="`Remove the lock of ${item.itemId}`"
+            @click="setMode(item.target, item.itemId, null)"
+          />
+        </template>
+      </DataTable>
     </v-card>
 
     <AddAtakRestrictionDialog v-model="adding" :catalog="catalog" :target-items="targetItems" @add="add" />

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { mdiDeleteOutline, mdiFileImportOutline, mdiPlus } from "@mdi/js";
 import { computed, ref } from "vue";
-import EmptyState from "@/shared/components/EmptyState.vue";
+import DataTable from "@/shared/components/DataTable.vue";
 import InfoHint from "@/shared/components/InfoHint.vue";
 import SettingsRow from "@/shared/settings/SettingsRow.vue";
 import AddAtakPreferenceDialog from "./AddAtakPreferenceDialog.vue";
@@ -52,7 +52,7 @@ function belongsHere(entry: AtakPreferenceEntryDto): boolean {
 /** This section's entries by target in menu order, keeping each entry's index in the whole list for errors. */
 const rows = computed(() =>
   entries.value
-    .map((entry, index) => ({ entry, index }))
+    .map((entry, index) => ({ id: `${targetKey(entry.target)}:${entry.preference}:${entry.key}`, entry, index }))
     .filter(({ entry }) => belongsHere(entry))
     .sort(
       (a, b) =>
@@ -67,6 +67,23 @@ const elsewhere = computed(() => ({
 const skipped = computed(() => (props.importResult?.removedKeys.length ?? 0) + (props.importResult?.invalidKeys.length ?? 0));
 
 const describer = computed(() => entryDescriber(props.catalog));
+
+type TargetedRow = (typeof rows.value)[number];
+
+function targetName(row: TargetedRow): string {
+  return options.value.get(targetKey(row.entry.target))?.name ?? "Unknown target";
+}
+
+const headers = computed(() => [
+  { title: "For", key: "target", value: targetName },
+  { title: "Setting", key: "key", value: (row: TargetedRow) => row.entry.key },
+  { title: "Value", key: "value", sortable: false, searchable: false },
+  ...(props.editable ? [{ title: "Actions", key: "actions", sortable: false, align: "end" as const }] : []),
+]);
+
+function targetedSearchText(row: TargetedRow): string[] {
+  return [targetName(row), row.entry.key, describer.value.describe(row.entry)];
+}
 
 function setValue(index: number, value: string | null): void {
   entries.value = entries.value.map((entry, position) => (position === index ? { ...entry, value: value ?? "" } : entry));
@@ -118,65 +135,58 @@ function onFileChosen(event: Event): void {
     </v-card>
 
     <v-card class="mb-4" data-setting-id="tak:add">
-      <div class="d-flex align-center pa-4 pb-2">
-        <div class="flex-grow-1">
-          <div class="text-title-medium">Targeted & custom settings</div>
-          <div class="text-body-small text-medium-emphasis">
-            For single groups, roles or members, and plugin or other settings without an ATAK settings page.
-            <template v-if="elsewhere.topics > 0">
-              {{ elsewhere.topics }} whole-event {{ elsewhere.topics === 1 ? "setting is" : "settings are" }} on the ATAK settings pages.
-            </template>
-            <template v-if="elsewhere.locks > 0">
-              {{ elsewhere.locks }} lock {{ elsewhere.locks === 1 ? "key is" : "keys are" }} under Lock ATAK settings.
-            </template>
+      <DataTable
+        :headers="headers"
+        :items="rows"
+        :search-text="targetedSearchText"
+        search-label="Search settings"
+        no-data-text="No targeted or custom settings. Add a setting for a group, role or member, or a plugin setting."
+        storage-key="atak-targeted"
+      >
+        <template #toolbar>
+          <div>
+            <div class="text-title-medium">Targeted & custom settings</div>
+            <div class="text-body-small text-medium-emphasis">
+              For single groups, roles or members, and plugin or other settings without an ATAK settings page.
+              <template v-if="elsewhere.topics > 0">
+                {{ elsewhere.topics }} whole-event {{ elsewhere.topics === 1 ? "setting is" : "settings are" }} on the ATAK settings pages.
+              </template>
+              <template v-if="elsewhere.locks > 0">
+                {{ elsewhere.locks }} lock {{ elsewhere.locks === 1 ? "key is" : "keys are" }} under Lock ATAK settings.
+              </template>
+            </div>
           </div>
-        </div>
-        <v-btn v-if="editable" variant="tonal" :prepend-icon="mdiPlus" @click="adding = true">Add setting</v-btn>
-      </div>
-      <EmptyState
-        v-if="rows.length === 0"
-        :icon="mdiPlus"
-        title="No targeted or custom settings"
-        text="Add a setting for a group, role or member, or a plugin setting. Whole-event settings are chosen on the ATAK settings pages on the left."
-      />
-      <v-table v-else density="comfortable">
-        <thead>
-          <tr>
-            <th>For</th>
-            <th>Setting</th>
-            <th>Value</th>
-            <th v-if="editable"><span class="d-sr-only">Actions</span></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="{ entry, index } in rows" :key="`${targetKey(entry.target)}:${entry.preference}:${entry.key}`">
-            <td>
-              <AtakTargetLabel :target="options.get(targetKey(entry.target)) ?? { kind: 'Event', name: 'Unknown target' }" />
-            </td>
-            <td class="py-2">
-              <div><code>{{ entry.key }}</code></div>
-              <div class="text-body-small text-medium-emphasis">
-                {{ describer.describe(entry) }}
-              </div>
-            </td>
-            <td class="py-2 value-cell">
-              <AtakPreferenceValueField
-                :model-value="entry.value"
-                :label="entry.key"
-                :definition="describer.definitionOf(entry)"
-                :type="entry.type"
-                :clearable="false"
-                :disabled="!editable"
-                :error-messages="entryMessages(errors, index)"
-                @update:model-value="setValue(index, $event)"
-              />
-            </td>
-            <td v-if="editable" class="text-right">
-              <v-btn :icon="mdiDeleteOutline" variant="text" size="small" :aria-label="`Remove ${entry.key}`" @click="remove(index)" />
-            </td>
-          </tr>
-        </tbody>
-      </v-table>
+        </template>
+        <template v-if="editable" #actions>
+          <v-btn variant="tonal" :prepend-icon="mdiPlus" @click="adding = true">Add setting</v-btn>
+        </template>
+        <template #[`item.target`]="{ item }">
+          <AtakTargetLabel :target="options.get(targetKey(item.entry.target)) ?? { kind: 'Event', name: 'Unknown target' }" />
+        </template>
+        <template #[`item.key`]="{ item }">
+          <div class="py-2">
+            <div><code>{{ item.entry.key }}</code></div>
+            <div class="text-body-small text-medium-emphasis">{{ describer.describe(item.entry) }}</div>
+          </div>
+        </template>
+        <template #[`item.value`]="{ item }">
+          <div class="value-cell py-2">
+            <AtakPreferenceValueField
+              :model-value="item.entry.value"
+              :label="item.entry.key"
+              :definition="describer.definitionOf(item.entry)"
+              :type="item.entry.type"
+              :clearable="false"
+              :disabled="!editable"
+              :error-messages="entryMessages(errors, item.index)"
+              @update:model-value="setValue(item.index, $event)"
+            />
+          </div>
+        </template>
+        <template #[`item.actions`]="{ item }">
+          <v-btn :icon="mdiDeleteOutline" variant="text" size="small" :aria-label="`Remove ${item.entry.key}`" @click="remove(item.index)" />
+        </template>
+      </DataTable>
     </v-card>
 
     <AddAtakPreferenceDialog v-model="adding" :catalog="catalog" :target-items="targetItems" :entries="entries" @add="entries = [...entries, ...$event]" />

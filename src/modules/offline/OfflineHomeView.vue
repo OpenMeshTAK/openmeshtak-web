@@ -2,6 +2,7 @@
 import { mdiArrowLeft, mdiDeleteOutline, mdiMapMarkerRadiusOutline, mdiWifiOff } from "@mdi/js";
 import { onMounted, ref } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
+import DataTable from "@/shared/components/DataTable.vue";
 import EmptyState from "@/shared/components/EmptyState.vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
 import InfoHint from "@/shared/components/InfoHint.vue";
@@ -32,6 +33,14 @@ async function load(): Promise<void> {
     state.value = "error";
   }
 }
+
+const headers = [
+  { title: "Event", key: "name", value: (record: StoredSnapshot) => record.snapshot.event.name },
+  { title: "Packages", key: "packages", value: (record: StoredSnapshot) => record.snapshot.packages.length, align: "end" as const },
+  { title: "Stored", key: "storedAt", searchable: false },
+  { title: "State", key: "complete", value: (record: StoredSnapshot) => (record.complete ? "Stored" : "Incomplete") },
+  { title: "Actions", key: "actions", sortable: false, align: "end" as const },
+];
 
 function askClear(record: StoredSnapshot): void {
   clearing.value = record;
@@ -70,43 +79,32 @@ onMounted(load);
         text="Prepare an event while online: open the event, choose “Offline HQ” and store its published Data Packages in this browser."
       />
       <v-card v-else>
-        <v-table>
-          <thead>
-            <tr>
-              <th>Event</th>
-              <th>Packages</th>
-              <th>
-                Stored
-                <InfoHint text="Published content as it was when this browser stored it. Changes made since then are not included until the event is prepared again." />
-              </th>
-              <th>State</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="record in snapshots" :key="record.eventId">
-              <td class="font-weight-medium">{{ record.snapshot.event.name }}</td>
-              <td>{{ record.snapshot.packages.length }}</td>
-              <td>{{ dateFormat.format(new Date(record.storedAt)) }}</td>
-              <td>
-                <span v-if="record.complete">Stored</span>
-                <span v-else class="text-error">Incomplete, prepare again</span>
-              </td>
-              <td class="text-right text-no-wrap">
-                <v-btn
-                  size="small"
-                  variant="tonal"
-                  color="primary"
-                  :disabled="!record.complete"
-                  :to="{ name: 'offline-live', params: { eventId: record.eventId } }"
-                >
-                  Open
-                </v-btn>
-                <v-btn size="small" variant="text" :icon="mdiDeleteOutline" aria-label="Remove from this browser" @click="askClear(record)" />
-              </td>
-            </tr>
-          </tbody>
-        </v-table>
+        <DataTable :headers="headers" :items="snapshots" item-value="eventId" search-label="Search stored events" storage-key="offline-events">
+          <template #[`header.storedAt`]="{ column }">
+            {{ column.title }}
+            <InfoHint text="Published content as it was when this browser stored it. Changes made since then are not included until the event is prepared again." />
+          </template>
+          <template #[`item.name`]="{ item }"><span class="font-weight-medium">{{ item.snapshot.event.name }}</span></template>
+          <template #[`item.storedAt`]="{ item }">{{ dateFormat.format(new Date(item.storedAt)) }}</template>
+          <template #[`item.complete`]="{ item }">
+            <span v-if="item.complete">Stored</span>
+            <span v-else class="text-error">Incomplete, prepare again</span>
+          </template>
+          <template #[`item.actions`]="{ item }">
+            <span class="text-no-wrap">
+              <v-btn
+                size="small"
+                variant="tonal"
+                color="primary"
+                :disabled="!item.complete"
+                :to="{ name: 'offline-live', params: { eventId: item.eventId } }"
+              >
+                Open
+              </v-btn>
+              <v-btn size="small" variant="text" :icon="mdiDeleteOutline" aria-label="Remove from this browser" @click="askClear(item)" />
+            </span>
+          </template>
+        </DataTable>
       </v-card>
     </v-container>
 

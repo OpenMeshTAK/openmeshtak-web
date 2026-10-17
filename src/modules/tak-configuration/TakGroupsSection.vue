@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
+import DataTable from "@/shared/components/DataTable.vue";
 import EmptyState from "@/shared/components/EmptyState.vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
 import { describeError } from "@/shared/errors/api-problem";
@@ -36,17 +37,27 @@ const editing = ref<TakGroupDto | null>(null);
 const name = ref("");
 const description = ref("");
 const assignment = ref<Record<string, { receive: boolean; send: boolean }>>({});
-const memberFilter = ref("");
 const saving = ref(false);
 const fields = ref<Record<string, string>>({});
 const deleting = ref<TakGroupSummaryDto | null>(null);
 
-const visibleMembers = computed(() => {
-  const filter = memberFilter.value.trim().toLowerCase();
-  return members.value.filter((member) =>
-    filter === "" ? true : [member.displayName, member.callsign, member.eventGroup.name].some((text) => text.toLowerCase().includes(filter)),
-  );
-});
+const groupHeaders = computed(() => [
+  { title: "Name", key: "name" },
+  { title: "Receive", key: "receiverCount", align: "end" as const },
+  { title: "Send", key: "senderCount", align: "end" as const },
+  { title: "Description", key: "description" },
+  ...(props.editable ? [{ title: "Actions", key: "actions", sortable: false, align: "end" as const }] : []),
+]);
+const memberHeaders = [
+  { title: "Member", key: "callsign" },
+  { title: "Event group", key: "eventGroup", value: (member: EventMemberDto) => member.eventGroup.name },
+  { title: "Receive", key: "receive", sortable: false, align: "center" as const },
+  { title: "Send", key: "send", sortable: false, align: "center" as const },
+];
+
+function memberSearchText(member: EventMemberDto): string[] {
+  return [member.displayName, member.callsign, member.eventGroup.name];
+}
 
 async function load(): Promise<void> {
   state.value = "loading";
@@ -73,8 +84,7 @@ function assign(memberId: string, direction: "receive" | "send", value: boolean 
 
 async function open(summary: TakGroupSummaryDto | null): Promise<void> {
   fields.value = {};
-  memberFilter.value = "";
-  try {
+    try {
     editing.value = summary === null ? null : await getTakGroup(props.eventId, summary.id);
   } catch (caught: unknown) {
     toast.error(caught);
@@ -142,29 +152,15 @@ onMounted(load);
       text="Add groups such as Alpha, Bravo or Medics and choose who receives and sends in each."
     />
     <v-card v-else>
-      <v-table density="comfortable">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Receive</th>
-            <th>Send</th>
-            <th class="d-none d-md-table-cell">Description</th>
-            <th v-if="editable" class="text-right">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="group in groups" :key="group.id">
-            <td>{{ group.name }}</td>
-            <td>{{ group.receiverCount }}</td>
-            <td>{{ group.senderCount }}</td>
-            <td class="d-none d-md-table-cell text-medium-emphasis">{{ group.description }}</td>
-            <td v-if="editable" class="text-right text-no-wrap">
-              <v-btn variant="text" size="small" @click="open(group)">Edit</v-btn>
-              <v-btn variant="text" size="small" color="error" @click="deleting = group">Delete</v-btn>
-            </td>
-          </tr>
-        </tbody>
-      </v-table>
+      <DataTable :headers="groupHeaders" :items="groups" search-label="Search TAK groups" storage-key="tak-groups">
+        <template #[`item.description`]="{ item }"><span class="text-medium-emphasis">{{ item.description }}</span></template>
+        <template #[`item.actions`]="{ item }">
+          <span class="text-no-wrap">
+            <v-btn variant="text" size="small" @click="open(item)">Edit</v-btn>
+            <v-btn variant="text" size="small" color="error" @click="deleting = item">Delete</v-btn>
+          </span>
+        </template>
+      </DataTable>
     </v-card>
 
     <v-dialog v-model="dialogOpen" max-width="720" scrollable>
@@ -177,43 +173,38 @@ onMounted(load);
           <p class="text-body-small text-medium-emphasis mb-2">
             Receive: the member gets what others send into this group. Send: what the member sends goes into this group.
           </p>
-          <v-text-field v-model="memberFilter" label="Filter members" density="compact" clearable hide-details class="mb-2" />
           <div v-for="message in messagesFor(fields, 'members')" :key="message" class="text-error text-body-small mb-2">{{ message }}</div>
-          <v-table density="compact">
-            <thead>
-              <tr>
-                <th>Member</th>
-                <th>Event group</th>
-                <th class="text-center">Receive</th>
-                <th class="text-center">Send</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="member in visibleMembers" :key="member.id">
-                <td>
-                  {{ member.callsign }}
-                  <div class="text-body-small text-medium-emphasis">{{ member.displayName }}</div>
-                </td>
-                <td>{{ member.eventGroup.name }}</td>
-                <td class="text-center">
-                  <v-checkbox-btn
-                    :model-value="assigned(member.id, 'receive')"
-                    class="d-inline-flex"
-                    :aria-label="`${member.callsign} receives`"
-                    @update:model-value="assign(member.id, 'receive', $event)"
-                  />
-                </td>
-                <td class="text-center">
-                  <v-checkbox-btn
-                    :model-value="assigned(member.id, 'send')"
-                    class="d-inline-flex"
-                    :aria-label="`${member.callsign} sends`"
-                    @update:model-value="assign(member.id, 'send', $event)"
-                  />
-                </td>
-              </tr>
-            </tbody>
-          </v-table>
+          <v-card variant="outlined">
+            <DataTable
+              :headers="memberHeaders"
+              :items="members"
+              :search-text="memberSearchText"
+              search-label="Search members"
+              storage-key="tak-group-members"
+              density="compact"
+            >
+              <template #[`item.callsign`]="{ item }">
+                {{ item.callsign }}
+                <div class="text-body-small text-medium-emphasis">{{ item.displayName }}</div>
+              </template>
+              <template #[`item.receive`]="{ item }">
+                <v-checkbox-btn
+                  :model-value="assigned(item.id, 'receive')"
+                  class="d-inline-flex"
+                  :aria-label="`${item.callsign} receives`"
+                  @update:model-value="assign(item.id, 'receive', $event)"
+                />
+              </template>
+              <template #[`item.send`]="{ item }">
+                <v-checkbox-btn
+                  :model-value="assigned(item.id, 'send')"
+                  class="d-inline-flex"
+                  :aria-label="`${item.callsign} sends`"
+                  @update:model-value="assign(item.id, 'send', $event)"
+                />
+              </template>
+            </DataTable>
+          </v-card>
         </v-card-text>
         <v-card-actions>
           <v-spacer />
