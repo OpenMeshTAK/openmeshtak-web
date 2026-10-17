@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { mdiAccountGroup, mdiAccountMultiple, mdiAccountPlus, mdiCheckCircle, mdiClose } from "@mdi/js";
+import { mdiAccountGroup, mdiAccountMultiple, mdiAccountPlus, mdiAccountRemoveOutline, mdiCardAccountDetailsOutline, mdiCheckCircle, mdiClose, mdiLinkVariant, mdiPencil } from "@mdi/js";
 import { computed, onMounted, ref } from "vue";
 import { useLiveNotices } from "@/shared/realtime/useLiveNotices";
 import type { Schemas } from "@/shared/api/types";
@@ -295,7 +295,7 @@ onMounted(load);
             @move="moveMember"
           >
             <template #actions="{ member }">
-              <span class="text-no-wrap"><v-btn variant="text" size="small" @click="showProfile(member)">Profile</v-btn> <v-btn v-if="canClaim" variant="text" size="small" @click="claimFor = member">Access link</v-btn> <v-btn v-if="canManage" variant="text" size="small" @click="edit(member)">Edit</v-btn> <v-btn v-if="canManage" variant="text" size="small" color="error" @click="removing = member">Remove</v-btn></span>
+              <span class="text-no-wrap"><v-btn v-tooltip:top="'Profile'" :icon="mdiCardAccountDetailsOutline" :aria-label="`Profile: ${member.callsign}`" variant="text" size="small" @click="showProfile(member)" /> <v-btn v-if="canClaim" v-tooltip:top="'Access link'" :icon="mdiLinkVariant" :aria-label="`Access link: ${member.callsign}`" variant="text" size="small" @click="claimFor = member" /> <v-btn v-if="canManage" v-tooltip:top="'Edit'" :icon="mdiPencil" :aria-label="`Edit: ${member.callsign}`" variant="text" size="small" @click="edit(member)" /> <v-btn v-if="canManage" v-tooltip:top="'Remove'" :icon="mdiAccountRemoveOutline" :aria-label="`Remove: ${member.callsign}`" variant="text" size="small" color="error" @click="removing = member" /></span>
             </template>
           </GroupMemberList>
         </template>
@@ -326,10 +326,10 @@ onMounted(load);
               </template>
               <template #[`item.actions`]="{ item }">
                 <span class="text-no-wrap">
-                  <v-btn variant="text" size="small" @click="showProfile(item)">Profile</v-btn>
-                  <v-btn v-if="canClaim" variant="text" size="small" @click="claimFor = item">Access link</v-btn>
-                  <v-btn v-if="canManage" variant="text" size="small" @click="edit(item)">Edit</v-btn>
-                  <v-btn v-if="canManage" variant="text" size="small" color="error" @click="removing = item">Remove</v-btn>
+                  <v-btn v-tooltip:top="'Profile'" :icon="mdiCardAccountDetailsOutline" :aria-label="`Profile: ${item.callsign}`" variant="text" size="small" @click="showProfile(item)" />
+                  <v-btn v-if="canClaim" v-tooltip:top="'Access link'" :icon="mdiLinkVariant" :aria-label="`Access link: ${item.callsign}`" variant="text" size="small" @click="claimFor = item" />
+                  <v-btn v-if="canManage" v-tooltip:top="'Edit'" :icon="mdiPencil" :aria-label="`Edit: ${item.callsign}`" variant="text" size="small" @click="edit(item)" />
+                  <v-btn v-if="canManage" v-tooltip:top="'Remove'" :icon="mdiAccountRemoveOutline" :aria-label="`Remove: ${item.callsign}`" variant="text" size="small" color="error" @click="removing = item" />
                 </span>
               </template>
             </DataTable>

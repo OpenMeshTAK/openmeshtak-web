@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { mdiDeleteOutline, mdiPencil } from "@mdi/js";
 import { computed, onMounted, ref } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import DataTable from "@/shared/components/DataTable.vue";
@@ -156,8 +157,8 @@ onMounted(load);
         <template #[`item.description`]="{ item }"><span class="text-medium-emphasis">{{ item.description }}</span></template>
         <template #[`item.actions`]="{ item }">
           <span class="text-no-wrap">
-            <v-btn variant="text" size="small" @click="open(item)">Edit</v-btn>
-            <v-btn variant="text" size="small" color="error" @click="deleting = item">Delete</v-btn>
+            <v-btn v-tooltip:top="'Edit'" :icon="mdiPencil" :aria-label="`Edit: ${item.name}`" variant="text" size="small" @click="open(item)" />
+            <v-btn v-tooltip:top="'Delete'" :icon="mdiDeleteOutline" :aria-label="`Delete: ${item.name}`" variant="text" size="small" color="error" @click="deleting = item" />
           </span>
         </template>
       </DataTable>

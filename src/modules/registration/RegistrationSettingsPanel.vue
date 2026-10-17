@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { mdiLinkPlus } from "@mdi/js";
+import { mdiLinkPlus, mdiLinkVariantOff } from "@mdi/js";
 import { computed, onMounted, ref } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import DataTable from "@/shared/components/DataTable.vue";
@@ -180,7 +180,7 @@ onMounted(load);
           </template>
           <template #[`item.expiresAt`]="{ item }">{{ dateFormat.format(new Date(item.expiresAt)) }}</template>
           <template #[`item.actions`]="{ item }">
-            <v-btn v-if="item.status === 'open'" variant="text" size="small" color="error" @click="revoke(item)">Revoke</v-btn>
+            <v-btn v-if="item.status === 'open'" v-tooltip:top="'Revoke'" :icon="mdiLinkVariantOff" aria-label="Revoke" variant="text" size="small" color="error" @click="revoke(item)" />
           </template>
         </DataTable>
         <p v-else class="text-body-medium text-medium-emphasis pa-5 my-0">No invite links yet.</p>

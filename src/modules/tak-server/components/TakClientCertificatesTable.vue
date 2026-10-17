@@ -146,7 +146,7 @@ function confirm(): void {
       </template>
       <template #[`item.notAfter`]="{ item }"><span class="text-no-wrap">{{ dateFormat.format(new Date(item.notAfter)) }}</span></template>
       <template #[`item.actions`]="{ item }">
-        <v-btn v-if="item.status === 'valid'" variant="text" size="small" color="error" @click="revoking = item">Revoke</v-btn>
+        <v-btn v-if="item.status === 'valid'" v-tooltip:top="'Revoke'" :icon="mdiLinkVariantOff" :aria-label="`Revoke: ${deviceName(item)}`" variant="text" size="small" color="error" @click="revoking = item" />
       </template>
     </DataTable>
     <ConfirmDialog

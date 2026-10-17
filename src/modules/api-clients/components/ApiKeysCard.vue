@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import InfoHint from "@/shared/components/InfoHint.vue";
-import { mdiKeyPlus } from "@mdi/js";
+import { mdiKeyPlus, mdiKeyRemove } from "@mdi/js";
 import { computed, onMounted, ref } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import DataTable from "@/shared/components/DataTable.vue";
@@ -95,7 +95,7 @@ onMounted(keys.load);
       <template #[`item.displayPrefix`]="{ item }"><code class="text-body-small">{{ item.displayPrefix }}…</code></template>
       <template #[`item.lastUsedAt`]="{ item }">{{ item.lastUsedAt ? new Date(item.lastUsedAt).toLocaleString() : "Never" }}</template>
       <template #[`item.actions`]="{ item }">
-        <v-btn v-if="item.status === 'active'" variant="text" size="small" color="error" @click="revoking = item">Revoke</v-btn>
+        <v-btn v-if="item.status === 'active'" v-tooltip:top="'Revoke'" :icon="mdiKeyRemove" :aria-label="`Revoke: ${item.name}`" variant="text" size="small" color="error" @click="revoking = item" />
       </template>
     </DataTable>
     <p v-else class="text-body-medium ma-0">No keys yet.</p>
