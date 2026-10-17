@@ -8,12 +8,12 @@ import {
   mdiEmailLock,
   mdiLinkVariant,
   mdiLogout,
-  mdiMagnify,
   mdiPencil,
   mdiPinOutline,
 } from "@mdi/js";
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
+import DataTable from "@/shared/components/DataTable.vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
 import ViewContent from "@/shared/components/layout/ViewContent.vue";
 import ViewHeader from "@/shared/components/layout/ViewHeader.vue";
@@ -25,9 +25,9 @@ import CreateUserDialog from "./CreateUserDialog.vue";
 import SetupLinkDialog from "./SetupLinkDialog.vue";
 import UserGroupsDialog from "./UserGroupsDialog.vue";
 import {
+  listAllUsers,
   makeUserPermanent,
   revokeUserSessions,
-  searchUsers,
   sendPasswordReset,
   setUserDisabled,
   updateUser,
@@ -47,8 +47,6 @@ const session = useSession();
 const toast = useToast();
 
 const users = ref<UserDto[]>([]);
-const nextCursor = ref<string | null>(null);
-const search = ref("");
 const state = ref<"loading" | "ready" | "error">("loading");
 const error = ref("");
 /** Each action needs its own permission; see Core's `users.*` catalog. */
@@ -86,18 +84,10 @@ function onCreated(user: UserDto): void {
   users.value = [...users.value, user];
 }
 
-async function load(append = false): Promise<void> {
-  if (!append) {
-    state.value = "loading";
-  }
+async function load(): Promise<void> {
+  state.value = "loading";
   try {
-    const page = await searchUsers(
-      search.value,
-      append ? nextCursor.value : null,
-      accountType.value === "all" ? null : accountType.value,
-    );
-    users.value = append ? [...users.value, ...page.items] : page.items;
-    nextCursor.value = page.page.nextCursor ?? null;
+    users.value = await listAllUsers();
     state.value = "ready";
   } catch (caught: unknown) {
     error.value = describeError(caught);
@@ -105,12 +95,15 @@ async function load(append = false): Promise<void> {
   }
 }
 
-let searchTimer: ReturnType<typeof setTimeout> | undefined;
-watch(search, () => {
-  clearTimeout(searchTimer);
-  searchTimer = setTimeout(() => void load(), 300);
-});
-watch(accountType, () => void load());
+const shownUsers = computed(() =>
+  accountType.value === "all"
+    ? users.value
+    : users.value.filter((user) => (user.accountEvent === null ? "permanent" : "event") === accountType.value),
+);
+
+function statusLabel(user: UserDto): string {
+  return user.disabled ? "Disabled" : user.passwordSet ? "Active" : "Setup pending";
+}
 
 function replace(updated: UserDto): void {
   users.value = users.value.map((user) => (user.id === updated.id ? updated : user));
@@ -240,10 +233,24 @@ function rowActions(user: UserDto): RowAction[] {
 
 const showActions = computed(() => users.value.some((user) => rowActions(user).length > 0));
 
+const headers = computed(() => [
+  { title: "Name", key: "displayName" },
+  { title: "Username", key: "username" },
+  { title: "Email", key: "email" },
+  {
+    title: "Account",
+    key: "account",
+    value: (user: UserDto) => (user.accountEvent === null ? "Permanent" : `Event: ${user.accountEvent.name}`),
+  },
+  { title: "User groups", key: "userGroups", value: (user: UserDto) => user.userGroups.map(({ name }) => name).join(", ") },
+  { title: "Status", key: "status", value: statusLabel },
+  ...(showActions.value ? [{ title: "Actions", key: "actions", sortable: false, align: "end" as const }] : []),
+]);
+
 /** Permanent users need `users.create`; event accounts `member-accounts.create` for some event. */
 const canCreateUsers = computed(() => can.create || session.can("member-accounts.create"));
 
-onMounted(() => void load());
+onMounted(load);
 </script>
 
 <template>
@@ -254,85 +261,66 @@ onMounted(() => void load());
       </template>
     </ViewHeader>
 
-    <div class="user-filters mb-4">
-      <v-text-field
-        v-model="search"
-        :prepend-inner-icon="mdiMagnify"
-        label="Search by name or email"
-        density="compact"
-        clearable
-        hide-details
-        class="user-filters__search"
-      />
-      <v-select v-model="accountType" :items="accountTypes" label="Account type" density="compact" hide-details class="user-filters__type" />
-    </div>
-
     <v-skeleton-loader v-if="state === 'loading'" type="table" />
-    <ErrorState v-else-if="state === 'error'" :message="error" @retry="load()" />
+    <ErrorState v-else-if="state === 'error'" :message="error" @retry="load" />
     <v-card v-else>
-      <v-table hover>
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Username</th>
-            <th class="d-none d-lg-table-cell">Email</th>
-            <th>Account</th>
-            <th class="d-none d-md-table-cell">User groups</th>
-            <th>Status</th>
-            <th v-if="showActions" class="text-right"><span class="d-sr-only">Actions</span></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="user in users" :key="user.id">
-            <td class="font-weight-medium">{{ user.displayName }}</td>
-            <td>
-              <code v-if="user.username">{{ user.username }}</code>
-              <span v-else class="text-medium-emphasis">—</span>
-            </td>
-            <td class="d-none d-lg-table-cell text-medium-emphasis">{{ user.email ?? "No local sign-in yet" }}</td>
-            <td>
-              <span v-if="user.accountEvent === null">Permanent</span>
-              <router-link
-                v-else
-                v-tooltip:top="'Deleted when this event is archived'"
-                :to="{ name: 'event-detail', params: { eventId: user.accountEvent.id } }"
-                class="text-no-wrap"
-              >
-                Event: {{ user.accountEvent.name }}
-              </router-link>
-            </td>
-            <td class="d-none d-md-table-cell">
-              <span v-if="user.userGroups.length === 0" class="text-medium-emphasis">—</span>
-              <span v-else>{{ user.userGroups.map(({ name }) => name).join(", ") }}</span>
-            </td>
-            <td>
-              <v-chip v-if="user.disabled" size="small" color="error" variant="tonal" :prepend-icon="mdiAccountOff">Disabled</v-chip>
-              <v-chip v-else-if="!user.passwordSet" size="small" color="warning" variant="tonal">Setup pending</v-chip>
-              <v-chip v-else size="small" color="success" variant="tonal">Active</v-chip>
-            </td>
-            <td v-if="showActions" class="text-right text-no-wrap">
-              <v-btn
-                v-for="action in rowActions(user)"
-                :key="action.label"
-                v-tooltip:top="action.label"
-                :icon="action.icon"
-                :aria-label="`${action.label}: ${user.displayName}`"
-                :color="action.color"
-                :disabled="action.disabled === true"
-                variant="text"
-                size="small"
-                @click="action.run"
-              />
-            </td>
-          </tr>
-          <tr v-if="users.length === 0">
-            <td colspan="7" class="text-medium-emphasis">No users match the filters.</td>
-          </tr>
-        </tbody>
-      </v-table>
-      <div v-if="nextCursor" class="d-flex justify-center pa-3">
-        <v-btn variant="text" @click="load(true)">Load more</v-btn>
-      </div>
+      <DataTable
+        :headers="headers"
+        :items="shownUsers"
+        :searchable="true"
+        search-label="Search by name, username, email, account or user group"
+        :sort-by="[{ key: 'displayName', order: 'asc' }]"
+        no-data-text="No users match the filters."
+        hover
+      >
+        <template #toolbar>
+          <v-select v-model="accountType" :items="accountTypes" label="Account type" density="compact" hide-details class="user-type" />
+        </template>
+        <template #[`item.displayName`]="{ item }"><span class="font-weight-medium">{{ item.displayName }}</span></template>
+        <template #[`item.username`]="{ item }">
+          <code v-if="item.username">{{ item.username }}</code>
+          <span v-else class="text-medium-emphasis">—</span>
+        </template>
+        <template #[`item.email`]="{ item }">
+          <span class="text-medium-emphasis">{{ item.email ?? "No local sign-in yet" }}</span>
+        </template>
+        <template #[`item.account`]="{ item }">
+          <span v-if="item.accountEvent === null">Permanent</span>
+          <router-link
+            v-else
+            v-tooltip:top="'Deleted when this event is archived'"
+            :to="{ name: 'event-detail', params: { eventId: item.accountEvent.id } }"
+            class="text-no-wrap"
+          >
+            Event: {{ item.accountEvent.name }}
+          </router-link>
+        </template>
+        <template #[`item.userGroups`]="{ item }">
+          <span v-if="item.userGroups.length === 0" class="text-medium-emphasis">—</span>
+          <span v-else>{{ item.userGroups.map(({ name }) => name).join(", ") }}</span>
+        </template>
+        <template #[`item.status`]="{ item }">
+          <v-chip v-if="item.disabled" size="small" color="error" variant="tonal" :prepend-icon="mdiAccountOff">Disabled</v-chip>
+          <v-chip v-else-if="!item.passwordSet" size="small" color="warning" variant="tonal">Setup pending</v-chip>
+          <v-chip v-else size="small" color="success" variant="tonal">Active</v-chip>
+        </template>
+        <template #[`item.actions`]="{ item }">
+          <span class="text-no-wrap">
+            <v-btn
+              v-for="action in rowActions(item)"
+              :key="action.label"
+              v-tooltip:top="action.label"
+              :icon="action.icon"
+              :aria-label="`${action.label}: ${item.displayName}`"
+              :color="action.color"
+              :disabled="action.disabled === true"
+              variant="text"
+              size="small"
+              @click="action.run"
+            />
+          </span>
+        </template>
+      </DataTable>
     </v-card>
 
     <v-dialog :model-value="editing !== null" max-width="460" @update:model-value="editing = null">
@@ -434,26 +422,8 @@ onMounted(() => void load());
 </template>
 
 <style scoped>
-.user-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.user-filters__search {
-  flex: 0 1 360px;
-  min-width: 200px;
-}
-
-.user-filters__type {
+.user-type {
   flex: 0 1 220px;
   min-width: 180px;
-}
-
-@media (max-width: 599px) {
-  .user-filters__search,
-  .user-filters__type {
-    flex-basis: 100%;
-  }
 }
 </style>

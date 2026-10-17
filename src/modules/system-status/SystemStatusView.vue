@@ -3,6 +3,7 @@ import { mdiAlertCircleOutline, mdiCheckCircleOutline, mdiCloseCircleOutline, md
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
 import InfoHint from "@/shared/components/InfoHint.vue";
+import DataTable from "@/shared/components/DataTable.vue";
 import ViewHeader from "@/shared/components/layout/ViewHeader.vue";
 import MetricChart from "./MetricChart.vue";
 import { useAsyncData } from "@/shared/composables/useAsyncData";
@@ -42,6 +43,18 @@ function toggle(problem: LoggedProblemDto): void {
   const next = new Set(expanded.value);
   if (!next.delete(key)) next.add(key);
   expanded.value = next;
+}
+
+const problemHeaders = [
+  { title: "Time", key: "time" },
+  { title: "Level", key: "level" },
+  { title: "Message", key: "message" },
+];
+/** Stored problems have no ID; time and message tell them apart. */
+const problems = computed(() => (status.data.value?.problems ?? []).map((problem) => ({ ...problem, key: problemKey(problem) })));
+
+function problemSearchText(problem: LoggedProblemDto): (string | null | undefined)[] {
+  return [problem.level === "warn" ? "warning" : "error", problem.message, problem.details];
 }
 
 function problemColor(level: LoggedProblemDto["level"]): string {
@@ -195,36 +208,35 @@ onUnmounted(() => {
         <div v-if="status.data.value.problems.length === 0" class="px-4 py-3 text-body-medium text-medium-emphasis">
           No warnings or errors in the last seven days.
         </div>
-        <v-list v-else density="compact" class="py-0 problems">
-          <template v-for="problem in status.data.value.problems" :key="problemKey(problem)">
-            <v-list-item class="px-4" @click="toggle(problem)">
-              <div class="d-flex ga-3 align-baseline">
-                <span class="text-body-small text-medium-emphasis problem__time">{{ problem.time ? dateTime.format(new Date(problem.time)) : "" }}</span>
-                <span class="text-body-small font-weight-medium problem__level" :class="`text-${problemColor(problem.level)}`">
-                  {{ problem.level.toUpperCase() }}
-                </span>
-                <span class="text-body-medium text-truncate">{{ problem.message }}</span>
-              </div>
-              <pre v-if="expanded.has(problemKey(problem)) && problem.details" class="problem__details text-body-small mt-1">{{ problem.details }}</pre>
-            </v-list-item>
+        <DataTable
+          v-else
+          :headers="problemHeaders"
+          :items="problems"
+          item-value="key"
+          :search-text="problemSearchText"
+          search-label="Search warnings and errors"
+          hover
+          @click:row="(_: unknown, { item }: { item: LoggedProblemDto }) => toggle(item)"
+        >
+          <template #[`item.time`]="{ item }">
+            <span class="text-body-small text-medium-emphasis text-no-wrap">{{ item.time ? dateTime.format(new Date(item.time)) : "" }}</span>
           </template>
-        </v-list>
+          <template #[`item.level`]="{ item }">
+            <span class="text-body-small font-weight-medium" :class="`text-${problemColor(item.level)}`">{{ item.level.toUpperCase() }}</span>
+          </template>
+          <template #[`item.message`]="{ item }">
+            <div class="problem__message">{{ item.message }}</div>
+            <pre v-if="expanded.has(problemKey(item)) && item.details" class="problem__details text-body-small mt-1">{{ item.details }}</pre>
+          </template>
+        </DataTable>
       </v-card>
     </template>
   </div>
 </template>
 
 <style scoped>
-.problems {
-  max-height: 360px;
-  overflow-y: auto;
-}
-.problem__time {
-  flex: 0 0 auto;
-  min-width: 96px;
-}
-.problem__level {
-  flex: 0 0 48px;
+.problem__message {
+  overflow-wrap: anywhere;
 }
 .problem__details {
   white-space: pre-wrap;

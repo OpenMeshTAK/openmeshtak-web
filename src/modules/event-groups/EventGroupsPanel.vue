@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import InfoHint from "@/shared/components/InfoHint.vue";
 import { mdiPlus } from "@mdi/js";
-import { onMounted, ref, toRaw } from "vue";
+import { computed, onMounted, ref, toRaw } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import EmptyState from "@/shared/components/EmptyState.vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
+import DataTable from "@/shared/components/DataTable.vue";
 import { describeError, isApiProblem } from "@/shared/errors/api-problem";
 import { fieldErrors, messagesFor } from "@/shared/errors/field-errors";
 import { useToast } from "@/shared/feedback/toast";
@@ -35,6 +36,15 @@ const formError = ref<string | null>(null);
 const formFields = ref<Record<string, string>>({});
 
 const deleting = ref<EventGroupDto | null>(null);
+
+const headers = computed(() => [
+  { title: "Name", key: "name" },
+  { title: "Slug", key: "slug" },
+  { title: "Callsign", key: "callsign", value: (group: EventGroupDto) => group.provisioning.callsignFormat },
+  { title: "TAK", key: "tak", value: (group: EventGroupDto) => `${group.provisioning.tak.team} · ${group.provisioning.tak.role}` },
+  { title: "Short names", key: "shortNames", value: (group: EventGroupDto) => group.provisioning.shortNamePrefix },
+  ...(props.editable ? [{ title: "Actions", key: "actions", sortable: false, align: "end" as const }] : []),
+]);
 
 /** Mirrors Core's documented defaults so the form starts in a sensible state. */
 function defaultProvisioning(slug: string): GroupProvisioning {
@@ -133,34 +143,19 @@ onMounted(load);
     <EmptyState v-else-if="groups.length === 0" title="No groups yet" text="Add at least one group, for example Bravo." />
 
     <v-card v-else>
-      <v-table>
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Slug</th>
-            <th>Callsign</th>
-            <th>TAK</th>
-            <th>Short names</th>
-            <th v-if="editable" class="text-right">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="group in groups" :key="group.id">
-            <td>{{ group.name }}</td>
-            <td><code>{{ group.slug }}</code></td>
-            <td>{{ group.provisioning.callsignFormat }}</td>
-            <td>{{ group.provisioning.tak.team }} · {{ group.provisioning.tak.role }}</td>
-            <td>
-              <span v-if="group.provisioning.shortNamePrefix">{{ group.provisioning.shortNamePrefix }}1, {{ group.provisioning.shortNamePrefix }}2, …</span>
-              <v-chip v-else color="warning" size="small" variant="tonal" label>Prefix missing</v-chip>
-            </td>
-            <td v-if="editable" class="text-right text-no-wrap">
-              <v-btn variant="text" size="small" @click="open(group)">Edit</v-btn>
-              <v-btn variant="text" size="small" color="error" @click="deleting = group">Delete</v-btn>
-            </td>
-          </tr>
-        </tbody>
-      </v-table>
+      <DataTable :headers="headers" :items="groups" search-label="Search by name, slug, callsign or TAK team">
+        <template #[`item.slug`]="{ item }"><code>{{ item.slug }}</code></template>
+        <template #[`item.shortNames`]="{ item }">
+          <span v-if="item.provisioning.shortNamePrefix">{{ item.provisioning.shortNamePrefix }}1, {{ item.provisioning.shortNamePrefix }}2, …</span>
+          <v-chip v-else color="warning" size="small" variant="tonal" label>Prefix missing</v-chip>
+        </template>
+        <template #[`item.actions`]="{ item }">
+          <span class="text-no-wrap">
+            <v-btn variant="text" size="small" @click="open(item)">Edit</v-btn>
+            <v-btn variant="text" size="small" color="error" @click="deleting = item">Delete</v-btn>
+          </span>
+        </template>
+      </DataTable>
     </v-card>
 
     <v-dialog v-model="dialogOpen" max-width="640" scrollable>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { mdiAccountGroup, mdiAccountMultiple, mdiAccountPlus, mdiCheckCircle, mdiClose, mdiMagnify } from "@mdi/js";
+import { mdiAccountGroup, mdiAccountMultiple, mdiAccountPlus, mdiCheckCircle, mdiClose } from "@mdi/js";
 import { computed, onMounted, ref } from "vue";
 import { useLiveNotices } from "@/shared/realtime/useLiveNotices";
 import type { Schemas } from "@/shared/api/types";
@@ -7,6 +7,7 @@ import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import EmptyState from "@/shared/components/EmptyState.vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
 import ProfileSummary from "@/shared/components/ProfileSummary.vue";
+import DataTable from "@/shared/components/DataTable.vue";
 import { describeError } from "@/shared/errors/api-problem";
 import { useToast } from "@/shared/feedback/toast";
 import { useSession } from "@/modules/auth/session";
@@ -64,21 +65,14 @@ const canProvision = computed(
 );
 /** "all" or an event group ID; groups list their members in short-name order. */
 const selected = ref("all");
-const filter = ref("");
 const renumbered = ref(false);
 
 const selectedGroup = computed(() => groups.value.find(({ id }) => id === selected.value) ?? null);
 const groupMembers = computed(() => members.value.filter(({ eventGroup }) => eventGroup.id === selected.value));
-const filteredMembers = computed(() => {
-  const text = filter.value.trim().toLowerCase();
-  return text === ""
-    ? members.value
-    : members.value.filter((member) =>
-        [member.callsign, member.displayName, member.shortName ?? "", member.eventRole.name, member.eventGroup.name].some((value) =>
-          value.toLowerCase().includes(text),
-        ),
-      );
-});
+/** Members are also found by their account name, which the table does not show. */
+function memberSearchText(member: EventMemberDto): string[] {
+  return [member.callsign, member.displayName, member.shortName ?? "", member.eventRole.name, member.eventGroup.name];
+}
 
 /** TAK-only events have no radios, so their members need no Meshtastic short name. */
 const memberHeaders = computed(() => [
@@ -95,8 +89,8 @@ const memberSortKeys = {
     if (a === null || b === null) {
       return a === b ? 0 : a === null ? 1 : -1;
     }
-    const [prefixA = "", numberA = "0"] = /^(.*?)(d*)$/.exec(a)?.slice(1) ?? [];
-    const [prefixB = "", numberB = "0"] = /^(.*?)(d*)$/.exec(b)?.slice(1) ?? [];
+    const [prefixA = "", numberA = "0"] = /^(.*?)(\d*)$/.exec(a)?.slice(1) ?? [];
+    const [prefixB = "", numberB = "0"] = /^(.*?)(\d*)$/.exec(b)?.slice(1) ?? [];
     return prefixA.localeCompare(prefixB) || Number(numberA) - Number(numberB);
   },
 };
@@ -307,26 +301,15 @@ onMounted(load);
         </template>
 
         <template v-else>
-          <v-text-field
-            v-model="filter"
-            :prepend-inner-icon="mdiMagnify"
-            label="Filter by name, callsign, short name, role or group"
-            density="compact"
-            clearable
-            hide-details
-            class="mb-3"
-          />
           <v-card>
-            <v-data-table
+            <DataTable
               v-model:sort-by="memberSortBy"
               :headers="memberHeaders"
-              :items="filteredMembers"
+              :items="members"
               :custom-key-sort="memberSortKeys"
-              item-value="id"
-              mobile-breakpoint="sm"
-              :items-per-page="-1"
-              hide-default-footer
-              no-data-text="No members match the filter."
+              :search-text="memberSearchText"
+              search-label="Search by name, callsign, short name, role or group"
+              no-data-text="No members match the search."
             >
               <template #[`item.callsign`]="{ item }">
                 <div class="font-weight-medium">{{ item.callsign }}</div>
@@ -348,7 +331,7 @@ onMounted(load);
                   <v-btn v-if="canManage" variant="text" size="small" color="error" @click="removing = item">Remove</v-btn>
                 </span>
               </template>
-            </v-data-table>
+            </DataTable>
           </v-card>
         </template>
       </div>

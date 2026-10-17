@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { mdiLinkVariantOff } from "@mdi/js";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import InfoHint from "@/shared/components/InfoHint.vue";
+import DataTable from "@/shared/components/DataTable.vue";
 import type { TakClientCertificateDto } from "../tak-server.api";
 
 /** Issued client certificates with revocation; used for all certificates and for a user's own. */
@@ -59,6 +60,19 @@ function shortUid(clientUid: string): string {
   return clientUid.length > 8 ? `…${clientUid.slice(-7)}` : clientUid;
 }
 
+const headers = computed(() => [
+  ...(props.showUser ? [{ title: "User", key: "userDisplayName" }] : []),
+  { title: "Device", key: "device", value: deviceName },
+  { title: "Status", key: "status" },
+  { title: "Valid until", key: "notAfter", searchable: false },
+  { title: "Actions", key: "actions", sortable: false, align: "end" as const },
+]);
+
+/** Also found by the device UID, which only the tooltip shows. */
+function certificateSearchText(certificate: TakClientCertificateDto): (string | null)[] {
+  return [certificate.userDisplayName, deviceName(certificate), certificate.status, certificate.clientUid];
+}
+
 function confirm(): void {
   if (revoking.value !== null) {
     emit("revoke", revoking.value);
@@ -101,44 +115,36 @@ function confirm(): void {
         />
       </div>
     </div>
-    <v-table v-else density="comfortable">
-      <thead>
-        <tr>
-          <th v-if="props.showUser">User</th>
-          <th>Device</th>
-          <th>Status</th>
-          <th class="d-none d-md-table-cell">Valid until</th>
-          <th class="text-right">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="certificate in props.certificates" :key="certificate.id">
-          <td v-if="props.showUser">{{ certificate.userDisplayName }}</td>
-          <td class="text-truncate" style="max-width: 260px" :title="certificate.clientUid ?? undefined">{{ deviceName(certificate) }}</td>
-          <td>
-            <v-chip size="small" variant="tonal" :color="statusColor[certificate.status]" class="text-capitalize">
-              {{ certificate.status }}
-            </v-chip>
-            <v-chip
-              v-if="certificate.status === 'valid' && certificate.issuedForOldEndpoint"
-              size="small"
-              variant="tonal"
-              color="warning"
-              class="ml-1"
-              title="Set up before the TAK server address or ports changed; connect the app again."
-            >
-              Old address
-            </v-chip>
-          </td>
-          <td class="d-none d-md-table-cell">{{ dateFormat.format(new Date(certificate.notAfter)) }}</td>
-          <td class="text-right">
-            <v-btn v-if="certificate.status === 'valid'" variant="text" size="small" color="error" @click="revoking = certificate">
-              Revoke
-            </v-btn>
-          </td>
-        </tr>
-      </tbody>
-    </v-table>
+    <DataTable
+      v-else
+      :headers="headers"
+      :items="props.certificates"
+      :search-text="certificateSearchText"
+      :search-label="props.showUser ? 'Search by user, device or status' : 'Search by device or status'"
+    >
+      <template #[`item.device`]="{ item }">
+        <div class="text-truncate certificate-device" :title="item.clientUid ?? undefined">{{ deviceName(item) }}</div>
+      </template>
+      <template #[`item.status`]="{ item }">
+        <span class="text-no-wrap">
+          <v-chip size="small" variant="tonal" :color="statusColor[item.status]" class="text-capitalize">{{ item.status }}</v-chip>
+          <v-chip
+            v-if="item.status === 'valid' && item.issuedForOldEndpoint"
+            size="small"
+            variant="tonal"
+            color="warning"
+            class="ml-1"
+            title="Set up before the TAK server address or ports changed; connect the app again."
+          >
+            Old address
+          </v-chip>
+        </span>
+      </template>
+      <template #[`item.notAfter`]="{ item }">{{ dateFormat.format(new Date(item.notAfter)) }}</template>
+      <template #[`item.actions`]="{ item }">
+        <v-btn v-if="item.status === 'valid'" variant="text" size="small" color="error" @click="revoking = item">Revoke</v-btn>
+      </template>
+    </DataTable>
     <ConfirmDialog
       :model-value="revoking !== null"
       title="Revoke this certificate?"
@@ -169,6 +175,10 @@ function confirm(): void {
 
 .certificate-identity {
   min-width: 0;
+}
+
+.certificate-device {
+  max-width: 260px;
 }
 
 .certificate-uid {

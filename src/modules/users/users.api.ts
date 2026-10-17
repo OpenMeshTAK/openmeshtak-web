@@ -19,16 +19,22 @@ export function searchUsers(
   return unwrap(api.GET("/users", { params: { query } }));
 }
 
-/** Every event account of one event, e.g. to show what archiving it deletes. */
-export async function listEventAccounts(eventId: string): Promise<UserDto[]> {
-  const accounts: UserDto[] = [];
+/** Every user, page by page; the Users list searches and pages them in the browser. */
+export async function listAllUsers(accountType: UserAccountType | null = null): Promise<UserDto[]> {
+  const users: UserDto[] = [];
   let cursor: string | null = null;
   do {
-    const page: Schemas["UserPage"] = await searchUsers("", cursor, "event");
-    accounts.push(...page.items.filter((user) => user.accountEvent?.id === eventId));
+    const page: Schemas["UserPage"] = await searchUsers("", cursor, accountType);
+    users.push(...page.items);
     cursor = page.page.nextCursor ?? null;
   } while (cursor !== null);
-  return accounts;
+  return users;
+}
+
+/** Every event account of one event, e.g. to show what archiving it deletes. */
+export async function listEventAccounts(eventId: string): Promise<UserDto[]> {
+  const accounts = await listAllUsers("event");
+  return accounts.filter((user) => user.accountEvent?.id === eventId);
 }
 
 /** Keeps an event account when its event is archived. */

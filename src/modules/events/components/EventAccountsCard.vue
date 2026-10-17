@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
+import DataTable from "@/shared/components/DataTable.vue";
 import { useAsyncData } from "@/shared/composables/useAsyncData";
 import { useToast } from "@/shared/feedback/toast";
 import { useSession } from "@/modules/auth/session";
@@ -64,7 +65,13 @@ onMounted(() => void accounts.load());
     <p v-else-if="accounts.data.value.length === 0" class="text-body-medium px-5 pb-5 my-0">
       This event has no event accounts.
     </p>
-    <v-data-table v-else :headers="headers" :items="accounts.data.value" density="comfortable" hide-default-footer :items-per-page="-1" />
+    <DataTable
+      v-else
+      :headers="headers"
+      :items="accounts.data.value"
+      search-label="Search by name, username or email"
+      :sort-by="[{ key: 'displayName', order: 'asc' }]"
+    />
 
     <ConfirmDialog
       v-model="confirming"

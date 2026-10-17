@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import InfoHint from "@/shared/components/InfoHint.vue";
 import { mdiPlus } from "@mdi/js";
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
 import EmptyState from "@/shared/components/EmptyState.vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
+import DataTable from "@/shared/components/DataTable.vue";
 import { describeError, isApiProblem } from "@/shared/errors/api-problem";
 import { fieldErrors, messagesFor } from "@/shared/errors/field-errors";
 import { useToast } from "@/shared/feedback/toast";
@@ -40,6 +41,14 @@ const formError = ref<string | null>(null);
 const formFields = ref<Record<string, string>>({});
 
 const deleting = ref<EventRoleDto | null>(null);
+
+const headers = computed(() => [
+  { title: "Name", key: "name" },
+  { title: "Slug", key: "slug" },
+  { title: "TAK role", key: "takRoleOverride", value: (role: EventRoleDto) => role.takRoleOverride ?? "From group" },
+  { title: "Description", key: "description" },
+  ...(props.editable ? [{ title: "Actions", key: "actions", sortable: false, align: "end" as const }] : []),
+]);
 
 const takRoleItems = [
   { title: "Use the group's TAK role", value: null },
@@ -130,33 +139,23 @@ onMounted(load);
     <EmptyState v-else-if="roles.length === 0" title="No roles yet" text="Add at least one role, for example Participant." />
 
     <v-card v-else>
-      <v-table>
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Slug</th>
-            <th>TAK role</th>
-            <th class="d-none d-md-table-cell">Description</th>
-            <th v-if="editable" class="text-right">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="role in roles" :key="role.id">
-            <td>{{ role.name }}</td>
-            <td><code>{{ role.slug }}</code></td>
-            <td>
-              <span v-if="role.takRoleOverride">{{ role.takRoleOverride }}</span>
-              <span v-else class="text-medium-emphasis">From group</span>
-              <div v-if="role.seesAllTakGroups" class="text-body-small text-medium-emphasis">Sees all TAK groups</div>
-            </td>
-            <td class="d-none d-md-table-cell text-medium-emphasis">{{ role.description }}</td>
-            <td v-if="editable" class="text-right text-no-wrap">
-              <v-btn variant="text" size="small" @click="open(role)">Edit</v-btn>
-              <v-btn variant="text" size="small" color="error" @click="deleting = role">Delete</v-btn>
-            </td>
-          </tr>
-        </tbody>
-      </v-table>
+      <DataTable :headers="headers" :items="roles" search-label="Search by name, slug, TAK role or description">
+        <template #[`item.slug`]="{ item }"><code>{{ item.slug }}</code></template>
+        <template #[`item.takRoleOverride`]="{ item }">
+          <span v-if="item.takRoleOverride">{{ item.takRoleOverride }}</span>
+          <span v-else class="text-medium-emphasis">From group</span>
+          <div v-if="item.seesAllTakGroups" class="text-body-small text-medium-emphasis">Sees all TAK groups</div>
+        </template>
+        <template #[`item.description`]="{ item }">
+          <span class="text-medium-emphasis">{{ item.description }}</span>
+        </template>
+        <template #[`item.actions`]="{ item }">
+          <span class="text-no-wrap">
+            <v-btn variant="text" size="small" @click="open(item)">Edit</v-btn>
+            <v-btn variant="text" size="small" color="error" @click="deleting = item">Delete</v-btn>
+          </span>
+        </template>
+      </DataTable>
     </v-card>
 
     <v-dialog v-model="dialogOpen" max-width="520">
