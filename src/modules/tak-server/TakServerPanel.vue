@@ -107,20 +107,20 @@ onMounted(page.load);
         <v-col cols="12" lg="6" class="d-flex flex-column ga-4">
           <TakServerSettingsCard :settings="page.data.value.settings" @saved="showSettings" />
           <v-card>
-            <div class="d-flex align-center ga-1 pa-5 pb-2">
-              <span class="text-title-medium font-weight-medium">Client certificates</span>
-              <InfoHint label="About client certificates">
-                <p class="mb-2">
-                  Members connect their ATAK or iTAK app themselves from their dashboard while one of their events is
-                  active. TAK server administrators can connect theirs at any time.
-                </p>
-                <p class="mb-0">Each connected app gets one certificate here. Revoking it disconnects the app immediately.</p>
-              </InfoHint>
-            </div>
-            <p v-if="page.data.value.certificates.length === 0" class="text-body-medium text-medium-emphasis px-5 pb-5 my-0">
-              No TAK app has enrolled yet.
-            </p>
-            <TakClientCertificatesTable v-else :certificates="page.data.value.certificates" show-user @revoke="revoke" />
+            <TakClientCertificatesTable :certificates="page.data.value.certificates" show-user @revoke="revoke">
+              <template #title>
+                <div class="d-flex align-center ga-1">
+                  <span class="text-title-medium font-weight-medium">Client certificates</span>
+                  <InfoHint label="About client certificates">
+                    <p class="mb-2">
+                      Members connect their ATAK or iTAK app themselves from their dashboard while one of their events is
+                      active. TAK server administrators can connect theirs at any time.
+                    </p>
+                    <p class="mb-0">Each connected app gets one certificate here. Revoking it disconnects the app immediately.</p>
+                  </InfoHint>
+                </div>
+              </template>
+            </TakClientCertificatesTable>
           </v-card>
         </v-col>
         <v-col cols="12" lg="6" class="d-flex flex-column ga-4">

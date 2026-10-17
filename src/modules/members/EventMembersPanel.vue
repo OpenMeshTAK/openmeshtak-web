@@ -308,7 +308,8 @@ onMounted(load);
               :items="members"
               :custom-key-sort="memberSortKeys"
               :search-text="memberSearchText"
-              search-label="Search by name, callsign, short name, role or group"
+              search-label="Search members"
+              storage-key="event-members"
               no-data-text="No members match the search."
             >
               <template #[`item.callsign`]="{ item }">

@@ -120,8 +120,12 @@ function confirm(): void {
       :headers="headers"
       :items="props.certificates"
       :search-text="certificateSearchText"
-      :search-label="props.showUser ? 'Search by user, device or status' : 'Search by device or status'"
+      search-label="Search certificates"
+      storage-key="tak-client-certificates"
+      no-data-text="No TAK app has enrolled yet."
     >
+      <template v-if="$slots.title" #toolbar><slot name="title" /></template>
+      <template #[`item.userDisplayName`]="{ item }"><span class="text-no-wrap">{{ item.userDisplayName }}</span></template>
       <template #[`item.device`]="{ item }">
         <div class="text-truncate certificate-device" :title="item.clientUid ?? undefined">{{ deviceName(item) }}</div>
       </template>
@@ -140,7 +144,7 @@ function confirm(): void {
           </v-chip>
         </span>
       </template>
-      <template #[`item.notAfter`]="{ item }">{{ dateFormat.format(new Date(item.notAfter)) }}</template>
+      <template #[`item.notAfter`]="{ item }"><span class="text-no-wrap">{{ dateFormat.format(new Date(item.notAfter)) }}</span></template>
       <template #[`item.actions`]="{ item }">
         <v-btn v-if="item.status === 'valid'" variant="text" size="small" color="error" @click="revoking = item">Revoke</v-btn>
       </template>

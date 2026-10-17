@@ -268,13 +268,24 @@ onMounted(load);
         :headers="headers"
         :items="shownUsers"
         :searchable="true"
-        search-label="Search by name, username, email, account or user group"
+        search-label="Search users"
+        storage-key="users"
         :sort-by="[{ key: 'displayName', order: 'asc' }]"
         no-data-text="No users match the filters."
         hover
       >
         <template #toolbar>
-          <v-select v-model="accountType" :items="accountTypes" label="Account type" density="compact" hide-details class="user-type" />
+          <v-select
+            v-model="accountType"
+            :items="accountTypes"
+            aria-label="Account type"
+            variant="solo-filled"
+            flat
+            rounded="lg"
+            density="compact"
+            hide-details
+            class="user-type"
+          />
         </template>
         <template #[`item.displayName`]="{ item }"><span class="font-weight-medium">{{ item.displayName }}</span></template>
         <template #[`item.username`]="{ item }">

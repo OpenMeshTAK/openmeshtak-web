@@ -215,6 +215,7 @@ onUnmounted(() => {
           item-value="key"
           :search-text="problemSearchText"
           search-label="Search warnings and errors"
+          storage-key="system-problems"
           hover
           @click:row="(_: unknown, { item }: { item: LoggedProblemDto }) => toggle(item)"
         >

@@ -143,7 +143,7 @@ onMounted(load);
     <EmptyState v-else-if="groups.length === 0" title="No groups yet" text="Add at least one group, for example Bravo." />
 
     <v-card v-else>
-      <DataTable :headers="headers" :items="groups" search-label="Search by name, slug, callsign or TAK team">
+      <DataTable :headers="headers" :items="groups" search-label="Search groups" storage-key="event-groups">
         <template #[`item.slug`]="{ item }"><code>{{ item.slug }}</code></template>
         <template #[`item.shortNames`]="{ item }">
           <span v-if="item.provisioning.shortNamePrefix">{{ item.provisioning.shortNamePrefix }}1, {{ item.provisioning.shortNamePrefix }}2, …</span>

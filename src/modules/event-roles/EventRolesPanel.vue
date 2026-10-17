@@ -139,7 +139,7 @@ onMounted(load);
     <EmptyState v-else-if="roles.length === 0" title="No roles yet" text="Add at least one role, for example Participant." />
 
     <v-card v-else>
-      <DataTable :headers="headers" :items="roles" search-label="Search by name, slug, TAK role or description">
+      <DataTable :headers="headers" :items="roles" search-label="Search roles" storage-key="event-roles">
         <template #[`item.slug`]="{ item }"><code>{{ item.slug }}</code></template>
         <template #[`item.takRoleOverride`]="{ item }">
           <span v-if="item.takRoleOverride">{{ item.takRoleOverride }}</span>

@@ -46,32 +46,27 @@ onMounted(() => void accounts.load());
 
 <template>
   <v-card>
-    <div class="d-flex align-center flex-wrap ga-3 pa-5 pb-3">
-      <div class="flex-grow-1">
-        <div class="text-title-medium font-weight-medium">Event accounts</div>
-        <div class="text-body-medium text-medium-emphasis">Deleted when this event is archived.</div>
-      </div>
-      <v-btn
-        v-if="canManageAccounts && accounts.data.value.length > 0"
-        variant="tonal"
-        @click="confirming = true"
-      >
-        Make all permanent users…
-      </v-btn>
-    </div>
-
     <v-skeleton-loader v-if="accounts.state.value === 'loading'" type="table-row@2" />
     <v-alert v-else-if="accounts.state.value === 'error'" type="error" class="ma-5">{{ accounts.error.value }}</v-alert>
-    <p v-else-if="accounts.data.value.length === 0" class="text-body-medium px-5 pb-5 my-0">
-      This event has no event accounts.
-    </p>
     <DataTable
       v-else
       :headers="headers"
       :items="accounts.data.value"
-      search-label="Search by name, username or email"
+      search-label="Search event accounts"
+      storage-key="event-accounts"
+      no-data-text="This event has no event accounts."
       :sort-by="[{ key: 'displayName', order: 'asc' }]"
-    />
+    >
+      <template #toolbar>
+        <div>
+          <div class="text-title-medium font-weight-medium">Event accounts</div>
+          <div class="text-body-medium text-medium-emphasis">Deleted when this event is archived.</div>
+        </div>
+      </template>
+      <template v-if="canManageAccounts && accounts.data.value.length > 0" #actions>
+        <v-btn variant="tonal" @click="confirming = true">Make all permanent users…</v-btn>
+      </template>
+    </DataTable>
 
     <ConfirmDialog
       v-model="confirming"

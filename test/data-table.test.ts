@@ -22,7 +22,7 @@ function rows(count: number): Row[] {
   }));
 }
 
-function mountTable(props: Record<string, unknown>) {
+function mountTable(props: { items: Row[]; searchText?: (row: object) => unknown[] }) {
   return mount(DataTable, { props: { headers, ...props }, global: { plugins: [createVuetify()] } });
 }
 
@@ -50,15 +50,16 @@ describe("data table", () => {
   });
 
   it("searches the texts a view chooses instead of the columns", async () => {
-    const wrapper = mountTable({ items: rows(20), searchText: (row: Row) => [row.hidden] });
+    const wrapper = mountTable({ items: rows(20), searchText: (row: object) => [(row as Row).hidden] });
 
     await wrapper.find("input").setValue("secret");
     expect(names(wrapper)).toEqual(["LOADSIM-005"]);
   });
 
   it("sorts by a column when its title is clicked", async () => {
-    const wrapper = mountTable({ items: [rows(3)[1], rows(3)[2], rows(3)[0]] });
+    const wrapper = mountTable({ items: [...rows(3)].reverse() });
 
+    expect(names(wrapper)).toEqual(["LOADSIM-003", "LOADSIM-002", "LOADSIM-001"]);
     await wrapper.find("thead th").trigger("click");
     expect(names(wrapper)).toEqual(["LOADSIM-001", "LOADSIM-002", "LOADSIM-003"]);
     await wrapper.find("thead th").trigger("click");
