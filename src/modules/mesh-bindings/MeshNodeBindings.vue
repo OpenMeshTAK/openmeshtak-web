@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { mdiDotsVertical, mdiLinkVariantPlus, mdiMagnify, mdiRefresh } from "@mdi/js";
+import { mdiDotsVertical, mdiLinkVariantPlus, mdiRefresh } from "@mdi/js";
 import { computed, onMounted, ref } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
+import DataTable from "@/shared/components/DataTable.vue";
 import EmptyState from "@/shared/components/EmptyState.vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
 import InfoHint from "@/shared/components/InfoHint.vue";
@@ -27,7 +28,6 @@ const nodes = ref<MeshtasticNodeDto[]>([]);
 const members = ref<EventMemberDto[] | null>(null);
 const state = ref<"loading" | "ready" | "error">("loading");
 const loadError = ref("");
-const search = ref("");
 const busyNode = ref<number | null>(null);
 const bindOpen = ref(false);
 const bindingNode = ref<MeshtasticNodeDto | null>(null);
@@ -48,18 +48,21 @@ function rank(node: MeshtasticNodeDto): number {
   return node.binding !== null ? 2 : node.suggestion !== null ? 0 : 1;
 }
 
-const shown = computed(() => {
-  const term = search.value.trim().toLowerCase();
-  return nodes.value
-    .filter(
-      (node) =>
-        term === "" ||
-        [node.nodeId, node.shortName, node.longName, node.binding?.member.callsign, node.binding?.member.displayName].some((text) =>
-          text?.toLowerCase().includes(term),
-        ),
-    )
-    .sort((a, b) => rank(a) - rank(b) || (b.lastHeardAt ?? "").localeCompare(a.lastHeardAt ?? ""));
-});
+/** The order before a column is sorted. */
+const ranked = computed(() =>
+  [...nodes.value].sort((a, b) => rank(a) - rank(b) || (b.lastHeardAt ?? "").localeCompare(a.lastHeardAt ?? "")),
+);
+
+function nodeSearchText(node: MeshtasticNodeDto): (string | null | undefined)[] {
+  return [node.nodeId, node.shortName, node.longName, node.binding?.member.callsign, node.binding?.member.displayName];
+}
+
+const headers = computed(() => [
+  { title: "Node", key: "node", value: nodeName },
+  { title: "Last heard", key: "lastHeardAt" },
+  { title: "Member", key: "member", value: (node: MeshtasticNodeDto) => (node.binding === null ? "" : memberName(node.binding.member)) },
+  ...(canManage.value ? [{ title: "Actions", key: "actions", sortable: false, align: "end" as const }] : []),
+]);
 
 function nodeName(node: MeshtasticNodeDto): string {
   return node.longName ?? node.shortName ?? node.nodeId;
@@ -168,87 +171,72 @@ onMounted(load);
       title="No mesh nodes yet"
       text="Nodes appear here once an HQ with the uplink switched on hears them. You can also bind a radio to a member in advance by its node ID."
     />
-    <template v-else>
-      <div class="d-flex align-center flex-wrap ga-3 mb-3">
-        <v-text-field
-          v-model="search"
-          :prepend-inner-icon="mdiMagnify"
-          placeholder="Search node, callsign or name"
-          aria-label="Search mesh nodes"
-          density="compact"
-          variant="outlined"
-          hide-details
-          clearable
-          class="bindings-search"
-        />
-        <span class="text-body-small text-medium-emphasis">
-          {{ nodes.length === 1 ? "1 node" : `${nodes.length} nodes` }} · {{ unknownCount }} unknown
-          <InfoHint
-            label="About node bindings"
-            text="A bound node's positions join the member's track under the member's TAK identity. Unknown nodes appear in the live view and history under their own name. Changing a binding never rewrites positions that were already recorded."
-          />
-        </span>
-      </div>
-      <v-table density="compact">
-        <thead>
-          <tr>
-            <th>Node</th>
-            <th>Last heard</th>
-            <th>Member</th>
-            <th v-if="canManage" class="text-end" aria-label="Actions" />
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="node in shown" :key="node.nodeNum">
-            <td>
-              <div class="text-body-medium">{{ nodeName(node) }}</div>
-              <div class="text-body-small text-medium-emphasis">
-                {{ node.nodeId }}<template v-if="node.shortName !== null && node.longName !== null"> · {{ node.shortName }}</template>
-              </div>
-            </td>
-            <td class="text-body-small">{{ heardText(node) }}</td>
-            <td>
-              <template v-if="node.binding !== null">
-                <div class="text-body-medium">{{ memberName(node.binding.member) }}</div>
-                <div v-if="node.binding.member.shortName !== null" class="text-body-small text-medium-emphasis">{{ node.binding.member.shortName }}</div>
-              </template>
-              <template v-else>
-                <v-chip size="small" variant="outlined">Unknown</v-chip>
-                <div v-if="node.suggestion !== null" class="d-flex align-center flex-wrap ga-2 mt-1">
-                  <span class="text-body-small">Suggested: {{ memberName(node.suggestion) }}</span>
-                  <v-btn v-if="canManage" size="x-small" variant="tonal" color="primary" :loading="busyNode === node.nodeNum" @click="confirmSuggestion(node)">
-                    Confirm
-                  </v-btn>
-                </div>
-              </template>
-            </td>
-            <td v-if="canManage" class="text-end">
-              <v-menu location="bottom end">
-                <template #activator="{ props: menu }">
-                  <v-btn
-                    v-bind="menu"
-                    :icon="mdiDotsVertical"
-                    variant="text"
-                    size="small"
-                    :aria-label="`Actions for ${nodeName(node)}`"
-                    :disabled="busyNode === node.nodeNum"
-                  />
-                </template>
-                <v-list density="compact">
-                  <v-list-item
-                    :disabled="!canPickMember"
-                    :title="node.binding === null ? 'Bind to a member…' : 'Bind to another member…'"
-                    @click="openBind(node)"
-                  />
-                  <v-list-item v-if="node.binding !== null" title="Unbind" @click="askUnbind(node)" />
-                </v-list>
-              </v-menu>
-            </td>
-          </tr>
-        </tbody>
-      </v-table>
-      <p v-if="shown.length === 0" class="text-body-medium text-medium-emphasis text-center my-6">No node matches the search.</p>
-    </template>
+    <v-card v-else>
+      <DataTable
+        :headers="headers"
+        :items="ranked"
+        item-value="nodeNum"
+        :searchable="true"
+        :search-text="nodeSearchText"
+        search-label="Search mesh nodes"
+        storage-key="mesh-nodes"
+        no-data-text="No node matches the search."
+      >
+        <template #toolbar>
+          <span class="text-body-small text-medium-emphasis">
+            {{ nodes.length === 1 ? "1 node" : `${nodes.length} nodes` }} · {{ unknownCount }} unknown
+            <InfoHint
+              label="About node bindings"
+              text="A bound node's positions join the member's track under the member's TAK identity. Unknown nodes appear in the live view and history under their own name. Changing a binding never rewrites positions that were already recorded."
+            />
+          </span>
+        </template>
+        <template #[`item.node`]="{ item }">
+          <div class="font-weight-medium">{{ nodeName(item) }}</div>
+          <div class="text-body-small text-medium-emphasis">
+            {{ item.nodeId }}<template v-if="item.shortName !== null && item.longName !== null"> · {{ item.shortName }}</template>
+          </div>
+        </template>
+        <template #[`item.lastHeardAt`]="{ item }"><span class="text-no-wrap">{{ heardText(item) }}</span></template>
+        <template #[`item.member`]="{ item }">
+          <template v-if="item.binding !== null">
+            <div>{{ memberName(item.binding.member) }}</div>
+            <div v-if="item.binding.member.shortName !== null" class="text-body-small text-medium-emphasis">{{ item.binding.member.shortName }}</div>
+          </template>
+          <template v-else>
+            <v-chip size="small" variant="tonal">Unknown</v-chip>
+            <div v-if="item.suggestion !== null" class="d-flex align-center flex-wrap ga-2 mt-1">
+              <span class="text-body-small">Suggested: {{ memberName(item.suggestion) }}</span>
+              <v-btn v-if="canManage" size="x-small" variant="tonal" color="primary" :loading="busyNode === item.nodeNum" @click="confirmSuggestion(item)">
+                Confirm
+              </v-btn>
+            </div>
+          </template>
+        </template>
+        <template #[`item.actions`]="{ item }">
+          <v-menu location="bottom end">
+            <template #activator="{ props: menu }">
+              <v-btn
+                v-bind="menu"
+                :icon="mdiDotsVertical"
+                variant="text"
+                size="small"
+                :aria-label="`Actions for ${nodeName(item)}`"
+                :disabled="busyNode === item.nodeNum"
+              />
+            </template>
+            <v-list density="compact">
+              <v-list-item
+                :disabled="!canPickMember"
+                :title="item.binding === null ? 'Bind to a member…' : 'Bind to another member…'"
+                @click="openBind(item)"
+              />
+              <v-list-item v-if="item.binding !== null" title="Unbind" @click="askUnbind(item)" />
+            </v-list>
+          </v-menu>
+        </template>
+      </DataTable>
+    </v-card>
 
     <BindNodeDialog v-if="members !== null" v-model="bindOpen" :node="bindingNode" :members="members" :bound-nodes="boundNodes" :bind="bind" />
     <ConfirmDialog v-model="unbindOpen" title="Unbind this node?" confirm-label="Unbind" confirm-color="error" :loading="busyNode !== null" @confirm="unbind">
@@ -257,9 +245,3 @@ onMounted(load);
     </ConfirmDialog>
   </div>
 </template>
-
-<style scoped>
-.bindings-search {
-  max-width: 360px;
-}
-</style>

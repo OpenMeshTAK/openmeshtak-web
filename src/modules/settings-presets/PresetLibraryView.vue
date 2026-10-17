@@ -2,6 +2,7 @@
 import { mdiBookshelf, mdiDeleteOutline, mdiDownload, mdiFileImportOutline, mdiPencilOutline } from "@mdi/js";
 import { computed, onMounted, ref } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
+import DataTable from "@/shared/components/DataTable.vue";
 import EmptyState from "@/shared/components/EmptyState.vue";
 import SegmentedControl from "@/shared/components/SegmentedControl.vue";
 import ViewHeader from "@/shared/components/layout/ViewHeader.vue";
@@ -35,6 +36,23 @@ const KIND_FILTERS = [
   { title: KIND_LABELS.meshtastic, value: "meshtastic" as const },
 ];
 const page = useAsyncData(() => listPresets(), [] as SettingsPresetSummaryDto[]);
+const headers = [
+  { title: "Name", key: "name" },
+  { title: "Kind", key: "kind", value: (preset: SettingsPresetSummaryDto) => KIND_LABELS[preset.kind] },
+  { title: "Settings", key: "itemCount", align: "end" as const },
+  { title: "Made for", key: "targetVersion", value: madeFor },
+  { title: "Updated", key: "updatedAt", searchable: false },
+  { title: "Actions", key: "actions", sortable: false, align: "end" as const },
+];
+
+function madeFor(preset: SettingsPresetSummaryDto): string {
+  return preset.targetVersion ? `${preset.kind === "tak" ? "ATAK" : "Firmware"} ${preset.targetVersion}` : "—";
+}
+
+function presetSearchText(preset: SettingsPresetSummaryDto): (string | null)[] {
+  return [preset.name, preset.description, KIND_LABELS[preset.kind], madeFor(preset)];
+}
+
 const shown = computed(() => page.data.value.filter((preset) => kind.value === "all" || preset.kind === kind.value));
 /** The library uses its own instance-wide write permission. */
 const canWrite = computed(() => session.can("presets.manage", null));
@@ -158,37 +176,22 @@ onMounted(page.load);
       text="Open an event's TAK or Meshtastic settings and use Presets → Save to library, or add a preset file here."
     />
     <v-card v-else>
-      <v-table hover>
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Kind</th>
-            <th>Settings</th>
-            <th>Made for</th>
-            <th>Updated</th>
-            <th><span class="d-sr-only">Actions</span></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="preset in shown" :key="preset.id">
-            <td>
-              <div class="font-weight-medium">{{ preset.name }}</div>
-              <div v-if="preset.description" class="text-body-small text-medium-emphasis">{{ preset.description }}</div>
-            </td>
-            <td>{{ KIND_LABELS[preset.kind] }}</td>
-            <td>{{ preset.itemCount }}</td>
-            <td>{{ preset.targetVersion ? `${preset.kind === "tak" ? "ATAK" : "Firmware"} ${preset.targetVersion}` : "—" }}</td>
-            <td>{{ new Date(preset.updatedAt).toLocaleDateString() }}</td>
-            <td class="text-right text-no-wrap">
-              <v-btn :icon="mdiDownload" variant="text" size="small" aria-label="Download" @click="download(preset)" />
-              <template v-if="canWrite">
-                <v-btn :icon="mdiPencilOutline" variant="text" size="small" aria-label="Rename" @click="startEdit(preset)" />
-                <v-btn :icon="mdiDeleteOutline" variant="text" size="small" aria-label="Delete" @click="startDelete(preset)" />
-              </template>
-            </td>
-          </tr>
-        </tbody>
-      </v-table>
+      <DataTable :headers="headers" :items="shown" :search-text="presetSearchText" search-label="Search presets" storage-key="presets">
+        <template #[`item.name`]="{ item }">
+          <div class="font-weight-medium">{{ item.name }}</div>
+          <div v-if="item.description" class="text-body-small text-medium-emphasis">{{ item.description }}</div>
+        </template>
+        <template #[`item.updatedAt`]="{ item }">{{ new Date(item.updatedAt).toLocaleDateString() }}</template>
+        <template #[`item.actions`]="{ item }">
+          <span class="text-no-wrap">
+            <v-btn :icon="mdiDownload" variant="text" size="small" aria-label="Download" @click="download(item)" />
+            <template v-if="canWrite">
+              <v-btn :icon="mdiPencilOutline" variant="text" size="small" aria-label="Rename" @click="startEdit(item)" />
+              <v-btn :icon="mdiDeleteOutline" variant="text" size="small" aria-label="Delete" @click="startDelete(item)" />
+            </template>
+          </span>
+        </template>
+      </DataTable>
     </v-card>
 
     <SavePresetDialog v-model="uploadOpen" :document="uploadDocument" title="Add preset to library" @saved="uploaded" />

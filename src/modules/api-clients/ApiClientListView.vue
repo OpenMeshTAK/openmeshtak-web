@@ -2,6 +2,7 @@
 import { mdiPlus, mdiRobotOutline } from "@mdi/js";
 import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
+import DataTable from "@/shared/components/DataTable.vue";
 import EmptyState from "@/shared/components/EmptyState.vue";
 import ViewHeader from "@/shared/components/layout/ViewHeader.vue";
 import { useAsyncData } from "@/shared/composables/useAsyncData";
@@ -19,6 +20,16 @@ const page = useAsyncData(
   { clients: [] as ApiClientDto[], events: [] as { id: string; name: string }[] },
 );
 const createOpen = ref(false);
+
+const headers = [
+  { title: "Name", key: "name" },
+  { title: "Status", key: "status" },
+  { title: "Permissions", key: "permissions", value: (client: ApiClientDto) => client.permissions.length, align: "end" as const },
+];
+
+function clientSearchText(client: ApiClientDto): (string | null)[] {
+  return [client.name, client.description, client.status];
+}
 
 function open(client: ApiClientDto): void {
   void router.push({ name: "api-client-detail", params: { apiClientId: client.id } });
@@ -45,32 +56,24 @@ onMounted(page.load);
     />
 
     <v-card v-else>
-      <v-table hover>
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Status</th>
-            <th>Permissions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="client in page.data.value.clients"
-            :key="client.id"
-            class="cursor-pointer"
-            tabindex="0"
-            @click="open(client)"
-            @keydown.enter="open(client)"
-          >
-            <td>
-              <div class="font-weight-medium">{{ client.name }}</div>
-              <div v-if="client.description" class="text-body-small text-medium-emphasis">{{ client.description }}</div>
-            </td>
-            <td><ApiClientStatusChip :status="client.status" /></td>
-            <td>{{ client.permissions.length }}</td>
-          </tr>
-        </tbody>
-      </v-table>
+      <DataTable
+        :headers="headers"
+        :items="page.data.value.clients"
+        :search-text="clientSearchText"
+        search-label="Search API clients"
+        storage-key="api-clients"
+        hover
+        class="clickable-rows"
+        @click:row="(_: unknown, { item }: { item: ApiClientDto }) => open(item)"
+      >
+        <template #[`item.name`]="{ item }">
+          <router-link :to="{ name: 'api-client-detail', params: { apiClientId: item.id } }" class="row-link" @click.stop>
+            <div class="font-weight-medium">{{ item.name }}</div>
+            <div v-if="item.description" class="text-body-small text-medium-emphasis">{{ item.description }}</div>
+          </router-link>
+        </template>
+        <template #[`item.status`]="{ item }"><ApiClientStatusChip :status="item.status" /></template>
+      </DataTable>
     </v-card>
 
     <CreateApiClientDialog v-model="createOpen" :events="page.data.value.events" @created="open" />

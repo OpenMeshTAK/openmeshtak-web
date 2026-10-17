@@ -20,6 +20,7 @@ export interface DataTableHeader<Row> {
   searchable?: boolean;
   align?: "start" | "center" | "end";
   width?: string | number;
+  minWidth?: string | number;
   nowrap?: boolean;
 }
 
@@ -152,7 +153,7 @@ watch(search, () => {
       :density="props.density"
       :no-data-text="props.noDataText"
       mobile-breakpoint="sm"
-      class="data-table"
+      class="app-table"
     >
       <template v-for="name in cellSlots" #[name]="scope" :key="name">
         <slot :name="name" v-bind="scope" />
@@ -194,20 +195,5 @@ watch(search, () => {
 .data-table__count + .data-table__search,
 .data-table__search + .data-table__actions {
   margin-left: 0;
-}
-
-/* Quiet column titles, so the rows carry the visual weight. */
-.data-table :deep(thead th) {
-  height: 40px !important;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-}
-
-.data-table :deep(.v-data-table__th--sorted) {
-  color: rgb(var(--v-theme-on-surface));
 }
 </style>

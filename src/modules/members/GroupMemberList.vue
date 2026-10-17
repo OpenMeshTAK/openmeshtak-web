@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { mdiArrowDown, mdiArrowUp, mdiDotsVertical, mdiDragVertical, mdiSwapHorizontal } from "@mdi/js";
+import { mdiArrowDown, mdiArrowUp, mdiCheckCircle, mdiDotsVertical, mdiDragVertical, mdiSwapHorizontal } from "@mdi/js";
 import { ref, watch } from "vue";
 import { VueDraggable } from "vue-draggable-plus";
 import { shortNameNumber, type EventMemberDto } from "./members.api";
@@ -47,9 +47,23 @@ function shift(index: number, direction: -1 | 1): void {
 
 <template>
   <v-card>
-    <v-list lines="two" class="py-0">
+    <!-- Looks like the "All members" table; a plain table because the rows must be draggable. -->
+    <v-table class="app-table" density="comfortable">
+      <thead>
+        <tr>
+          <th v-if="canManage" class="handle-column"><span class="d-sr-only">Drag to reorder</span></th>
+          <th>Short name</th>
+          <th>Callsign</th>
+          <th>Role</th>
+          <th>TAK app</th>
+          <th class="text-right">Actions</th>
+        </tr>
+      </thead>
+      <!-- Only rows may be children here: Sortable counts every child element, so anything else
+           between rows would shift the drop index and save the wrong order. -->
       <VueDraggable
         v-model="ordered"
+        tag="tbody"
         :animation="180"
         handle=".member-handle"
         :disabled="!canManage"
@@ -57,16 +71,24 @@ function shift(index: number, direction: -1 | 1): void {
         chosen-class="drag-chosen"
         @end="dropped"
       >
-        <!-- Only list items may be children here: Sortable counts every child element, so a divider
-             between items would shift the drop index and save the wrong order. -->
-        <v-list-item v-for="(member, index) in ordered" :key="member.id" class="member-row">
-          <template #prepend>
-            <v-icon v-if="canManage" :icon="mdiDragVertical" class="member-handle mr-1" aria-hidden="true" />
-            <v-avatar color="primary" variant="tonal" size="36" class="mr-3 font-weight-medium">{{ member.shortName ?? "—" }}</v-avatar>
-          </template>
-          <v-list-item-title>{{ member.callsign }}</v-list-item-title>
-          <v-list-item-subtitle>{{ member.displayName }} · {{ member.eventRole.name }}</v-list-item-subtitle>
-          <template #append>
+        <tr v-for="(member, index) in ordered" :key="member.id">
+          <td v-if="canManage" class="handle-column">
+            <v-icon :icon="mdiDragVertical" class="member-handle" aria-hidden="true" />
+          </td>
+          <td class="font-weight-medium">{{ member.shortName ?? "—" }}</td>
+          <td>
+            <div class="font-weight-medium">{{ member.callsign }}</div>
+            <div v-if="member.callsignOverride" class="text-body-small text-medium-emphasis">Callsign override</div>
+          </td>
+          <td>{{ member.eventRole.name }}</td>
+          <td>
+            <span v-if="member.enrolledTakApps > 0" class="d-inline-flex align-center ga-1 text-no-wrap">
+              <v-icon :icon="mdiCheckCircle" size="16" color="success" aria-hidden="true" />
+              {{ member.enrolledTakApps === 1 ? "Enrolled" : `${member.enrolledTakApps} apps enrolled` }}
+            </span>
+            <span v-else class="text-medium-emphasis text-no-wrap">Not enrolled</span>
+          </td>
+          <td class="text-right text-no-wrap">
             <slot name="actions" :member="member" />
             <v-menu v-if="canManage">
               <template #activator="{ props: menu }">
@@ -86,20 +108,21 @@ function shift(index: number, direction: -1 | 1): void {
                 />
               </v-list>
             </v-menu>
-          </template>
-        </v-list-item>
+          </td>
+        </tr>
       </VueDraggable>
-      <p v-if="ordered.length === 0" class="text-body-medium text-medium-emphasis pa-5 my-0">No members in this group yet.</p>
-    </v-list>
+    </v-table>
+    <p v-if="ordered.length === 0" class="text-body-medium text-medium-emphasis pa-5 my-0">No members in this group yet.</p>
   </v-card>
 </template>
 
 <style scoped>
-.member-handle {
-  cursor: grab;
+.handle-column {
+  width: 40px;
+  padding-right: 0 !important;
 }
 
-.member-row + .member-row {
-  border-top: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+.member-handle {
+  cursor: grab;
 }
 </style>

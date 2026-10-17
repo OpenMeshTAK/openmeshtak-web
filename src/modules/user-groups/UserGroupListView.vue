@@ -3,6 +3,7 @@ import { mdiDeleteOutline, mdiPencil, mdiPlus } from "@mdi/js";
 import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
+import DataTable from "@/shared/components/DataTable.vue";
 import EmptyState from "@/shared/components/EmptyState.vue";
 import ViewContent from "@/shared/components/layout/ViewContent.vue";
 import ViewHeader from "@/shared/components/layout/ViewHeader.vue";
@@ -37,6 +38,13 @@ const editorOpen = computed({
   },
 });
 
+const headers = [
+  { title: "Name", key: "name" },
+  { title: "Members", key: "memberCount", align: "end" as const },
+  { title: "Permissions", key: "permissions", value: (group: UserGroupDto) => group.permissions.length, align: "end" as const },
+  { title: "Actions", key: "actions", sortable: false, align: "end" as const },
+];
+
 function open(group: UserGroupDto): void {
   void router.push({ name: "user-group-detail", params: { userGroupId: group.id } });
 }
@@ -68,53 +76,44 @@ onMounted(groups.load);
     <EmptyState v-else-if="groups.data.value.length === 0" title="No user groups" />
 
     <v-card v-else>
-      <v-table hover>
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Members</th>
-            <th>Permissions</th>
-            <th class="text-right"><span class="d-sr-only">Actions</span></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="group in groups.data.value"
-            :key="group.id"
-            class="cursor-pointer"
-            tabindex="0"
-            @click="open(group)"
-            @keydown.enter="open(group)"
-          >
-            <td>
-              <span class="font-weight-medium">{{ group.name }}</span>
-              <v-chip v-if="group.system" size="x-small" class="ml-2" label>System</v-chip>
-            </td>
-            <td>{{ group.memberCount }}</td>
-            <td>{{ group.permissions.length }}</td>
-            <td class="text-right text-no-wrap">
-              <v-btn
-                v-tooltip:top="canManage ? 'Edit' : 'View'"
-                :icon="mdiPencil"
-                :aria-label="`Edit ${group.name}`"
-                variant="text"
-                size="small"
-                @click.stop="open(group)"
-              />
-              <v-btn
-                v-if="canManage && !group.system"
-                v-tooltip:top="'Delete'"
-                :icon="mdiDeleteOutline"
-                :aria-label="`Delete ${group.name}`"
-                color="error"
-                variant="text"
-                size="small"
-                @click.stop="confirmDelete = group"
-              />
-            </td>
-          </tr>
-        </tbody>
-      </v-table>
+      <DataTable
+        :headers="headers"
+        :items="groups.data.value"
+        search-label="Search user groups"
+        storage-key="user-groups"
+        hover
+        class="clickable-rows"
+        @click:row="(_: unknown, { item }: { item: UserGroupDto }) => open(item)"
+      >
+        <template #[`item.name`]="{ item }">
+          <router-link :to="{ name: 'user-group-detail', params: { userGroupId: item.id } }" class="row-link" @click.stop>
+            <span class="font-weight-medium">{{ item.name }}</span>
+            <v-chip v-if="item.system" size="x-small" class="ml-2" label>System</v-chip>
+          </router-link>
+        </template>
+        <template #[`item.actions`]="{ item }">
+          <span class="text-no-wrap">
+            <v-btn
+              v-tooltip:top="canManage ? 'Edit' : 'View'"
+              :icon="mdiPencil"
+              :aria-label="`Edit ${item.name}`"
+              variant="text"
+              size="small"
+              @click.stop="open(item)"
+            />
+            <v-btn
+              v-if="canManage && !item.system"
+              v-tooltip:top="'Delete'"
+              :icon="mdiDeleteOutline"
+              :aria-label="`Delete ${item.name}`"
+              color="error"
+              variant="text"
+              size="small"
+              @click.stop="confirmDelete = item"
+            />
+          </span>
+        </template>
+      </DataTable>
     </v-card>
 
     <CreateUserGroupDialog v-model="createOpen" @created="(group: UserGroupDto) => { void groups.load(); open(group); }" />

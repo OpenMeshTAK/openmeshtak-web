@@ -2,6 +2,7 @@
 import { mdiLinkPlus } from "@mdi/js";
 import { computed, onMounted, ref } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
+import DataTable from "@/shared/components/DataTable.vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
 import InfoHint from "@/shared/components/InfoHint.vue";
 import OneTimeLinkReveal from "@/shared/components/OneTimeLinkReveal.vue";
@@ -29,6 +30,12 @@ const toast = useToast();
 const settings = ref<RegistrationSettingsDto | null>(null);
 const mode = ref<RegistrationMode>("closed");
 const invites = ref<RegistrationInviteDto[]>([]);
+const inviteHeaders = [
+  { title: "Created", key: "createdAt", searchable: false },
+  { title: "Status", key: "status" },
+  { title: "Expires", key: "expiresAt", searchable: false },
+  { title: "Actions", key: "actions", sortable: false, align: "end" as const },
+];
 const state = ref<"loading" | "ready" | "error">("loading");
 const loadError = ref("");
 const saving = ref(false);
@@ -159,26 +166,23 @@ onMounted(load);
           <v-btn color="primary" variant="tonal" :prepend-icon="mdiLinkPlus" :loading="creating" @click="createInvite">Create invite link</v-btn>
         </div>
         <v-divider />
-        <v-table v-if="invites.length > 0">
-          <thead>
-            <tr>
-              <th>Created</th>
-              <th>Status</th>
-              <th class="d-none d-sm-table-cell">Expires</th>
-              <th class="text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="invite in invites" :key="invite.id">
-              <td>{{ dateFormat.format(new Date(invite.createdAt)) }}</td>
-              <td><v-chip size="small" variant="tonal" :color="STATUS_COLORS[invite.status]">{{ invite.status }}</v-chip></td>
-              <td class="d-none d-sm-table-cell">{{ dateFormat.format(new Date(invite.expiresAt)) }}</td>
-              <td class="text-right">
-                <v-btn v-if="invite.status === 'open'" variant="text" size="small" color="error" @click="revoke(invite)">Revoke</v-btn>
-              </td>
-            </tr>
-          </tbody>
-        </v-table>
+        <DataTable
+          v-if="invites.length > 0"
+          :headers="inviteHeaders"
+          :items="invites"
+          search-label="Search invites"
+          storage-key="registration-invites"
+          :sort-by="[{ key: 'createdAt', order: 'desc' }]"
+        >
+          <template #[`item.createdAt`]="{ item }">{{ dateFormat.format(new Date(item.createdAt)) }}</template>
+          <template #[`item.status`]="{ item }">
+            <v-chip size="small" variant="tonal" :color="STATUS_COLORS[item.status]">{{ item.status }}</v-chip>
+          </template>
+          <template #[`item.expiresAt`]="{ item }">{{ dateFormat.format(new Date(item.expiresAt)) }}</template>
+          <template #[`item.actions`]="{ item }">
+            <v-btn v-if="item.status === 'open'" variant="text" size="small" color="error" @click="revoke(item)">Revoke</v-btn>
+          </template>
+        </DataTable>
         <p v-else class="text-body-medium text-medium-emphasis pa-4 my-0">No invite links yet.</p>
       </template>
     </template>

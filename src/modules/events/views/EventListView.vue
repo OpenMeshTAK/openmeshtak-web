@@ -2,16 +2,18 @@
 import {
   mdiAccessPointNetwork,
   mdiAccountGroup,
+  mdiAlertCircleOutline,
   mdiCalendarBlank,
   mdiCalendarPlus,
+  mdiCheck,
   mdiCog,
-  mdiMagnify,
   mdiMapLegend,
   mdiPackageVariantClosed,
   mdiRadioTower,
 } from "@mdi/js";
 import { computed, onMounted, ref } from "vue";
 import { useRouter, type RouteLocationRaw } from "vue-router";
+import DataTable from "@/shared/components/DataTable.vue";
 import EmptyState from "@/shared/components/EmptyState.vue";
 import ErrorState from "@/shared/components/ErrorState.vue";
 import ViewContent from "@/shared/components/layout/ViewContent.vue";
@@ -29,7 +31,6 @@ const router = useRouter();
 const session = useSession();
 const events = useAsyncData(listAllEvents, [] as EventListItem[]);
 const createOpen = ref(false);
-const search = ref("");
 const status = ref<StatusFilter>("all");
 /** Unpublished changes or unresolved sync issues: things an organizer has to act on. */
 const attentionOnly = ref(false);
@@ -50,14 +51,14 @@ const statusOptions = computed(() => {
 });
 
 const headers = [
-  { title: "Name", key: "name" },
+  { title: "Name", key: "name", minWidth: "200px" },
   { title: "Status", key: "status" },
   { title: "Published", key: "published", value: (event: EventListItem) => event.overview.publishedRevision ?? -1 },
   { title: "Members", key: "members", value: (event: EventListItem) => event.overview.memberCount, align: "end" as const },
   { title: "Sync issues", key: "issues", value: (event: EventListItem) => event.overview.openSyncIssueCount, align: "end" as const },
   { title: "Dates", key: "startsAt" },
   { title: "Updated", key: "updatedAt" },
-  { title: "", key: "actions", sortable: false, align: "end" as const },
+  { title: "Actions", key: "actions", sortable: false, align: "end" as const },
 ];
 
 /** Status sorts by lifecycle (active, draft, archived) and dates by time; missing dates last. */
@@ -71,15 +72,15 @@ const sortKeys = {
 };
 const sortBy = ref([{ key: "status", order: "asc" as const }]);
 
-const rows = computed(() => {
-  const text = (search.value ?? "").trim().toLowerCase();
-  return events.data.value.filter(
-    (event) =>
-      (status.value === "all" || event.status === status.value) &&
-      (!attentionOnly.value || needsAttention(event)) &&
-      (text === "" || event.name.toLowerCase().includes(text) || event.slug.includes(text)),
-  );
-});
+const rows = computed(() =>
+  events.data.value.filter(
+    (event) => (status.value === "all" || event.status === status.value) && (!attentionOnly.value || needsAttention(event)),
+  ),
+);
+
+function eventSearchText(event: EventListItem): string[] {
+  return [event.name, event.slug];
+}
 
 /** Dates in the event's own time zone, so organizers everywhere see the same days. */
 function eventDates(event: EventDto): string {
@@ -160,43 +161,47 @@ onMounted(events.load);
     </EmptyState>
 
     <template v-else>
-      <div class="event-filters mb-4">
-        <v-text-field
-          v-model="search"
-          :prepend-inner-icon="mdiMagnify"
-          label="Search events"
-          density="compact"
-          hide-details
-          clearable
-          class="event-filters__search"
-        />
-        <v-select v-model="status" :items="statusOptions" label="Status" density="compact" hide-details class="event-filters__status" />
-        <v-switch
-          v-model="attentionOnly"
-          :label="`Needs attention (${String(attentionCount)})`"
-          color="primary"
-          density="compact"
-          hide-details
-          inset
-        />
-      </div>
-
       <v-card>
-        <v-data-table
+        <DataTable
           v-model:sort-by="sortBy"
           :headers="headers"
           :items="rows"
           :custom-key-sort="sortKeys"
-          item-value="id"
+          :searchable="true"
+          :search-text="eventSearchText"
+          search-label="Search events"
+          storage-key="events"
           hover
-          mobile-breakpoint="sm"
-          :items-per-page="-1"
-          hide-default-footer
+          class="clickable-rows"
           no-data-text="No events match the filters."
           @click:row="(_: unknown, { item }: { item: EventDto }) => open(item)"
         >
+          <template #toolbar>
+            <v-select
+              v-model="status"
+              :items="statusOptions"
+              aria-label="Status"
+              variant="solo-filled"
+              flat
+              rounded="lg"
+              density="compact"
+              hide-details
+              class="event-filters__status"
+            />
+            <v-btn
+              variant="tonal"
+              :color="attentionOnly ? 'warning' : undefined"
+              :prepend-icon="attentionOnly ? mdiCheck : mdiAlertCircleOutline"
+              :aria-pressed="attentionOnly"
+              height="40"
+              class="attention-filter"
+              @click="attentionOnly = !attentionOnly"
+            >
+              Needs attention · {{ attentionCount }}
+            </v-btn>
+          </template>
           <template #[`item.name`]="{ item }">
-            <router-link :to="{ name: 'event-detail', params: { eventId: item.id } }" class="event-link" @click.stop>
+            <router-link :to="{ name: 'event-detail', params: { eventId: item.id } }" class="row-link" @click.stop>
               <div class="font-weight-medium text-break">{{ item.name }}</div>
               <div class="text-body-small text-medium-emphasis">{{ item.slug }}</div>
             </router-link>
@@ -239,7 +244,7 @@ onMounted(events.load);
               />
             </div>
           </template>
-        </v-data-table>
+        </DataTable>
       </v-card>
     </template>
 
@@ -248,15 +253,9 @@ onMounted(events.load);
 </template>
 
 <style scoped>
-.event-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.event-filters__search {
-  flex: 0 1 360px;
-  min-width: 200px;
+.attention-filter {
+  text-transform: none;
+  letter-spacing: normal;
 }
 
 .event-filters__status {
@@ -264,26 +263,4 @@ onMounted(events.load);
   min-width: 180px;
 }
 
-.event-link {
-  display: block;
-  padding-block: 6px;
-  color: inherit;
-  text-decoration: none;
-}
-
-.event-link:focus-visible {
-  outline: 2px solid rgb(var(--v-theme-primary));
-  outline-offset: 2px;
-}
-
-:deep(tbody tr) {
-  cursor: pointer;
-}
-
-@media (max-width: 599px) {
-  .event-filters__search,
-  .event-filters__status {
-    flex-basis: 100%;
-  }
-}
 </style>

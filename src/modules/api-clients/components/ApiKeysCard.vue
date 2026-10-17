@@ -3,6 +3,7 @@ import InfoHint from "@/shared/components/InfoHint.vue";
 import { mdiKeyPlus } from "@mdi/js";
 import { computed, onMounted, ref } from "vue";
 import ConfirmDialog from "@/shared/components/ConfirmDialog.vue";
+import DataTable from "@/shared/components/DataTable.vue";
 import OneTimeCredentialReveal from "@/shared/components/OneTimeCredentialReveal.vue";
 import { useAsyncData } from "@/shared/composables/useAsyncData";
 import { useSubmission } from "@/shared/composables/useSubmission";
@@ -15,6 +16,14 @@ const toast = useToast();
 
 const keys = useAsyncData(() => listApiKeys(props.apiClientId), [] as ApiKeyDto[]);
 const activeKeys = computed(() => keys.data.value.filter(({ status }) => status === "active").length);
+
+const headers = [
+  { title: "Name", key: "name" },
+  { title: "Key", key: "displayPrefix" },
+  { title: "Status", key: "status" },
+  { title: "Last used", key: "lastUsedAt", searchable: false },
+  { title: "Actions", key: "actions", sortable: false, align: "end" as const },
+];
 
 const dialogOpen = ref(false);
 const keyName = ref("");
@@ -75,30 +84,20 @@ onMounted(keys.load);
 
     <v-skeleton-loader v-if="keys.state.value === 'loading'" type="table-row@2" />
     <v-alert v-else-if="keys.state.value === 'error'" type="error">{{ keys.error.value }}</v-alert>
-    <v-table v-else-if="keys.data.value.length > 0" density="compact">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Key</th>
-          <th>Status</th>
-          <th>Last used</th>
-          <th />
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="key in keys.data.value" :key="key.id">
-          <td>{{ key.name }}</td>
-          <td><code class="text-body-small">{{ key.displayPrefix }}…</code></td>
-          <td>{{ key.status }}</td>
-          <td>{{ key.lastUsedAt ? new Date(key.lastUsedAt).toLocaleString() : "Never" }}</td>
-          <td class="text-right">
-            <v-btn v-if="key.status === 'active'" variant="text" size="small" color="error" @click="revoking = key">
-              Revoke
-            </v-btn>
-          </td>
-        </tr>
-      </tbody>
-    </v-table>
+    <DataTable
+      v-else-if="keys.data.value.length > 0"
+      :headers="headers"
+      :items="keys.data.value"
+      search-label="Search API keys"
+      storage-key="api-keys"
+      density="compact"
+    >
+      <template #[`item.displayPrefix`]="{ item }"><code class="text-body-small">{{ item.displayPrefix }}…</code></template>
+      <template #[`item.lastUsedAt`]="{ item }">{{ item.lastUsedAt ? new Date(item.lastUsedAt).toLocaleString() : "Never" }}</template>
+      <template #[`item.actions`]="{ item }">
+        <v-btn v-if="item.status === 'active'" variant="text" size="small" color="error" @click="revoking = item">Revoke</v-btn>
+      </template>
+    </DataTable>
     <p v-else class="text-body-medium ma-0">No keys yet.</p>
 
     <v-dialog :model-value="dialogOpen" max-width="620" persistent>
