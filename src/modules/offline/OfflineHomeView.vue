@@ -8,6 +8,8 @@ import InfoHint from "@/shared/components/InfoHint.vue";
 import ViewHeader from "@/shared/components/layout/ViewHeader.vue";
 import { useNetworkState } from "./useNetworkState";
 import { clearEvent, listSnapshots, type StoredSnapshot } from "./offline-store";
+import { storeUplinkEnabled } from "./uplink/hq-identity";
+import { clearOutbox } from "./uplink/uplink-outbox";
 
 /**
  * Entry point of the offline HQ: the events stored in this browser. Works without Core and
@@ -38,7 +40,9 @@ function askClear(record: StoredSnapshot): void {
 
 async function confirmClear(): Promise<void> {
   if (clearing.value !== null) {
-    await clearEvent(clearing.value.eventId);
+    // Clearing an event also ends its uplink and deletes what was still waiting to be sent.
+    storeUplinkEnabled(clearing.value.eventId, false);
+    await Promise.all([clearEvent(clearing.value.eventId), clearOutbox(clearing.value.eventId)]);
   }
   clearOpen.value = false;
   await load();

@@ -22,6 +22,8 @@ export interface RadioPosition {
   course: number | null;
   /** Ground speed in metres per second; only sent when the node's position flags include speed. */
   speed: number | null;
+  /** Meshtastic `precision_bits`: fewer bits mean a deliberately coarser position; `null` for full precision. */
+  precisionBits: number | null;
 }
 
 export type RadioEvent =
@@ -50,6 +52,8 @@ export type RadioEvent =
       batteryLevel: number | null;
       snr: number | null;
       rssi: number | null;
+      /** Hops the packet travelled, from `hop_start - hop_limit`; `null` on firmware that does not send `hop_start`. */
+      hopsAway: number | null;
     }
   | { type: "config-complete"; id: number }
   | { type: "rebooted" };
@@ -73,6 +77,7 @@ function positionOf(position: Mesh.Position | undefined): RadioPosition | null {
     time: position.time > 0 ? position.time : null,
     course: course !== null && course < 360 ? course : null,
     speed: position.groundSpeed === undefined ? null : position.groundSpeed / 3.6,
+    precisionBits: position.precisionBits > 0 && position.precisionBits < 32 ? position.precisionBits : null,
   };
 }
 
@@ -96,6 +101,7 @@ function packetEvent(packet: Mesh.MeshPacket): RadioEvent {
     batteryLevel: null as number | null,
     snr: nonZero(packet.rxSnr),
     rssi: nonZero(packet.rxRssi),
+    hopsAway: packet.hopStart > 0 && packet.hopStart >= packet.hopLimit ? packet.hopStart - packet.hopLimit : null,
   };
   if (packet.payloadVariant.case !== "decoded") {
     return base;

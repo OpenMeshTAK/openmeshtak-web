@@ -6,10 +6,11 @@ import type { OfflineSnapshotDto } from "./offline.api";
  * in the HTTP or service worker cache, and no credentials, keys or member data are stored.
  *
  * Stores: `snapshots` (one record per event), `tiles` and `images` (binary map content keyed by
- * event and content, so one event can be cleared without touching another).
+ * event and content, so one event can be cleared without touching another), and `outbox`: mesh
+ * observations waiting for the uplink to Core (see `uplink/uplink-outbox.ts`).
  */
 const DATABASE_NAME = "openmeshtak-offline";
-const DATABASE_VERSION = 1;
+const DATABASE_VERSION = 2;
 
 export interface StoredSnapshot {
   eventId: string;
@@ -26,14 +27,14 @@ export interface StoredSnapshot {
 
 let opened: Promise<IDBDatabase> | null = null;
 
-function requestResult<T>(request: IDBRequest<T>): Promise<T> {
+export function requestResult<T>(request: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error ?? new Error("IndexedDB request failed."));
   });
 }
 
-function transactionDone(transaction: IDBTransaction): Promise<void> {
+export function transactionDone(transaction: IDBTransaction): Promise<void> {
   return new Promise((resolve, reject) => {
     transaction.oncomplete = () => resolve();
     transaction.onerror = () => reject(transaction.error ?? new Error("IndexedDB transaction failed."));
@@ -41,18 +42,25 @@ function transactionDone(transaction: IDBTransaction): Promise<void> {
   });
 }
 
-function openDatabase(): Promise<IDBDatabase> {
+export function openDatabase(): Promise<IDBDatabase> {
   opened ??= new Promise<IDBDatabase>((resolve, reject) => {
     if (typeof indexedDB === "undefined") {
       reject(new Error("This browser cannot store offline data."));
       return;
     }
     const request = indexedDB.open(DATABASE_NAME, DATABASE_VERSION);
-    request.onupgradeneeded = () => {
+    request.onupgradeneeded = (event) => {
       const database = request.result;
-      database.createObjectStore("snapshots", { keyPath: "eventId" });
-      database.createObjectStore("tiles");
-      database.createObjectStore("images");
+      if (event.oldVersion < 1) {
+        database.createObjectStore("snapshots", { keyPath: "eventId" });
+        database.createObjectStore("tiles");
+        database.createObjectStore("images");
+      }
+      if (event.oldVersion < 2) {
+        // Auto-increment keys keep the receive order; the index selects one event in that order.
+        const outbox = database.createObjectStore("outbox", { keyPath: "id", autoIncrement: true });
+        outbox.createIndex("eventId", "eventId");
+      }
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error ?? new Error("Offline storage could not be opened."));

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { DEFAULT_GRID_SETTINGS } from "@/modules/editor/map/mgrs-grid";
-import { mdiArrowLeft, mdiClipboardCheckOutline, mdiFullscreen, mdiFullscreenExit, mdiUsb, mdiWifiOff } from "@mdi/js";
+import { mdiArrowLeft, mdiClipboardCheckOutline, mdiFullscreen, mdiFullscreenExit, mdiLinkVariant, mdiUsb, mdiWifiOff } from "@mdi/js";
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import ErrorState from "@/shared/components/ErrorState.vue";
@@ -13,13 +13,17 @@ import { isStale, nodeLabel, type MeshNode } from "./meshtastic/mesh-nodes";
 import { useMeshRadio } from "./meshtastic/useMeshRadio";
 import { hasOfflineBasemap, offlineMapData, type OfflineMapData } from "./offline-map-data";
 import { readSnapshot, type StoredSnapshot } from "./offline-store";
+import MeshNodeBindings from "@/modules/mesh-bindings/MeshNodeBindings.vue";
 import ReadinessPanel from "./ReadinessPanel.vue";
+import MeshUplinkPanel from "./uplink/MeshUplinkPanel.vue";
+import { useMeshUplink } from "./uplink/useMeshUplink";
 import { useNetworkState } from "./useNetworkState";
 
 /**
  * Offline HQ live view: the event's stored published Data Packages on the shared map, plus the
- * Meshtastic nodes a USB-connected radio hears. It makes no request to Core or any tile provider,
- * so it works the same with and without a network.
+ * Meshtastic nodes a USB-connected radio hears. The map makes no request to Core or any tile
+ * provider, so it works the same with and without a network. Only the optional mesh uplink and
+ * node bindings talk to Core, and only while online and signed in.
  */
 const route = useRoute();
 const router = useRouter();
@@ -34,8 +38,10 @@ const readinessOpen = ref(false);
 const tool = ref<EditorTool>("select");
 const fullscreen = ref(false);
 const mapView = ref<InstanceType<typeof PackageMapView> | null>(null);
-const radio = useMeshRadio();
 const { online } = useNetworkState();
+const uplink = useMeshUplink(eventId, online);
+const radio = useMeshRadio({ onPacket: uplink.observe });
+const bindingsOpen = ref(false);
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
 const staleChoices = [5, 15, 30, 60, 120].map((minutes) => ({ title: `${String(minutes)} min`, value: minutes }));
 
@@ -122,6 +128,7 @@ onBeforeUnmount(() => {
         </div>
         <div class="text-body-small text-medium-emphasis text-truncate">
           {{ positioned }} of {{ nodes.length }} nodes with position · {{ radioLabel }}
+          <template v-if="uplink.enabled.value"> · uplink on<template v-if="uplink.status.value.queued > 0">, {{ uplink.status.value.queued }} queued</template></template>
           <template v-if="record !== null"> · stored {{ dateFormat.format(new Date(record.storedAt)) }}</template>
         </div>
       </div>
@@ -204,11 +211,22 @@ onBeforeUnmount(() => {
           </p>
         </div>
         <v-divider />
+        <MeshUplinkPanel :uplink="uplink" :event-id="eventId" :now="radio.now.value" :online="online" />
+        <v-divider />
         <div class="d-flex align-center px-3 pt-3 pb-1">
           <div class="text-title-small flex-grow-1">
             Mesh nodes
             <InfoHint text="Squares on the map are Meshtastic nodes heard by this radio, not TAK markers. Grey dashed squares are stale: their last position is older than the chosen time or of unknown age." />
           </div>
+          <v-btn
+            v-if="uplink.canManageBindings.value"
+            :icon="mdiLinkVariant"
+            variant="text"
+            size="small"
+            aria-label="Bind nodes to members"
+            title="Bind nodes to members"
+            @click="bindingsOpen = true"
+          />
           <span class="text-body-small text-medium-emphasis">{{ nodes.length }}</span>
         </div>
         <p v-if="nodes.length === 0" class="text-body-medium text-medium-emphasis px-3 pb-3 my-0">
@@ -227,6 +245,19 @@ onBeforeUnmount(() => {
         </v-list>
       </v-sheet>
     </main>
+
+    <v-dialog v-model="bindingsOpen" max-width="960" scrollable>
+      <v-card>
+        <v-card-title class="text-title-large">Node bindings</v-card-title>
+        <v-card-text>
+          <MeshNodeBindings v-if="bindingsOpen" :event-id="eventId" editable />
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="bindingsOpen = false">Close</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
 
     <v-dialog v-model="readinessOpen" max-width="560" scrollable>
       <v-card>

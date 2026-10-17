@@ -19,6 +19,8 @@ export interface MeshNode {
   /** At least one packet of this node arrived while connected. */
   heardLive: boolean;
   batteryLevel: number | null;
+  /** The battery level came from telemetry heard live, not from the radio's node database. */
+  batteryHeardLive: boolean;
   snr: number | null;
   rssi: number | null;
   /** The HQ radio itself. */
@@ -67,6 +69,7 @@ function nodeOf(state: MeshState, num: number): MeshNode {
       lastHeardAt: null,
       heardLive: false,
       batteryLevel: null,
+      batteryHeardLive: false,
       snr: null,
       rssi: null,
       isOwnRadio: num === state.ownNodeNum,
@@ -140,6 +143,7 @@ export function applyRadioEvent(state: MeshState, event: RadioEvent, now: Date):
       }
       if (event.batteryLevel !== null) {
         node.batteryLevel = event.batteryLevel;
+        node.batteryHeardLive = true;
       }
       return true;
     }
