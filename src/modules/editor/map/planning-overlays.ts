@@ -58,7 +58,8 @@ export function planningOverlayStyles(feature: FeatureLike, style: PackageObject
       // Circles need an area footprint so the buffer surrounds the outer circumference.
       const input = source.type === "LineString" && geometry instanceof Circle ? { type: "Polygon" as const, coordinates: [source.coordinates] } : source;
       const boundary = buffer(input, style.minimumSafeDistance, { units: "meters", steps: 8 });
-      if (boundary?.type === "Feature") result.push(new Style({ geometry: format.readGeometry(boundary.geometry), stroke: new Stroke({ color: style.msdColor ?? style.color, width: 3 }) }));
+      const boundaryGeometry = boundary?.type === "Feature" ? format.readGeometry(boundary.geometry) : null;
+      if (boundaryGeometry !== null) result.push(new Style({ geometry: boundaryGeometry, stroke: new Stroke({ color: style.msdColor ?? style.color, width: 3 }) }));
     } catch { /* Core rejects invalid derived boundaries; transient drags keep the source visible. */ }
   }
   cache.set(feature, { geometry, key, styles: result });
