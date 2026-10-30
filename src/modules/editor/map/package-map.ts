@@ -147,8 +147,11 @@ export class PackageMap {
 
     this.select = new Select({ layers: [vectorLayer], style: null });
     this.select.on("select", (event) => {
-      const feature = this.topFeatureAtPixel(event.mapBrowserEvent.pixel, vectorLayer);
-      const pointer = event.mapBrowserEvent.originalEvent;
+      // Only programmatic selection lacks a browser event, and the editor never selects that way.
+      const browserEvent = event.mapBrowserEvent;
+      if (browserEvent === undefined) return;
+      const feature = this.topFeatureAtPixel(browserEvent.pixel, vectorLayer);
+      const pointer = browserEvent.originalEvent;
       if (feature !== undefined && this.callbacks.onSelectedMany !== undefined && (pointer.shiftKey || pointer.ctrlKey || pointer.metaKey)) {
         const id = String(feature.getId());
         const samePackage = this.source.getFeatureById(this.selectedIds[0] ?? "")?.get("packageId") === feature.get("packageId");
@@ -226,10 +229,11 @@ export class PackageMap {
     this.map.on("pointermove", (event) => {
       this.pointer = toLonLat(event.coordinate);
     });
-    this.map.getViewport().addEventListener("mouseleave", () => {
+    const viewport = this.map.getViewport();
+    viewport?.addEventListener("mouseleave", () => {
       this.pointer = null;
     });
-    this.map.getViewport().addEventListener("contextmenu", (event) => {
+    viewport?.addEventListener("contextmenu", (event) => {
       event.preventDefault();
       this.openContextMenu(event, vectorLayer);
     });

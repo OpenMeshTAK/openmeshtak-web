@@ -27,15 +27,22 @@ function metresPerMapUnit(center: number[]): number {
   return getPointResolution("EPSG:3857", 1, center, "m");
 }
 
+/** OpenLayers returns `null` for GeoJSON without a geometry; package geometry always has one. */
+function readGeometry(geoJson: object): Geometry {
+  const geometry = format.readGeometry(geoJson);
+  if (geometry === null) throw new Error("Unsupported map geometry.");
+  return geometry;
+}
+
 export function toMapGeometry(geometry: PackageGeometry): Geometry {
   if (geometry.type === "Ellipse") return ellipsePolygon(geometry);
   if (geometry.type === "Rectangle") return new Polygon([[...geometry.coordinates, geometry.coordinates[0] ?? []].map((p) => fromLonLat(p))]);
-  if (geometry.type === "Route") return format.readGeometry({ type: "LineString", coordinates: geometry.coordinates });
+  if (geometry.type === "Route") return readGeometry({ type: "LineString", coordinates: geometry.coordinates });
   if (geometry.type === "Circle") {
     const center = fromLonLat(geometry.coordinates);
     return new Circle(center, geometry.radius / metresPerMapUnit(center));
   }
-  return format.readGeometry(geometry);
+  return readGeometry(geometry);
 }
 
 function positionsOf(geometry: PackageGeometry): Position[] {
